@@ -6,6 +6,7 @@ import { History } from '../cmd/history.js';
 import { Ls } from '../cmd/ls.js';
 import { Cd } from '../cmd/cd.js';
 import { Clear } from '../cmd/clear.js';
+import { View } from '../cmd/view.js';
 import { FilesystemService } from './FilesystemService.js';
 
 /**
@@ -42,6 +43,7 @@ class CommandService {
       this.register('ls', Ls);
       this.register('cd', Cd);
       this.register('clear', Clear);
+      this.register('view', View);
     }
 
     /**
@@ -115,8 +117,6 @@ class CommandService {
      * @returns {Promise<void>} A promise that resolves when the command execution is complete.
      */
     async execute(cmd, output) {
-      // Simulate a delay for command execution.
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
       const trimmedCmd = cmd.trim();
       if (!trimmedCmd) {

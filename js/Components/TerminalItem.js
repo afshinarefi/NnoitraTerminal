@@ -51,6 +51,13 @@ const CSS = `
   margin-top: 5px;
   margin-bottom: 5px;
 }
+
+/* Styles for media elements injected by commands like 'view' */
+[part=output] .media {
+  width: 96%;
+  max-width: 600px; /* Adjusted for better fit in a terminal view */
+  margin: 10px 2%;
+}
 `;
 
 // Define component-specific styles
