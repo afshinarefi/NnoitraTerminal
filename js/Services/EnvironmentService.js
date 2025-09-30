@@ -44,6 +44,14 @@ class EnvironmentService {
 	}
 
 	/**
+	 * Removes an environment variable from the session.
+	 * @param {string} key - The name of the variable to remove.
+	 */
+	removeVariable(key) {
+		this.#variables.delete(key);
+	}
+
+	/**
 	 * Checks if an environment variable is defined.
 	 * @param {string} key - The name of the variable to check.
 	 * @returns {boolean} `true` if the variable is set, `false` otherwise.

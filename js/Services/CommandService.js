@@ -8,6 +8,9 @@ import { Ls } from '../cmd/ls.js';
 import { Cd } from '../cmd/cd.js';
 import { Clear } from '../cmd/clear.js';
 import { View } from '../cmd/view.js';
+import { Useradd } from '../cmd/useradd.js';
+import { Login } from '../cmd/login.js';
+import { Logout } from '../cmd/logout.js';
 import { FilesystemService } from './FilesystemService.js';
 
 /**
@@ -46,6 +49,9 @@ class CommandService {
       this.register('cd', Cd);
       this.register('clear', Clear);
       this.register('view', View);
+      this.register('useradd', Useradd);
+      this.register('login', Login);
+      this.register('logout', Logout);
     }
 
     /**
