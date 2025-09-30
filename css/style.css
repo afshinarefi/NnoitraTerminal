@@ -5,7 +5,8 @@
 :root {
   /* Global Theming Variables */
   --arefi-color-theme: #0c0;
-  --arefi-color-muted: rgb(0, 255, 0, 0.6);
+  --arefi-color-muted: rgb(0, 204, 0, 0.5);
+  --arefi-color-placeholder: var(--arefi-color-muted);
   --arefi-color-background: #000;
   --arefi-color-text: var(--arefi-color-theme);
   --arefi-color-output: #fff;
@@ -28,27 +29,5 @@ html, body {
 
 html {
   touch-action: pan-y;
-}
-
-.media {
-    width: 96%;
-    max-width: 900px;
-    margin: 10px 2%;
-}
-
-#profile-picture {
-    width: 96%;
-    max-width: 25rem;
-    margin: 5px 0.25rem;
-}
-
-.about-title {
-    font-weight: bold;
-}
-
-a {
-    color: inherit; /* Makes the link take the parent's text color */
-    font-weight: inherit; /* Inherits bold/regular weight */
-    font-size: inherit; /* Matches surrounding text size */
 }
 

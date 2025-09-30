@@ -46,16 +46,16 @@ class Man {
         }
         // If starting the first argument, suggest all command names
         if (currentArgs.length === 0) {
-            return commandService.getCommandNames();
+            return commandService.getAvailableCommandNames();
         }
         // If typing the first argument, suggest matching command names
         if (currentArgs.length === 1) {
             const input = currentArgs[0] || '';
             // If input is already a valid command name, do not suggest anything
-            if (commandService.getCommandNames().includes(input)) {
+            if (commandService.getAvailableCommandNames().includes(input)) {
                 return [];
             }
-            return commandService.getCommandNames().filter(cmd => cmd.startsWith(input));
+            return commandService.getAvailableCommandNames().filter(cmd => cmd.startsWith(input));
         }
         // If typing the second or later argument, do not suggest anything
         return [];
@@ -84,13 +84,13 @@ class Man {
         }
         const lowerCmdName = cmdName.toLowerCase();
         // Debug: print all command names and lookup result
-        console.log('DEBUG: getCommandNames()', this.#commandService.getCommandNames());
-        let exactMatch = this.#commandService.getCommandNames().find(cmd => cmd.toLowerCase() === lowerCmdName);
+        console.log('DEBUG: getAvailableCommandNames()', this.#commandService.getAvailableCommandNames());
+        let exactMatch = this.#commandService.getAvailableCommandNames().find(cmd => cmd.toLowerCase() === lowerCmdName);
         let CommandClass = exactMatch ? this.#commandService.getCommandClass(exactMatch) : undefined;
         console.log('DEBUG: exactMatch', exactMatch, 'CommandClass', CommandClass);
         if (!CommandClass) {
             // Try unique partial match (case-insensitive)
-            const matches = this.#commandService.getCommandNames().filter(cmd => cmd.toLowerCase().startsWith(lowerCmdName));
+            const matches = this.#commandService.getAvailableCommandNames().filter(cmd => cmd.toLowerCase().startsWith(lowerCmdName));
             console.log('DEBUG: partial matches', matches);
             if (matches.length === 1) {
                 CommandClass = this.#commandService.getCommandClass(matches[0]);

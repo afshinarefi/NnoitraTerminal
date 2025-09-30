@@ -36,6 +36,10 @@ const CSS = `
   font-family: var(--arefi-font-family);
   font-size: var(--arefi-font-size);
 }
+[part=prompt]::placeholder {
+  color: var(--arefi-color-placeholder);
+  opacity: 1; /* Firefox has a lower default opacity for placeholders */
+}
 `;
 // Define component-specific styles
 const commandLineSpecificStyles = new CSSStyleSheet();
@@ -83,15 +87,16 @@ class CommandLine extends ArefiBaseComponent {
    * @param {string} promptText - The text to display before the password input (e.g., "Password:").
    * @returns {Promise<string>} A promise that resolves with the entered password.
    */
-  requestPassword(promptText = 'Password:') {
+  requestPassword(promptText = 'Password') {
     return new Promise(resolve => {
       // Temporarily enable the prompt for password entry.
       this.refs.prompt.disabled = false;
       this.clear();
 
       this.refs.icon.key(); // Change icon to a key
-      this.refs.prompt.type = 'password';
+      this.refs.prompt.type = 'new-password';
       this.refs.prompt.placeholder = promptText;
+      this.focus(); // Ensure the input field has focus in password mode.
 
       const passwordHandler = (event) => {
         if (event.key === 'Enter') {
@@ -224,14 +229,14 @@ class CommandLine extends ArefiBaseComponent {
   disable() {
     this.refs.prompt.disabled = true;
     this.refs.icon.busy(); // Set icon to busy state.
-    this.refs.prompt.value = '[Running Command ...]'; // Provide feedback to the user.
+    this.refs.prompt.placeholder = '[Running Command ...]'; // Provide feedback to the user.
   }
 
   /**
    * Enables the command prompt, clearing any temporary messages and setting focus.
    */
   enable() {
-    this.refs.prompt.value = ''; // Clear the temporary message.
+    this.refs.prompt.placeholder = ''; // Clear the temporary message.
     this.refs.icon.ready(); // Set icon back to ready state.
     this.refs.prompt.disabled = false; // Enable the input field.
     this.focus(); // Set focus back to the prompt.

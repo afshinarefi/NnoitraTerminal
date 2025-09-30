@@ -19,6 +19,15 @@ class Logout {
         return [];
     }
 
+    /**
+     * Determines if the command is available in the current context.
+     * @param {object} services - A collection of all services.
+     * @returns {boolean} True if the command is available, false otherwise.
+     */
+    static isAvailable(services) {
+        return services.environment.hasVariable('TOKEN');
+    }
+
     async execute(args) {
         const outputDiv = document.createElement('div');
         const token = this.#environmentService.getVariable('TOKEN');

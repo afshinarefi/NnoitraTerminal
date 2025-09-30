@@ -90,7 +90,23 @@ class CommandService {
      * @returns {string[]} An array of command names.
      */
     getCommandNames() {
-        return Array.from(this.#registry.keys()).sort();
+        return Array.from(this.#registry.keys());
+    }
+
+    /**
+     * Returns a sorted list of currently available command names based on context (e.g., login status).
+     * @returns {string[]} An array of available command names.
+     */
+    getAvailableCommandNames() {
+        const allCommands = this.getCommandNames();
+        const availableCommands = allCommands.filter(name => {
+            const CommandClass = this.getCommandClass(name);
+            if (CommandClass && typeof CommandClass.isAvailable === 'function') {
+                return CommandClass.isAvailable(this.#services);
+            }
+            return true; // If isAvailable is not defined, assume the command is always available.
+        });
+        return availableCommands.sort();
     }
 
         /**
@@ -100,7 +116,7 @@ class CommandService {
          */
         async autocomplete(parts) {
             if (parts.length === 0) {
-                return this.getCommandNames();
+                return this.getAvailableCommandNames();
             }
 
             const commandName = parts[0];
@@ -136,7 +152,7 @@ class CommandService {
       const commandName = args[0];
 
       // Check if the command is registered.
-      if (this.getCommandNames().includes(commandName)) {
+      if (this.getAvailableCommandNames().includes(commandName)) {
           try {
               const commandHandler = this.getCommand(commandName);
               // Execute the command handler and append its result to the output.

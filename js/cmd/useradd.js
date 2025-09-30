@@ -19,6 +19,16 @@ class Useradd {
         return []; // No autocomplete for username/password.
     }
 
+    /**
+     * Determines if the command is available in the current context.
+     * For now, only 'guest' can add users. This can be updated for 'root' privileges later.
+     * @param {object} services - A collection of all services.
+     * @returns {boolean} True if the command is available, false otherwise.
+     */
+    static isAvailable(services) {
+        return services.environment.getVariable('USER') === 'guest';
+    }
+
     async execute(args) {
         const outputDiv = document.createElement('div');
         const username = args[1];

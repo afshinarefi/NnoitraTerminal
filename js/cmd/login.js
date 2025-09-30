@@ -22,6 +22,15 @@ class Login {
     }
 
     /**
+     * Determines if the command is available in the current context.
+     * @param {object} services - A collection of all services.
+     * @returns {boolean} True if the command is available, false otherwise.
+     */
+    static isAvailable(services) {
+        return !services.environment.hasVariable('TOKEN');
+    }
+
+    /**
      * Hashes a string using SHA-256.
      * @param {string} string - The string to hash.
      * @returns {Promise<string>} A promise that resolves to the hex-encoded hash.
