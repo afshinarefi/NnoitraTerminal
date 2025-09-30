@@ -1,0 +1,148 @@
+import { Welcome } from '../cmd/welcome.js';
+import { Env } from '../cmd/env.js';
+import { Help } from '../cmd/help.js';
+import { Man } from '../cmd/man.js';
+import { History } from '../cmd/history.js';
+import { Ls } from '../cmd/ls.js';
+import { Cd } from '../cmd/cd.js';
+import { Clear } from '../cmd/clear.js';
+import { FilesystemService } from './FilesystemService.js';
+
+/**
+ * @class CommandService
+ * @description Manages the registration, retrieval, and execution of terminal commands.
+ * It acts as a central registry for all available commands in the terminal application.
+ */
+class CommandService {
+    /** @private {Map<string, Function>} #registry - A map storing command names as keys and their corresponding CommandClass constructors as values. */
+    #registry = new Map();
+    /** @private {EnvironmentService} #environmentService - Reference to the EnvironmentService for passing to commands. */
+    #environmentService;
+    /** @private {HistoryService} #historyService - Reference to the HistoryService for passing to commands. */
+    #historyService;
+    /** @private {FilesystemService} #filesystemService - Reference to the FilesystemService for passing to commands. */
+    #filesystemService;
+    /** @private {Object} #services - A container for all services. */
+    #services;
+
+    /**
+     * Creates an instance of CommandService.
+     * Registers initial commands like 'welcome' and 'env'.
+     * @param {Object} services - An object containing all services (environmentService, historyService, etc.).
+     */
+    constructor(services) {
+      this.#services = services;
+
+      // Register default commands here.
+      this.register('welcome', Welcome);
+      this.register('env', Env);
+      this.register('help', Help);
+      this.register('man', Man);
+      this.register('history', History);
+      this.register('ls', Ls);
+      this.register('cd', Cd);
+      this.register('clear', Clear);
+    }
+
+    /**
+     * Registers a new command with the service.
+     * @param {string} name - The name of the command (e.g., 'ls', 'cd').
+     * @param {Function} CommandClass - The constructor function of the command class.
+     */
+    register(name, CommandClass) {
+        this.#registry.set(name, CommandClass);
+    }
+    
+    /**
+     * Retrieves an instance of a registered command.
+     * @param {string} name - The name of the command to retrieve.
+     * @returns {Object|null} A new instance of the command class if found, otherwise null.
+     */
+    getCommand(name) {
+        const CommandClass = this.#registry.get(name);
+        if (CommandClass) {
+            return new CommandClass(this.#services);
+        }
+        return null;
+    }
+
+    /**
+     * Retrieves the class constructor of a registered command.
+     * @param {string} name - The name of the command to retrieve.
+     * @returns {Function|undefined} The command class constructor if found, otherwise `undefined`.
+     */
+    getCommandClass(name) {
+        return this.#registry.get(name);
+    }
+
+    /**
+     * Returns a sorted list of all registered command names.
+     * @returns {string[]} An array of command names.
+     */
+    getCommandNames() {
+        return Array.from(this.#registry.keys()).sort();
+    }
+
+        /**
+         * Provides autocomplete suggestions based on the current command input parts.
+         * @param {string[]} parts - An array of command parts (e.g., `[]` for initial command, `['welcome']` for arguments).
+         * @returns {Promise<string[]>} Promise resolving to an array of possible completions.
+         */
+        async autocomplete(parts) {
+            if (parts.length === 0) {
+                return this.getCommandNames();
+            }
+
+            const commandName = parts[0];
+            const CommandClass = this.getCommandClass(commandName);
+
+            if (CommandClass && typeof CommandClass.autocompleteArgs === 'function') {
+                    const currentArgs = parts.slice(1);
+                    const result = CommandClass.autocompleteArgs(currentArgs, this.#services);
+                    if (result instanceof Promise) {
+                            return await result;
+                    }
+                    return result;
+            }
+
+            return [];
+        }
+
+    /**
+     * Executes a given command and appends its output to the provided output element.
+     * @param {string} cmd - The full command string to execute.
+     * @param {HTMLElement} output - The DOM element where the command's output should be appended.
+     * @returns {Promise<void>} A promise that resolves when the command execution is complete.
+     */
+    async execute(cmd, output) {
+      // Simulate a delay for command execution.
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const trimmedCmd = cmd.trim();
+      if (!trimmedCmd) {
+          output.innerText = ""; // Clear output for empty command.
+          return;
+      }
+
+      const args = trimmedCmd.split(/\s+/);
+      const commandName = args[0];
+
+      // Check if the command is registered.
+      if (this.getCommandNames().includes(commandName)) {
+          try {
+              const commandHandler = this.getCommand(commandName);
+              // Execute the command handler and append its result to the output.
+              const resultElement = await commandHandler.execute(args);
+              output.appendChild(resultElement);
+          } catch (e) {
+              // Handle errors during command execution.
+              output.innerText = `Error executing ${commandName}: ${e.message}`;
+          }
+      } else {
+          // Command not found message.
+          output.innerText = commandName + ": command not found";
+      }
+  }
+}
+
+export { CommandService };

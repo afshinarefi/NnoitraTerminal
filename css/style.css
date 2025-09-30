@@ -1,0 +1,54 @@
+* {
+  font-size: clamp(0.8rem, 3vw, 1.1rem);
+}
+
+:root {
+  /* Global Theming Variables */
+  --arefi-color-theme: #0c0;
+  --arefi-color-muted: rgb(0, 255, 0, 0.6);
+  --arefi-color-background: #000;
+  --arefi-color-text: var(--arefi-color-theme);
+  --arefi-color-output: #fff;
+  --arefi-color-highlight: var(--arefi-color-theme); /* Used for prompt icon/header background */
+  --arefi-color-text-highlight: #000; /* Used for text on highlight background */
+  --arefi-font-size: clamp(0.8rem, 3vw, 1.1rem);
+  --arefi-font-family: monospace;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  /* Use global variables */
+  background-color: var(--arefi-color-background); 
+  color: var(--arefi-color-text);
+  font-family: var(--arefi-font-family);
+  font-size: var(--arefi-font-size);
+  height: 100%;
+}
+
+html {
+  touch-action: pan-y;
+}
+
+.media {
+    width: 96%;
+    max-width: 900px;
+    margin: 10px 2%;
+}
+
+#profile-picture {
+    width: 96%;
+    max-width: 25rem;
+    margin: 5px 0.25rem;
+}
+
+.about-title {
+    font-weight: bold;
+}
+
+a {
+    color: inherit; /* Makes the link take the parent's text color */
+    font-weight: inherit; /* Inherits bold/regular weight */
+    font-size: inherit; /* Matches surrounding text size */
+}
+

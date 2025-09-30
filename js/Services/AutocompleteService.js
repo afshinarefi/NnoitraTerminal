@@ -1,0 +1,147 @@
+/**
+ * @class AutocompleteService
+ * @extends EventTarget
+ * @description Manages autocomplete functionality for the terminal. It listens for autocomplete requests
+ * from the command line, queries the command service for suggestions, and dispatches events with filtered
+ * and processed suggestions.
+ */
+class AutocompleteService extends EventTarget {
+
+  /** @private {CommandLine} #commandLine - Reference to the CommandLine component for event listening. */
+  #commandLine;
+  /** @private {CommandService} #commandService - Reference to the CommandService for fetching command suggestions. */
+  #commandService;
+
+  /**
+   * Creates an instance of AutocompleteService.
+   * @param {CommandLine} commandLine The CommandLine component instance.
+   * @param {object} services The object containing all services.
+   */
+  constructor(commandLine, services) {
+    super();
+    this.#commandLine = commandLine;
+    this.#commandService = services.command;
+    // Listen for autocomplete requests from the command line.
+    this.#commandLine.addEventListener('autocomplete-request', async (event) => {
+      await this.autocompleteReceive(event);
+    });
+  }
+
+  /**
+   * Finds the Longest Common Prefix (LCP) among a list of strings.
+   * @private
+   * @param {string[]} strings - The list of strings to compare.
+   * @returns {string} The longest common prefix, or an empty string if none exists.
+   */
+  #findSharedPrefix(strings) {
+    // 1. Handle edge cases (empty or single-item list)
+    if (!strings || strings.length === 0) {
+      return "";
+    }
+    if (strings.length === 1) {
+      return strings[0];
+    }
+
+    // 2. Initialize the prefix with the first string
+    let prefix = strings[0];
+
+    // 3. Iterate through the rest of the strings (starting from index 1)
+    for (let i = 1; i < strings.length; i++) {
+      const currentString = strings[i];
+
+      // 4. Refine the prefix:
+      // While the current prefix is NOT found at the beginning (index 0) of the current string,
+      // shorten the prefix by one character from the end.
+      while (currentString.indexOf(prefix) !== 0) {
+        // Shorten the prefix: e.g., "apple" -> "appl"
+        prefix = prefix.substring(0, prefix.length - 1);
+
+        // If the prefix becomes empty, there is no common prefix.
+        if (prefix.length === 0) {
+          return "";
+        }
+      }
+    }
+
+    // 5. Return the final common prefix
+    return prefix;
+  }
+
+  /**
+   * Handles an autocomplete request event from the CommandLine.
+   * Processes the input, fetches suggestions, finds the shared prefix, and dispatches
+   * an 'autocomplete-suggestions' event.
+   * @param {CustomEvent} event - The custom 'autocomplete-request' event containing the current command input.
+   * @param {string} event.detail - The current command string from the prompt.
+   */
+  async autocompleteReceive(event) {
+    event.stopPropagation();
+    const input = event.detail;
+    console.log('AutocompleteService: Input received:', input);
+    const rawParts = input.trimStart().split(/\s+/);
+    let lastPart = rawParts.at(-1);
+    console.log('AutocompleteService: Raw parts:', rawParts, 'Last part:', lastPart);
+
+    // Determine the parts to send to CommandService for context.
+    const isInputEndingWithSpace = input.endsWith(" ");
+    let partsForCommandService;
+
+    if (rawParts.length > 1) {
+      partsForCommandService = rawParts.slice(0, 1).concat([rawParts.slice(1).join(' ')]);
+      lastPart = rawParts.slice(1).join(' ');
+    } else if (isInputEndingWithSpace) {
+      partsForCommandService = rawParts;
+      lastPart = "";
+    } else {
+      partsForCommandService = rawParts.slice(0, -1);
+    }
+    console.log('AutocompleteService: Parts for CommandService:', partsForCommandService, 'Adjusted lastPart:', lastPart);
+
+    // Await all possible completions from the command service based on the context.
+    const allSuggestions = await this.#commandService.autocomplete(partsForCommandService);
+    console.log('AutocompleteService: All suggestions from CommandService:', allSuggestions);
+
+    // Filter suggestions based on the lastPart (which might be empty if a space was typed).
+    const filteredSuggestions = [...new Set(allSuggestions.filter(name => name.startsWith(lastPart)))];
+    console.log('AutocompleteService: Filtered suggestions:', filteredSuggestions);
+
+    // Find the longest common prefix among the filtered suggestions.
+    const sharedPrefix = this.#findSharedPrefix(filteredSuggestions);
+    console.log('AutocompleteService: Shared prefix:', sharedPrefix);
+
+    let completeCommand = input; // Default to original input
+
+    if (filteredSuggestions.length > 0) {
+      const currentParts = rawParts.slice(0, -1);
+      currentParts.push(sharedPrefix);
+      completeCommand = currentParts.join(" ");
+    } else {
+      const currentParts = rawParts.slice(0, -1);
+      currentParts.push(lastPart);
+      completeCommand = currentParts.join(" ");
+    }
+    console.log('AutocompleteService: Complete command:', completeCommand);
+
+    if (
+      filteredSuggestions.length === 1 &&
+      !isInputEndingWithSpace &&
+      !filteredSuggestions[0].endsWith('/')
+    ) {
+      completeCommand += " ";
+    }
+
+    const autocompleteEvent = new CustomEvent('autocomplete-suggestions', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        suggestions: filteredSuggestions,
+        complete: completeCommand,
+        prefix: sharedPrefix.length
+      }
+    });
+    console.log('AutocompleteService: Dispatching event with detail:', autocompleteEvent.detail);
+    this.dispatchEvent(autocompleteEvent);
+  }
+}
+
+export { AutocompleteService };

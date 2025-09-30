@@ -1,0 +1,11 @@
+/~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+|                             |
+|            /\_/\            |
+|           ( ^_^ )           |
+|            ("_")~           |
+|                             |
+| Welcome to my personal page |
+|                             |
+| Use `help` to see a list of |
+|    commands you can use     |
+\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~/
