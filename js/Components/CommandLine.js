@@ -7,7 +7,7 @@ import { Icon } from './Icon.js';
 const TEMPLATE = `
   <div part="footer">
   <arefi-icon part="icon"></arefi-icon>
-  <input type="text" autocomplete="off" autofocus="true" part="prompt">
+  <input type="text" autocomplete="new-password" autofocus="true" part="prompt">
   </div>
   `;
 
@@ -79,12 +79,47 @@ class CommandLine extends ArefiBaseComponent {
   }
 
   /**
+   * Switches the command line into a password input mode.
+   * @param {string} promptText - The text to display before the password input (e.g., "Password:").
+   * @returns {Promise<string>} A promise that resolves with the entered password.
+   */
+  requestPassword(promptText = 'Password:') {
+    return new Promise(resolve => {
+      // Temporarily enable the prompt for password entry.
+      this.refs.prompt.disabled = false;
+      this.clear();
+
+      this.refs.icon.key(); // Change icon to a key
+      this.refs.prompt.type = 'password';
+      this.refs.prompt.placeholder = promptText;
+
+      const passwordHandler = (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault(); // Prevent default 'Enter' behavior.
+          event.stopPropagation(); // Stop the event from bubbling up to other listeners.
+
+          const password = this.refs.prompt.value;
+          this.refs.prompt.removeEventListener('keydown', passwordHandler);
+          this.refs.prompt.type = 'text'; // Revert input type
+          this.refs.prompt.placeholder = ''; // Clear placeholder
+          this.clear();
+          // The calling command will re-disable the prompt, so we don't need to change the icon here.
+          resolve(password);
+        }
+      };
+      this.refs.prompt.addEventListener('keydown', passwordHandler);
+    });
+  }
+
+  /**
    * Handles various keyboard events for command input, history navigation, and autocomplete.
    * @param {KeyboardEvent} event - The keyboard event.
    */
   handleEvent(event) {
     // If the prompt is disabled, ignore all keyboard events.
     if (this.refs.prompt.disabled) {
+      event.stopPropagation();
+      event.preventDefault();
       return;
     }
 
@@ -207,4 +242,3 @@ class CommandLine extends ArefiBaseComponent {
 customElements.define('arefi-cmd', CommandLine);
 
 export { CommandLine };
-

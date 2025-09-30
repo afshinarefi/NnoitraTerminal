@@ -5,6 +5,12 @@
 class Useradd {
     static DESCRIPTION = 'Create a new user account.';
 
+    #prompt;
+
+    constructor(services) {
+        this.#prompt = services.prompt;
+    }
+
     static man() {
         return `NAME\n       useradd - Create a new user account.\n\nSYNOPSIS\n       useradd [username] [password]\n\nDESCRIPTION\n       Creates a new user with the specified username and password.`;
     }
@@ -16,11 +22,16 @@ class Useradd {
     async execute(args) {
         const outputDiv = document.createElement('div');
         const username = args[1];
-        const password = args[2];
+        let password = args[2];
 
-        if (!username || !password) {
-            outputDiv.textContent = 'Usage: useradd <username> <password>';
+        if (!username) {
+            outputDiv.textContent = 'Usage: useradd <username>';
             return outputDiv;
+        }
+
+        // If password is not provided as an argument, prompt for it interactively.
+        if (!password) {
+            password = await this.#prompt.requestPassword();
         }
 
         const formData = new FormData();

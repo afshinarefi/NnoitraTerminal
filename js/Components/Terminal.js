@@ -134,6 +134,9 @@ class Terminal extends ArefiBaseComponent {
     this.#services.filesystem = new FilesystemService();
     this.#services.command = new CommandService(this.#services);
 
+    // Add the command line prompt component to services so commands can interact with it.
+    this.#services.prompt = this.refs.prompt;
+
     // Initialize the filesystem service asynchronously
     this.#services.filesystem.init('/fs/index.py').then(() => {
     }).catch(error => {

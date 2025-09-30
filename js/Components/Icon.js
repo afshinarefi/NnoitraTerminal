@@ -42,7 +42,8 @@ class Icon extends ArefiBaseComponent {
     ready: '>',
     busy: '⧗',
     history: 'H:',
-    indexed: ':>'
+    indexed: ':>',
+    password: '$'
   };
 
   /**
@@ -58,6 +59,21 @@ class Icon extends ArefiBaseComponent {
 
     // Set the initial icon to 'ready'.
     this.ready();
+  }
+
+  /**
+   * Sets the icon to a key symbol, for password prompts.
+   */
+  key() {
+    this.refs.symbol.innerHTML = this.#icons.password;
+  }
+
+  /**
+   * Sets the icon's text directly. Used for custom prompts like "Password:".
+   * @param {string} text - The text to display.
+   */
+  setText(text) {
+    this.refs.symbol.innerHTML = text;
   }
 
   /**

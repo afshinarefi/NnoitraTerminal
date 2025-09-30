@@ -6,9 +6,11 @@ class Login {
     static DESCRIPTION = 'Log in as a user.';
 
     #environmentService;
+    #prompt;
 
     constructor(services) {
         this.#environmentService = services.environment;
+        this.#prompt = services.prompt;
     }
 
     static man() {
@@ -32,11 +34,16 @@ class Login {
     async execute(args) {
         const outputDiv = document.createElement('div');
         const username = args[1];
-        const password = args[2];
+        let password = args[2];
 
-        if (!username || !password) {
-            outputDiv.textContent = 'Usage: login <username> <password>';
+        if (!username) {
+            outputDiv.textContent = 'Usage: login <username>';
             return outputDiv;
+        }
+
+        // If password is not provided as an argument, prompt for it interactively.
+        if (!password) {
+            password = await this.#prompt.requestPassword();
         }
 
         try {
