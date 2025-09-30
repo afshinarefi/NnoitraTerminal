@@ -7,7 +7,8 @@ import { Icon } from './Icon.js';
 const TEMPLATE = `
   <div part="footer">
   <arefi-icon part="icon"></arefi-icon>
-  <input type="text" autocomplete="new-password" autofocus="true" part="prompt">
+  <input type="text" autocomplete="off" spellcheck="false" autofocus="true" part="prompt-text">
+  <input type="password" autocomplete="password" spellcheck="false" part="prompt-password" style="display: none;">
   </div>
   `;
 
@@ -26,7 +27,8 @@ const CSS = `
   font-family: var(--arefi-font-family);
   font-size: var(--arefi-font-size);
 }
-[part=prompt] {
+[part=prompt-text],
+[part=prompt-password] {
   background: none;
   border: none;
   outline: none;
@@ -36,9 +38,24 @@ const CSS = `
   font-family: var(--arefi-font-family);
   font-size: var(--arefi-font-size);
 }
-[part=prompt]::placeholder {
+[part=prompt-text]::placeholder,
+[part=prompt-password]::placeholder {
   color: var(--arefi-color-placeholder);
   opacity: 1; /* Firefox has a lower default opacity for placeholders */
+}
+/* Override browser default autofill styles */
+[part=prompt-text]:-webkit-autofill,
+[part=prompt-text]:-webkit-autofill:hover,
+[part=prompt-text]:-webkit-autofill:focus,
+[part=prompt-text]:-webkit-autofill:active,
+[part=prompt-password]:-webkit-autofill,
+[part=prompt-password]:-webkit-autofill:hover,
+[part-password]:-webkit-autofill:focus,
+[part=prompt-password]:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--arefi-color-text);
+    box-shadow: 0 0 0 1000px var(--arefi-color-background) inset;
+    -webkit-box-shadow: 0 0 0 1000px var(--arefi-color-background) inset;
+    transition: background-color 5000s ease-in-out 0s;
 }
 `;
 // Define component-specific styles
@@ -57,6 +74,8 @@ class CommandLine extends ArefiBaseComponent {
   #services = {};
   /** @private {string} #inputBuffer - Stores the current input value when navigating history. */
   #inputBuffer;
+  /** @private {HTMLInputElement} #activeInput - A reference to the currently visible input element. */
+  #activeInput;
 
   /**
    * Creates an instance of CommandLine.
@@ -68,6 +87,9 @@ class CommandLine extends ArefiBaseComponent {
 
     // Apply component-specific styles to the shadow DOM.
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, commandLineSpecificStyles];
+
+    // Set the initial active input to the text prompt.
+    this.#activeInput = this.refs['prompt-text'];
   }
 
   /**
@@ -89,30 +111,36 @@ class CommandLine extends ArefiBaseComponent {
    */
   requestPassword(promptText = 'Password') {
     return new Promise(resolve => {
-      // Temporarily enable the prompt for password entry.
-      this.refs.prompt.disabled = false;
+      // Switch to the password input.
+      this.refs['prompt-text'].style.display = 'none';
+      this.refs['prompt-password'].style.display = 'block';
+      this.#activeInput = this.refs['prompt-password'];
+
+      this.#activeInput.disabled = false;
       this.clear();
 
       this.refs.icon.key(); // Change icon to a key
-      this.refs.prompt.type = 'new-password';
-      this.refs.prompt.placeholder = promptText;
+      this.#activeInput.placeholder = promptText;
       this.focus(); // Ensure the input field has focus in password mode.
 
       const passwordHandler = (event) => {
         if (event.key === 'Enter') {
           event.preventDefault(); // Prevent default 'Enter' behavior.
           event.stopPropagation(); // Stop the event from bubbling up to other listeners.
+          const password = this.#activeInput.value;
+          this.#activeInput.removeEventListener('keydown', passwordHandler);
 
-          const password = this.refs.prompt.value;
-          this.refs.prompt.removeEventListener('keydown', passwordHandler);
-          this.refs.prompt.type = 'text'; // Revert input type
-          this.refs.prompt.placeholder = ''; // Clear placeholder
+          // Switch back to the text input.
+          this.refs['prompt-password'].style.display = 'none';
+          this.refs['prompt-text'].style.display = 'block';
+          this.#activeInput = this.refs['prompt-text'];
+
           this.clear();
           // The calling command will re-disable the prompt, so we don't need to change the icon here.
           resolve(password);
         }
       };
-      this.refs.prompt.addEventListener('keydown', passwordHandler);
+      this.#activeInput.addEventListener('keydown', passwordHandler);
     });
   }
 
@@ -122,7 +150,7 @@ class CommandLine extends ArefiBaseComponent {
    */
   handleEvent(event) {
     // If the prompt is disabled, ignore all keyboard events.
-    if (this.refs.prompt.disabled) {
+    if (this.#activeInput.disabled) {
       event.stopPropagation();
       event.preventDefault();
       return;
@@ -133,7 +161,7 @@ class CommandLine extends ArefiBaseComponent {
     switch (event.key) {
       case 'Enter':
         event.preventDefault();
-        const command = this.refs.prompt.value;
+        const command = this.#activeInput.value;
         this.#services.history.resetCursor(); // Reset history cursor after command submission.
         this.clear(); // Clear the input field.
         this.refs.icon.ready(); // Set icon to ready state.
@@ -151,12 +179,12 @@ class CommandLine extends ArefiBaseComponent {
         event.preventDefault();
         // Save current input before loading history if at the beginning of history navigation.
         if (this.#services.history.getCursorIndex() === 0) {
-          this.#inputBuffer = this.refs.prompt.value;
+          this.#inputBuffer = this.#activeInput.value;
         }
 
         const previousHistoryItem = this.#services.history.getPrevious();
         if (previousHistoryItem.index !== 0) {
-          this.refs.prompt.value = previousHistoryItem.command;
+          this.#activeInput.value = previousHistoryItem.command;
           this.refs.icon.history(previousHistoryItem.index);
         }
         break;
@@ -167,11 +195,11 @@ class CommandLine extends ArefiBaseComponent {
 
         // If at the end of history (new/empty command line), restore the buffered input.
         if (nextHistoryItem.index === 0) {
-          this.refs.prompt.value = this.#inputBuffer;
+          this.#activeInput.value = this.#inputBuffer;
           this.refs.icon.ready();
         } else {
           // Otherwise, load the command from history.
-          this.refs.prompt.value = nextHistoryItem.command;
+          this.#activeInput.value = nextHistoryItem.command;
           this.refs.icon.history(nextHistoryItem.index);
         }
         break;
@@ -182,7 +210,7 @@ class CommandLine extends ArefiBaseComponent {
         const autocompleteEvent = new CustomEvent('autocomplete-request', {
           bubbles: true,
           composed: true,
-          detail: this.refs.prompt.value
+          detail: this.#activeInput.value
         });
         this.dispatchEvent(autocompleteEvent);
         break;
@@ -197,7 +225,7 @@ class CommandLine extends ArefiBaseComponent {
    * Sets focus on the command prompt input field.
    */
   focus() {
-    this.refs.prompt.focus();
+    this.#activeInput.focus();
   }
 
   /**
@@ -205,7 +233,7 @@ class CommandLine extends ArefiBaseComponent {
    * @returns {string} The current value of the command prompt.
    */
   command() {
-    return this.refs.prompt.value;
+    return this.#activeInput.value;
   }
 
   /**
@@ -213,32 +241,32 @@ class CommandLine extends ArefiBaseComponent {
    * @param {string} value - The string to set as the command prompt's value.
    */
   setCommand(value) {
-    this.refs.prompt.value = value;
+    this.#activeInput.value = value;
   }
 
   /**
    * Clears the command prompt input field.
    */
   clear() {
-    this.refs.prompt.value = '';
+    this.#activeInput.value = '';
   }
 
   /**
    * Disables the command prompt, visually indicating that a command is running.
    */
   disable() {
-    this.refs.prompt.disabled = true;
+    this.#activeInput.disabled = true;
     this.refs.icon.busy(); // Set icon to busy state.
-    this.refs.prompt.placeholder = '[Running Command ...]'; // Provide feedback to the user.
+    this.#activeInput.placeholder = 'Running Command ...'; // Provide feedback to the user.
   }
 
   /**
    * Enables the command prompt, clearing any temporary messages and setting focus.
    */
   enable() {
-    this.refs.prompt.placeholder = ''; // Clear the temporary message.
+    this.#activeInput.placeholder = ''; // Clear the temporary message.
     this.refs.icon.ready(); // Set icon back to ready state.
-    this.refs.prompt.disabled = false; // Enable the input field.
+    this.#activeInput.disabled = false; // Enable the input field.
     this.focus(); // Set focus back to the prompt.
   }
 }

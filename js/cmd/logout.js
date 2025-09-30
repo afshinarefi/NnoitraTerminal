@@ -32,8 +32,13 @@ class Logout {
         const outputDiv = document.createElement('div');
         const token = this.#environmentService.getVariable('TOKEN');
 
+        // If there's no token, we are already logged out.
+        // Ensure the state is clean and inform the user.
         if (!token) {
-            outputDiv.textContent = 'Not logged in.';
+            this.#environmentService.removeVariable('TOKEN');
+            this.#environmentService.removeVariable('TOKEN_EXPIRY');
+            this.#environmentService.setVariable('USER', 'guest');
+            outputDiv.textContent = 'Already logged out.';
             return outputDiv;
         }
 
@@ -48,7 +53,9 @@ class Logout {
             const result = await response.json();
             outputDiv.textContent = result.message;
 
-            if (result.status === 'success') {
+            // Always clear the local session on logout, even if the server reports the token was already expired.
+            // The only time we don't clear is on a network failure.
+            if (result.status === 'success' || (result.status === 'error' && result.message.includes('expired'))) {
                 this.#environmentService.removeVariable('TOKEN');
                 this.#environmentService.removeVariable('TOKEN_EXPIRY');
                 this.#environmentService.setVariable('USER', 'guest'); // Reset to default user

@@ -9,10 +9,16 @@ from datetime import datetime, timedelta
 from email import message_from_string
 from urllib.parse import parse_qs
 
-DB_FILE = 'users.db'
+# Construct the absolute path to the database file to ensure it's always in the correct location.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+DB_DIR = os.path.join(PROJECT_ROOT, 'db')
+DB_FILE = os.path.join(DB_DIR, 'users.db')
 
 def init_db():
     """Initializes the database and creates tables if they don't exist."""
+    # Ensure the db directory exists before trying to connect to the database.
+    os.makedirs(DB_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     # Create users table
