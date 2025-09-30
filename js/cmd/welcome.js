@@ -12,14 +12,14 @@ class Welcome {
 
     /**
      * Executes the welcome command.
-     * Fetches the welcome message from `data/welcome.txt` and displays it.
+     * Fetches the welcome message from `data/motd.txt` and displays it.
      * @param {string[]} args - An array of arguments passed to the command (not used by this command).
      * @returns {Promise<HTMLPreElement>} A promise that resolves with a `<pre>` HTML element containing the welcome message.
      */
     async execute(args) {
       const pre = document.createElement('pre');
       try {
-        const response = await fetch('data/welcome.txt');
+        const response = await fetch('data/motd.txt');
         if (!response.ok) {
           throw new Error(`Failed to load welcome message: ${response.statusText}`);
         }

@@ -14,6 +14,7 @@ import { FilesystemService } from '../Services/FilesystemService.js';
  */
 const TEMPLATE = `
   <div part="terminal">
+  <div part="welcome-output"></div>
   <div part="output"></div>
   <arefi-hint-box part="hint"></arefi-hint-box>
   </div>
@@ -91,8 +92,29 @@ class Terminal extends ArefiBaseComponent {
     this.#initializeServices();
     this.#attachEventListeners();
 
-    // Create the initial placeholder item for the first command
-    setTimeout(() => this.createNextItem(), 0);
+    // Use an immediately-invoked async function to handle async setup
+    (async () => {
+      // Display the initial welcome message before creating the first prompt.
+      await this.#displayWelcomeMessage();
+      // Now that the welcome message is loaded, create the first command prompt.
+      this.createNextItem();
+    })();
+  }
+
+  /**
+   * Executes the 'welcome' command and displays its output.
+   * @private
+   */
+  async #displayWelcomeMessage() {
+    const welcomeCommand = this.#services.command.getCommand('welcome');
+    if (welcomeCommand) {
+      try {
+        const welcomeOutput = await welcomeCommand.execute([]);
+        this.refs['welcome-output'].appendChild(welcomeOutput);
+      } catch (error) {
+        console.error("Failed to display welcome message:", error);
+      }
+    }
   }
 
   /**

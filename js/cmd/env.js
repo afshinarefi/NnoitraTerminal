@@ -15,10 +15,10 @@ class Env {
 
     /**
      * Creates an instance of Env.
-     * @param {EnvironmentService} environmentService - The EnvironmentService instance to interact with.
+     * @param {object} services - The object containing all services.
      */
-    constructor(environmentService) {
-        this.#environmentService = environmentService;
+    constructor(services) {
+        this.#environmentService = services.environment;
     }
 
     /**
@@ -49,21 +49,13 @@ class Env {
     }
 
     /**
-     * @static
-     * @type {string[]}
-     * @description Declares the services this command depends on.
-     */
-    static dependencies = ['environmentService'];
-
-    /**
      * Provides autocomplete suggestions for the arguments of the env command.
      * @static
      * @param {string[]} currentArgs - The arguments typed so far.
-     * @param {CommandService} commandService - The CommandService instance.
-     * @param {EnvironmentService} environmentService - The EnvironmentService instance.
+     * @param {object} services - A collection of all services.
      * @returns {string[]} An array of suggested arguments.
      */
-    static autocompleteArgs(currentArgs, commandService, environmentService) {
+    static autocompleteArgs(currentArgs, services) {
         // For 'env', we might suggest environment variable names if the user is trying to set one,
         // or options like '-i' for ignoring environment (if implemented).
         // For now, let's return an empty array as it doesn't take arguments in its current form.
@@ -72,4 +64,3 @@ class Env {
 }
 
 export { Env };
-

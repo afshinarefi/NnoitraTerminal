@@ -119,8 +119,6 @@ class CommandService {
      * @returns {Promise<void>} A promise that resolves when the command execution is complete.
      */
     async execute(cmd, output) {
-      // Simulate a delay for command execution.
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
       const trimmedCmd = cmd.trim();
       if (!trimmedCmd) {
