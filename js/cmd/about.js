@@ -1,47 +1,66 @@
-import * as C from '../const.js';
-import { Cmd } from './cmd.js'
-
-export class About extends Cmd {
-    static DATA_FILE = '/data/about.txt';
+import { ArefiMedia } from '../Components/Media.js';
+/**
+ * @class About
+ * @description Implements the 'about' command, which displays personal information from a JSON file.
+ */
+class About {
+    static DATA_FILE = '/data/about.json';
     static DESCRIPTION = 'A short introduction.';
 
-    static {
-        this.register();
+    static man() {
+        return `NAME\n       about - Display information about the author.\n\nSYNOPSIS\n       about\n\nDESCRIPTION\n       The about command displays a short bio, contact information, and a profile picture.`;
     }
 
-    async process(args, div) {
-        let data = await this.fetchJson(this.constructor.DATA_FILE);
-        console.log(data);
-        for (const item in data) {
-            let row;
-            if (data[item]['Type'] == 'Text') {
-                row = document.createElement('span');
-                let title = document.createElement('span');
-                title.appendChild(document.createTextNode(data[item]['Title']));
-                title.classList.add('about-title');
-                row.appendChild(title);
-                row.appendChild(document.createTextNode(': '));
-                if (data[item]['Value'].startsWith('http')) {
-                    let link = document.createElement('a');
-                    link.href = data[item]['Value'];
-                    link.textContent = data[item]['Value'];
-                    link.target = '_blank';
-                    row.appendChild(link);
-                } else {
-                    row.appendChild(document.createTextNode(data[item]['Value']));
-                }
-            } else if (data[item]['Type'] == 'Image') {
-                row = document.createElement('img');
-                row.id = data[item]['Id'];
-                row.src = data[item]['Source'];
-            }
-            let wrapper = document.createElement('div');
-            wrapper.appendChild(row);
-            div.appendChild(wrapper);
-            div.appendChild(document.createElement('br'));
+    static autocompleteArgs(currentArgs, services) {
+        return []; // 'about' command takes no arguments.
+    }
 
+    async execute(args) {
+        const outputDiv = document.createElement('div');
+        try {
+            const response = await fetch(About.DATA_FILE);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+
+            for (const item of data) {
+                const wrapper = document.createElement('div');
+                let element;
+
+                if (item.Type === 'Text') {
+                    element = document.createElement('p');
+                    const title = document.createElement('span');
+                    title.textContent = item.Title;
+                    title.classList.add('about-title');
+                    element.appendChild(title);
+                    element.appendChild(document.createTextNode(': '));
+
+                    if (item.Value.startsWith('http')) {
+                        const link = document.createElement('a');
+                        link.href = item.Value;
+                        link.textContent = item.Value;
+                        link.target = '_blank';
+                        element.appendChild(link);
+                    } else {
+                        element.appendChild(document.createTextNode(item.Value));
+                    }
+                } else if (item.Type === 'Image') {
+                    element = new ArefiMedia();
+                    element.id = item.Id;
+                    element.src = item.Source;
+                }
+
+                if (element) {
+                    wrapper.appendChild(element);
+                    outputDiv.appendChild(wrapper);
+                }
+            }
+        } catch (error) {
+            outputDiv.textContent = `Error fetching about information: ${error.message}`;
         }
-        return div;
+        return outputDiv;
     }
 }
 
+export { About };

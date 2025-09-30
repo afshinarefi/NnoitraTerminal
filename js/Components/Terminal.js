@@ -134,6 +134,9 @@ class Terminal extends ArefiBaseComponent {
     this.refs.prompt.addEventListener('command-submit', this.commandReceive.bind(this));
     this.#services.autocomplete.addEventListener('autocomplete-suggestions', this.autocompleteReceive.bind(this));
 
+    // Listen for the custom 'media-loaded' event to handle scrolling after media loads.
+    this.refs.output.addEventListener('media-loaded', () => this.scrollToBottom());
+
     // Set tab index for focus management and add keydown listener for terminal-wide shortcuts
     this.tabIndex = 1;
     this.addEventListener('keydown', this.#handleTerminalKeydown.bind(this));

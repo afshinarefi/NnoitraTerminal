@@ -1,4 +1,5 @@
 import { Welcome } from '../cmd/welcome.js';
+import { About } from '../cmd/about.js';
 import { Env } from '../cmd/env.js';
 import { Help } from '../cmd/help.js';
 import { Man } from '../cmd/man.js';
@@ -36,6 +37,7 @@ class CommandService {
 
       // Register default commands here.
       this.register('welcome', Welcome);
+      this.register('about', About);
       this.register('env', Env);
       this.register('help', Help);
       this.register('man', Man);
@@ -117,6 +119,8 @@ class CommandService {
      * @returns {Promise<void>} A promise that resolves when the command execution is complete.
      */
     async execute(cmd, output) {
+      // Simulate a delay for command execution.
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       const trimmedCmd = cmd.trim();
       if (!trimmedCmd) {

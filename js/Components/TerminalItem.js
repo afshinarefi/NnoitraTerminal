@@ -52,11 +52,15 @@ const CSS = `
   margin-bottom: 5px;
 }
 
-/* Styles for media elements injected by commands like 'view' */
-[part=output] .media {
-  width: 96%;
-  max-width: 600px; /* Adjusted for better fit in a terminal view */
-  margin: 10px 2%;
+/* Styles for 'about' command content */
+.about-title {
+    font-weight: bold;
+}
+
+/* Styles for links injected by commands like 'about' */
+[part=output] a {
+    color: inherit; /* Inherit color from the output part */
+    text-decoration: none; /* Remove underline for a cleaner look */
 }
 `;
 
