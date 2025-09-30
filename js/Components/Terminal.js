@@ -124,7 +124,9 @@ class Terminal extends ArefiBaseComponent {
   #initializeServices() {
     this.#services.environment = new EnvironmentService();
     // Set initial environment variables before other services use them
-    this.#services.environment.setVariable('USER', 'guest');
+    if (!this.#services.environment.hasVariable('USER')) {
+      this.#services.environment.setVariable('USER', 'guest');
+    }
     this.#services.environment.setVariable('PWD', '/');
     this.#services.environment.setVariable('HOST', window.location.host);
 

@@ -6,6 +6,7 @@ import uuid
 import os
 import sys
 from datetime import datetime, timedelta
+from email import message_from_string
 from urllib.parse import parse_qs
 
 DB_FILE = 'users.db'
@@ -173,26 +174,24 @@ def validate_and_update_token(token):
 
 def parse_form_data():
     """Parses multipart/form-data from stdin without using the cgi module."""
-    form_data = {}
-    # This is a simplified parser for the FormData sent by the JS client.
-    # It expects a simple key-value structure.
     try:
         content_type = os.environ.get('CONTENT_TYPE', '')
         if 'multipart/form-data' in content_type:
-            boundary = content_type.split("boundary=")[1]
-            data = sys.stdin.read()
-            parts = data.split('--' + boundary)
-            for part in parts:
-                if 'Content-Disposition: form-data;' in part:
-                    headers, value = part.split('\r\n\r\n', 1)
-                    name_field = [h for h in headers.split('\r\n') if 'name=' in h]
-                    if name_field:
-                        name = name_field[0].split('name="')[1].split('"')[0]
-                        form_data[name] = value.strip('\r\n--')
-    except Exception:
-        # Fallback or error logging can be added here
-        pass
-    return form_data
+            # Construct a full message header to use the email parser
+            headers = f"Content-Type: {content_type}\n\n"
+            # Read the body from stdin
+            body = sys.stdin.read()
+            msg = message_from_string(headers + body)
+            form_data = {}
+            if msg.is_multipart():
+                for part in msg.get_payload():
+                    name = part.get_param('name', header='content-disposition')
+                    if name:
+                        form_data[name] = part.get_payload(decode=True).decode('utf-8')
+            return form_data
+    except Exception as e:
+        return {}
+    return {}
 
 def main():
     """Main function to handle CGI requests."""

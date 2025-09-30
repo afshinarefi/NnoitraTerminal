@@ -9,16 +9,35 @@ class EnvironmentService {
 	/** @private {Map<string, string>} #variables - A private Map to hold all environment variables. */
 	#variables = new Map();
 
+	/** @private {string[]} #persistentKeys - A list of keys to persist in localStorage. */
+	#persistentKeys = ['USER', 'TOKEN', 'TOKEN_EXPIRY'];
+
 	/**
 	 * Initializes the EnvironmentService with an optional set of initial variables.
 	 * Variable keys are automatically converted to uppercase for consistency.
 	 * @param {Object.<string, string>} [initialEnv={}] - An object containing initial environment variables.
 	 *   Example: `{ USER: 'guest', PWD: '/' }`.
 	 */	constructor(initialEnv = {}) {
+		// Load persistent variables from localStorage first.
+		this.#loadFromStorage();
+
 		// Initialize the internal map with provided variables.
 		for (const [key, value] of Object.entries(initialEnv)) {
 			this.setVariable(key, value); 
 		}
+	}
+
+	/**
+	 * @private
+	 * Loads persistent variables from localStorage into the service.
+	 */
+	#loadFromStorage() {
+		this.#persistentKeys.forEach(key => {
+			const value = localStorage.getItem(key);
+			if (value) {
+				this.#variables.set(key, value);
+			}
+		});
 	}
 
 	/**
@@ -41,6 +60,11 @@ class EnvironmentService {
 			return;
 		}
 		this.#variables.set(key, value);
+
+		// If the key is one that should be persisted, save it to localStorage.
+		if (this.#persistentKeys.includes(key)) {
+			localStorage.setItem(key, value);
+		}
 	}
 
 	/**
@@ -49,6 +73,11 @@ class EnvironmentService {
 	 */
 	removeVariable(key) {
 		this.#variables.delete(key);
+
+		// If the key is one that was persisted, remove it from localStorage.
+		if (this.#persistentKeys.includes(key)) {
+			localStorage.removeItem(key);
+		}
 	}
 
 	/**
