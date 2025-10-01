@@ -5,7 +5,7 @@ import hashlib
 import uuid
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email import message_from_string
 from urllib.parse import parse_qs
 
@@ -33,7 +33,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sessions (
             token TEXT PRIMARY KEY,
-            expires_at DATETIME NOT NULL,
+            expires_at INTEGER NOT NULL,
             username TEXT NOT NULL,
             FOREIGN KEY (username) REFERENCES users (username)
         )
@@ -45,7 +45,7 @@ def cleanup_expired_tokens():
     """Removes all expired tokens from the sessions table."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM sessions WHERE expires_at < ?", (datetime.utcnow(),))
+    cursor.execute("DELETE FROM sessions WHERE expires_at < ?", (int(datetime.now(timezone.utc).timestamp()),))
     conn.commit()
     conn.close()
 
@@ -90,12 +90,12 @@ def handle_login(form_data):
         cleanup_expired_tokens()
 
         token = str(uuid.uuid4())
-        expires_at = datetime.utcnow() + timedelta(days=7)
+        expires_at = int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp())
         # Create a new session
         cursor.execute("INSERT INTO sessions (token, username, expires_at) VALUES (?, ?, ?)", (token, username, expires_at))
         conn.commit()
         conn.close()
-        return {'status': 'success', 'message': 'Login successful.', 'token': token, 'user': username, 'expires_at': expires_at.isoformat()}
+        return {'status': 'success', 'message': 'Login successful.', 'token': token, 'user': username, 'expires_at': expires_at}
     else:
         conn.close()
         return {'status': 'error', 'message': 'Invalid username or password.'}
@@ -134,10 +134,9 @@ def validate_token(token):
         conn.close()
         return None # Token does not exist.
 
-    username, expires_at_str = result
-    expires_at = datetime.fromisoformat(expires_at_str)
+    username, expires_at = result
 
-    if expires_at < datetime.utcnow():
+    if expires_at < int(datetime.now(timezone.utc).timestamp()):
         # Token is expired, delete it and return failure.
         cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
         conn.commit()
@@ -161,10 +160,9 @@ def validate_and_update_token(token):
         conn.close()
         return None # Token does not exist.
 
-    username, expires_at_str = result
-    expires_at = datetime.fromisoformat(expires_at_str)
+    username, expires_at = result
 
-    if expires_at < datetime.utcnow():
+    if expires_at < int(datetime.now(timezone.utc).timestamp()):
         # Token is expired, delete it and return failure.
         cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
         conn.commit()
@@ -172,7 +170,7 @@ def validate_and_update_token(token):
         return None
 
     # Token is valid, extend its expiration.
-    new_expires_at = datetime.utcnow() + timedelta(days=7)
+    new_expires_at = int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp())
     cursor.execute("UPDATE sessions SET expires_at = ? WHERE token = ?", (new_expires_at, token))
     conn.commit()
     conn.close()
@@ -211,6 +209,9 @@ def main():
     action = query_params.get('action', [None])[0]
 
     form_data = parse_form_data()
+
+    # Debug print to see what the server is receiving. This will go to the Apache error log.
+    print(f"DEBUG: action='{action}', form_data='{form_data}'", file=sys.stderr)
 
     response = {}
     if action == 'useradd':
