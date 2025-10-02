@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { ArefiBaseComponent } from './ArefiBaseComponent.js';
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('HintBox');
 
 /**
  * @constant {string} TEMPLATE - HTML template for the HintBox component's shadow DOM.
@@ -77,7 +79,6 @@ hintBoxSpecificStyles.replaceSync(CSS);
  * It handles the dynamic rendering of suggestions with a subtle animation.
  */
 class HintBox extends ArefiBaseComponent {
-
   /**
    * Creates an instance of HintBox.
    * Initializes the shadow DOM, applies component-specific styles, and hides the box by default.
@@ -107,12 +108,13 @@ class HintBox extends ArefiBaseComponent {
    * @param {number} prefixLength - The length of the prefix part of each suggestion (for styling).
    */
   show(suggestions, prefixLength) {
+    log.log('Showing hints:', { count: suggestions.length, prefixLength });
     this.clean(); // Clear any previous suggestions.
     const fragment = document.createDocumentFragment();
     this.style.display = 'block'; // Make the hint box visible.
 
     if (!this.refs.box) {
-      console.error('HintBox: this.refs.box is not defined!');
+      log.error('this.refs.box is not defined!');
       return;
     }
 
@@ -143,6 +145,7 @@ class HintBox extends ArefiBaseComponent {
    * Hides the hint box and clears its contents.
    */
   hide() {
+    log.log('Hiding hints.');
     this.clean(); // Clear all suggestions.
     this.style.display = 'none'; // Hide the hint box.
   }

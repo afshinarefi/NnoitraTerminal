@@ -15,6 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('man');
 /**
  * @class Man
  * @description Implements the 'man' command, which displays the manual page for a given command.
@@ -56,7 +58,6 @@ class Man {
      */
     static autocompleteArgs(currentArgs, services, fullParts) {
         const commandService = services.command;
-        console.log('DEBUG: autocompleteArgs currentArgs', currentArgs, 'fullParts', fullParts);
         // If fullParts is available, use it to check argument count
         if (fullParts && fullParts.length > 2) {
             return [];
@@ -85,6 +86,7 @@ class Man {
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the manual page.
      */
     async execute(args) {
+        log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         if (!args || args.length === 0 || !args[0]) {
             const p = document.createElement('p');
@@ -101,21 +103,22 @@ class Man {
         }
         const lowerCmdName = cmdName.toLowerCase();
         // Debug: print all command names and lookup result
-        console.log('DEBUG: getAvailableCommandNames()', this.#commandService.getAvailableCommandNames());
+        log.log('Searching for command:', lowerCmdName);
         let exactMatch = this.#commandService.getAvailableCommandNames().find(cmd => cmd.toLowerCase() === lowerCmdName);
         let CommandClass = exactMatch ? this.#commandService.getCommandClass(exactMatch) : undefined;
-        console.log('DEBUG: exactMatch', exactMatch, 'CommandClass', CommandClass);
+        log.log('Exact match found:', exactMatch);
         if (!CommandClass) {
             // Try unique partial match (case-insensitive)
             const matches = this.#commandService.getAvailableCommandNames().filter(cmd => cmd.toLowerCase().startsWith(lowerCmdName));
-            console.log('DEBUG: partial matches', matches);
+            log.log('Partial matches found:', matches);
             if (matches.length === 1) {
                 CommandClass = this.#commandService.getCommandClass(matches[0]);
-                console.log('DEBUG: unique partial CommandClass', CommandClass);
+                log.log('Unique partial match found:', matches[0]);
             } else if (matches.length > 1) {
                 const p = document.createElement('p');
                 p.textContent = `Ambiguous command: '${cmdName}'. Possible matches: ${matches.join(', ')}`;
                 outputDiv.appendChild(p);
+                log.warn('Ambiguous command:', { input: cmdName, matches });
                 return outputDiv;
             } else {
                 const p = document.createElement('p');
@@ -125,11 +128,13 @@ class Man {
             }
         }
         if (CommandClass && typeof CommandClass.man === 'function') {
+            log.log('Displaying man page.');
             const pre = document.createElement('pre');
             pre.innerText = CommandClass.man();
             outputDiv.appendChild(pre);
             return outputDiv;
         } else {
+            log.warn(`No man page function found for command: "${cmdName}"`);
             const p = document.createElement('p');
             p.textContent = `No manual entry for '${cmdName}'.`;
             outputDiv.appendChild(p);

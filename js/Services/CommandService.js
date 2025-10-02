@@ -23,6 +23,7 @@ import { Man } from '../cmd/man.js';
 import { History } from '../cmd/history.js';
 import { Ls } from '../cmd/ls.js';
 import { Cd } from '../cmd/cd.js';
+import { Cat } from '../cmd/cat.js';
 import { Clear } from '../cmd/clear.js';
 import { View } from '../cmd/view.js';
 import { Useradd } from '../cmd/useradd.js';
@@ -31,6 +32,9 @@ import { Logout } from '../cmd/logout.js';
 import { Alias } from '../cmd/alias.js';
 import { Unalias } from '../cmd/unalias.js';
 import { FilesystemService } from './FilesystemService.js';
+import { createLogger } from './LogService.js';
+
+const log = createLogger('CommandService');
 
 /**
  * @class CommandService
@@ -66,6 +70,7 @@ class CommandService {
       this.register('history', History);
       this.register('ls', Ls);
       this.register('cd', Cd);
+      this.register('cat', Cat);
       this.register('clear', Clear);
       this.register('view', View);
       this.register('useradd', Useradd);
@@ -150,13 +155,13 @@ class CommandService {
          * @returns {Promise<string[]>} Promise resolving to an array of possible completions.
          */
         async autocomplete(parts) {
-            console.log('[CommandService] Autocomplete received parts:', parts);
+            log.log('Autocomplete received parts:', parts);
 
             const isCompletingCommandName = parts.length === 1 && parts[0] !== '';
 
             // If completing the first word (command name)
             if (isCompletingCommandName) {
-                console.log('[CommandService] Completing command name.');
+                log.log('Completing command name.');
                 return this.getAvailableCommandNames();
             }
 
@@ -167,12 +172,12 @@ class CommandService {
     
             let commandName = parts[0];
             let argsForCompletion = parts.slice(1);
-            console.log(`[CommandService] Initial command: "${commandName}", args:`, argsForCompletion);
+            log.log(`Initial command: "${commandName}", args:`, argsForCompletion);
     
             // Check for alias and substitute if found
             const aliases = this.#services.environment.getAliases();
             if (aliases[commandName]) {
-                console.log(`[CommandService] Found alias for "${commandName}"`);
+                log.log(`Found alias for "${commandName}"`);
                 const aliasValue = aliases[commandName];
                 const aliasParts = aliasValue.split(/\s+/).filter(p => p); // Split and remove empty strings
                 
@@ -181,21 +186,21 @@ class CommandService {
                 
                 // Prepend the alias's own arguments to the arguments typed by the user
                 argsForCompletion = [...aliasArgs, ...argsForCompletion];
-                console.log(`[CommandService] Expanded to command: "${commandName}", combined args:`, argsForCompletion);
+                log.log(`Expanded to command: "${commandName}", combined args:`, argsForCompletion);
             }
     
             const CommandClass = this.getCommandClass(commandName);
     
             if (CommandClass && typeof CommandClass.autocompleteArgs === 'function') {
-                console.log(`[CommandService] Found CommandClass for "${commandName}" with autocompleteArgs.`);
+                log.log(`Found CommandClass for "${commandName}" with autocompleteArgs.`);
                 // If the original input ended with a space, it means we are completing a new, empty argument.
                 // Otherwise, we are completing the last partial argument.
                 const completionArgs = argsForCompletion;
-                console.log('[CommandService] Calling autocompleteArgs with:', completionArgs);
+                log.log('Calling autocompleteArgs with:', completionArgs);
                 const result = CommandClass.autocompleteArgs(completionArgs, this.#services);
                 // Handle both sync and async results from autocompleteArgs
                 const finalResult = (result instanceof Promise) ? await result : result;
-                console.log('[CommandService] Received suggestions from command:', finalResult);
+                log.log('Received suggestions from command:', finalResult);
                 return finalResult;
             }
     

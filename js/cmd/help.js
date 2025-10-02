@@ -15,6 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('help');
 /**
  * @class Help
  * @description Implements the 'help' command, which lists all available commands and their descriptions.
@@ -65,6 +67,7 @@ class Help {
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the list of commands.
      */
     async execute(args) {
+        log.log('Executing...');
         const outputDiv = document.createElement('div');
         const commands = this.#commandService.getHelpCommandNames();
 

@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Services/LogService.js';
 /**
  * @class Welcome
  * @description Implements the 'welcome' command, displaying an ASCII art welcome message.
@@ -26,6 +27,7 @@ class Welcome {
      * @description A brief description of the welcome command.
      */
     static DESCRIPTION = 'A short introduction.';
+    #log = createLogger('welcome');
 
     /**
      * Executes the welcome command.
@@ -34,6 +36,7 @@ class Welcome {
      * @returns {Promise<HTMLPreElement>} A promise that resolves with a `<pre>` HTML element containing the welcome message.
      */
     async execute(args) {
+      this.#log.log('Executing...');
       const pre = document.createElement('pre');
       try {
         const response = await fetch('data/motd.txt');
@@ -43,7 +46,7 @@ class Welcome {
         const welcomeText = await response.text();
         pre.innerText = welcomeText;
       } catch (error) {
-        console.error('Error loading welcome message:', error);
+        this.#log.error('Error loading welcome message:', error);
         pre.innerText = 'Error: Could not load welcome message.';
       }
       return pre;

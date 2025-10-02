@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { ArefiBaseComponent } from './ArefiBaseComponent.js';
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('Icon');
 
 /**
  * @constant {string} TEMPLATE - HTML template for the Icon component's shadow DOM.
@@ -49,7 +51,6 @@ iconSpecificStyles.replaceSync(CSS);
  * indicating different states like ready, busy, or history index.
  */
 class Icon extends ArefiBaseComponent {
-
   /**
    * @private
    * @type {Object.<string, string>}
@@ -68,7 +69,6 @@ class Icon extends ArefiBaseComponent {
    * Initializes the shadow DOM, applies component-specific styles, and sets the icon to the 'ready' state.
    */
   constructor() {
-    // Pass only the template to the base constructor.
     super(TEMPLATE);
 
     // Apply component-specific styles to the shadow DOM.
@@ -76,12 +76,14 @@ class Icon extends ArefiBaseComponent {
 
     // Set the initial icon to 'ready'.
     this.ready();
+    log.log('Icon component created and set to ready.');
   }
 
   /**
    * Sets the icon to a key symbol, for password prompts.
    */
   key() {
+    log.log('Setting icon to: key');
     this.refs.symbol.innerHTML = this.#icons.password;
   }
 
@@ -90,6 +92,7 @@ class Icon extends ArefiBaseComponent {
    * @param {string} text - The text to display.
    */
   setText(text) {
+    log.log('Setting icon text to:', text);
     this.refs.symbol.innerHTML = text;
   }
 
@@ -97,6 +100,7 @@ class Icon extends ArefiBaseComponent {
    * Sets the icon to the 'ready' state, typically a prompt symbol.
    */
   ready() {
+    log.log('Setting icon to: ready');
     this.refs.symbol.innerHTML = this.#icons.ready;
   }
 
@@ -104,6 +108,7 @@ class Icon extends ArefiBaseComponent {
    * Sets the icon to the 'busy' state, indicating an ongoing operation.
    */
   busy() {
+    log.log('Setting icon to: busy');
     this.refs.symbol.innerHTML = this.#icons.busy;
   }
 
@@ -112,6 +117,7 @@ class Icon extends ArefiBaseComponent {
    * @param {number} index - The history index to display.
    */
   history(index) {
+    log.log('Setting icon to: history', index);
     this.refs.symbol.innerHTML = this.#icons.history + index;
   }
 
@@ -120,6 +126,7 @@ class Icon extends ArefiBaseComponent {
    * @param {number} index - The index of the item.
    */
   indexed(index) {
+    log.log('Setting icon to: indexed', index);
     this.refs.symbol.innerHTML = index + this.#icons.indexed;
   }
 }

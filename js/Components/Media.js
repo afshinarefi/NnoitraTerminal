@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { ArefiBaseComponent } from './ArefiBaseComponent.js';
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('Media');
 
 /**
  * @constant {string} CSS - CSS styles for the Media component's shadow DOM.
@@ -77,7 +79,7 @@ class ArefiMedia extends ArefiBaseComponent {
       this.#mediaElement = document.createElement('video');
       this.#mediaElement.controls = true;
     } else {
-      console.error(`ArefiMedia: Unsupported file type for src: ${source}`);
+      log.error(`Unsupported file type for src: ${source}`);
       return;
     }
 
@@ -94,7 +96,7 @@ class ArefiMedia extends ArefiBaseComponent {
 
     if (this.#mediaElement.tagName === 'IMG') {
       this.#mediaElement.onload = onMediaLoaded;
-      this.#mediaElement.onerror = () => console.error(`ArefiMedia: Failed to load image ${source}`);
+      this.#mediaElement.onerror = () => log.error(`Failed to load image ${source}`);
     } else if (this.#mediaElement.tagName === 'VIDEO') {
       this.#mediaElement.oncanplaythrough = onMediaLoaded;
     }

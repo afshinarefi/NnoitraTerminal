@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { ArefiBaseComponent } from './ArefiBaseComponent.js';
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('TerminalItem');
 import { Icon } from './Icon.js';
 
 /**
@@ -98,7 +100,6 @@ terminalItemSpecificStyles.replaceSync(CSS);
  * Each item includes a timestamp, user/host/path information, an indexed icon, and the command text.
  */
 class TerminalItem extends ArefiBaseComponent {
-
   /** @private {number} #nextId - A static counter to generate unique IDs for each TerminalItem instance. */
   static #nextId = 1;
   /** @private {number} #id - The unique ID for this specific TerminalItem instance. */
@@ -125,6 +126,7 @@ class TerminalItem extends ArefiBaseComponent {
     // Assign a unique ID to this terminal item and set its `id` attribute.
     this.#id = TerminalItem.#nextId++;
     this.id = `term-item-${this.#id}`;
+    log.log(`Created item with ID: ${this.#id}`);
   }
 
   /**
@@ -201,6 +203,7 @@ class TerminalItem extends ArefiBaseComponent {
    * @param {string} host - The host name for the terminal item header.
    */
   setContent(user, path, command, host) {
+    log.log(`Setting content for ID ${this.#id}:`, { user, path, command });
     this.setCommand(command);
     this.#setHeader(user, path, host);
     this.#setIcon();

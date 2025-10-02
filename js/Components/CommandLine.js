@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { ArefiBaseComponent } from './ArefiBaseComponent.js';
+import { createLogger } from '../Services/LogService.js';
 import { Icon } from './Icon.js';
 
 /**
@@ -86,6 +87,7 @@ commandLineSpecificStyles.replaceSync(CSS);
  * keyboard navigation for command history, and dispatches events for command submission and autocomplete.
  */
 class CommandLine extends ArefiBaseComponent {
+  #log = createLogger('CommandLine');
 
   /** @private {Object.<string, Service>} #services - A collection of services used by the command line (e.g., history). */
   #services = {};
@@ -115,7 +117,7 @@ class CommandLine extends ArefiBaseComponent {
    */
   setHistoryService(service) {
     if (!service) {
-      console.error("Attempted to set null history manager on CommandLine.");
+      this.#log.error("Attempted to set null history manager on CommandLine.");
       return;
     }
     this.#services.history = service;
@@ -127,6 +129,7 @@ class CommandLine extends ArefiBaseComponent {
    * @returns {Promise<string>} A promise that resolves with the entered password.
    */
   requestPassword(promptText = 'Password') {
+    this.#log.log(`Requesting password with prompt: "${promptText}"`);
     return new Promise(resolve => {
       // Switch to the password input.
       this.refs['prompt-text'].style.display = 'none';
@@ -145,6 +148,7 @@ class CommandLine extends ArefiBaseComponent {
           event.preventDefault(); // Prevent default 'Enter' behavior.
           event.stopPropagation(); // Stop the event from bubbling up to other listeners.
           const password = this.#activeInput.value;
+          this.#log.log('Password entered, resolving promise.');
           this.#activeInput.removeEventListener('keydown', passwordHandler);
 
           // Switch back to the text input.
@@ -178,6 +182,7 @@ class CommandLine extends ArefiBaseComponent {
     switch (event.key) {
       case 'Enter':
         event.preventDefault();
+        this.#log.log('Enter key pressed.');
         const command = this.#activeInput.value;
         this.#services.history.resetCursor(); // Reset history cursor after command submission.
         this.clear(); // Clear the input field.
@@ -194,6 +199,7 @@ class CommandLine extends ArefiBaseComponent {
 
       case 'ArrowUp':
         event.preventDefault();
+        this.#log.log('ArrowUp key pressed.');
         // Save current input before loading history if at the beginning of history navigation.
         if (this.#services.history.getCursorIndex() === 0) {
           this.#inputBuffer = this.#activeInput.value;
@@ -208,6 +214,7 @@ class CommandLine extends ArefiBaseComponent {
 
       case 'ArrowDown':
         event.preventDefault();
+        this.#log.log('ArrowDown key pressed.');
         const nextHistoryItem = this.#services.history.getNext();
 
         // If at the end of history (new/empty command line), restore the buffered input.
@@ -223,6 +230,7 @@ class CommandLine extends ArefiBaseComponent {
 
       case 'Tab':
         event.preventDefault();
+        this.#log.log('Tab key pressed, dispatching autocomplete request.');
         // Dispatch a custom event to request autocomplete suggestions.
         const autocompleteEvent = new CustomEvent('autocomplete-request', {
           bubbles: true,

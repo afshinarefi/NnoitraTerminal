@@ -16,12 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 // EnvironmentManager.js
+import { createLogger } from './LogService.js';
 
 /**
  * @class EnvironmentService
  * @description Manages environment variables for the terminal session.
  * Stores variables as key-value pairs, typically in uppercase, following shell conventions.
  */
+
+const log = createLogger('EnvService');
 
 // Define variable categories
 const VAR_CATEGORIES = {
@@ -93,8 +96,14 @@ class EnvironmentService {
 	 * @param {string} value - The new string value for the variable.
 	 */	setVariable(key, value) {
 		const upperKey = key.toUpperCase();
+
+		// Coerce numbers to strings to handle timestamps like TOKEN_EXPIRY.
+		if (typeof value === 'number') {
+			value = String(value);
+		}
+
 		if (!upperKey || typeof value !== 'string') {
-			console.error("Invalid key or value provided to EnvironmentService.");
+			log.error("Invalid key or value provided to setVariable:", { key, value, type: typeof value });
 			return;
 		}
 
@@ -125,7 +134,7 @@ class EnvironmentService {
 		try {
 			await fetch('/server/accounting.py?action=set_env', { method: 'POST', body: formData });
 		} catch (error) {
-			console.error(`Failed to save remote variable ${key}:`, error);
+			log.error(`Failed to save remote variable ${key}:`, error);
 		}
 	}
 
@@ -189,7 +198,7 @@ class EnvironmentService {
 			try {
 				return JSON.parse(aliasString);
 			} catch (e) {
-				console.error("Error parsing ALIAS environment variable:", e);
+				log.error("Error parsing ALIAS environment variable:", e);
 				return {};
 			}
 		}
@@ -223,7 +232,7 @@ class EnvironmentService {
 				}
 			}
 		} catch (error) {
-			console.error('Failed to fetch remote environment variables:', error);
+			log.error('Failed to fetch remote environment variables:', error);
 		}
 	}
 

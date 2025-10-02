@@ -15,7 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('cd');
 /**
  * @class Cd
  * @description Implements the 'cd' command, which changes the current working directory using FilesystemService.
@@ -46,6 +47,7 @@ class Cd {
     }
 
     async execute(args) {
+        log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         let inputPath = args[1] || '/';
         let normalizedPath;
@@ -55,15 +57,18 @@ class Cd {
             const currentPath = this.#filesystemService.getCurrentPath();
             normalizedPath = this.#filesystemService.normalizePath(currentPath + '/' + inputPath);
         }
+        log.log(`Attempting to change to normalized path: "${normalizedPath}"`);
         // Ensure the directory exists by fetching and caching if needed
         const contents = await this.#filesystemService.listContents(normalizedPath);
         if (!contents) {
+            log.warn(`Directory not found: "${normalizedPath}"`);
             outputDiv.textContent = `cd: ${args[1] || '/'}: No such directory`;
             return outputDiv;
         }
         this.#filesystemService.setCurrentPath(normalizedPath);
         const absPath = this.#filesystemService.getCurrentPath();
         this.#environmentService.setVariable('PWD', absPath);
+        log.log(`Successfully changed directory to: "${absPath}"`);
         outputDiv.textContent = `Changed directory to ${absPath}`;
         return outputDiv;
     }

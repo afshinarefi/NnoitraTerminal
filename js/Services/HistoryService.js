@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 // CommandHistory.js
+import { createLogger } from './LogService.js';
 
 /**
  * @class HistoryService
@@ -24,6 +25,8 @@
  * and retrieving commands in chronological order.
  */
 class HistoryService {
+    #log = createLogger('History');
+
     /** @private {string[]} #history - An array storing the command history, with the most recent command at the beginning. */
     #history = [];
     /** @private {number} #cursorIndex - The current position in the history array (0-based), where 0 means the newest command. */
@@ -78,7 +81,7 @@ class HistoryService {
                     body: formData
                 });
             } catch (error) {
-                console.error('Failed to save command to remote history:', error);
+                this.#log.error('Failed to save command to remote history:', error);
             }
         }
 
@@ -184,7 +187,7 @@ class HistoryService {
                 this.resetCursor();
             }
         } catch (error) {
-            console.error('Failed to load remote history:', error);
+            this.#log.error('Failed to load remote history:', error);
         }
     }
 

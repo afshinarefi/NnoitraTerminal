@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { ArefiMedia } from '../Components/Media.js';
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('view');
 /**
  * @class View
  * @description Implements the 'view' command, which displays an image or video file.
@@ -27,6 +29,7 @@ class View {
 
     constructor(services) {
         this.#filesystemService = services.filesystem;
+        log.log('Initializing...');
     }
 
     static man() {
@@ -38,15 +41,19 @@ class View {
             return [];
         }
         const input = currentArgs[0] || '';
-        // For 'view', suggest both directories and files.
-        return await services.filesystem.autocompletePath(input, true);
+        const allPaths = await services.filesystem.autocompletePath(input, true);
+        const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
+        // Filter to only suggest supported files or directories (to allow navigation)
+        return allPaths.filter(p => p.endsWith('/') || supportedFormats.test(p));
     }
 
     async execute(args) {
+        log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         const filePathArg = args[1];
 
         if (!filePathArg) {
+            log.warn('Missing file operand.');
             outputDiv.textContent = 'view: missing file operand';
             return outputDiv;
         }
@@ -56,13 +63,23 @@ class View {
             path = this.#filesystemService.getCurrentPath().replace(/\/$/, '') + '/' + path;
         }
         path = this.#filesystemService.normalizePath(path);
+        log.log(`Attempting to view normalized path: "${path}"`);
 
         if (!this.#filesystemService.isFile(path)) {
+            log.warn(`Path is not a file or does not exist: "${path}"`);
             outputDiv.textContent = `view: cannot access '${filePathArg}': No such file or it is a directory`;
             return outputDiv;
         }
 
+        const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
+        if (!supportedFormats.test(path)) {
+            log.warn(`File is not a supported media type: "${path}"`);
+            outputDiv.textContent = `view: ${filePathArg}: Unsupported file type.`;
+            return outputDiv;
+        }
+
         const mediaSrc = `/fs${path}`;
+        log.log(`Creating media element with src: "${mediaSrc}"`);
         const mediaElement = new ArefiMedia();
         mediaElement.src = mediaSrc;
         outputDiv.appendChild(mediaElement);

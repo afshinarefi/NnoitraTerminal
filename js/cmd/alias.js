@@ -15,7 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('alias');
 /**
  * @class Alias
  * @description Implements the 'alias' command to define or display command aliases.
@@ -27,6 +28,7 @@ class Alias {
 
     constructor(services) {
         this.#environmentService = services.environment;
+        log.log('Initializing...');
     }
 
     static man() {
@@ -59,6 +61,7 @@ class Alias {
     }
 
     async execute(args) {
+        log.log('Executing with args:', args);
         const output = document.createElement('pre');
         const aliasString = args.slice(1).join(' ');
 
@@ -67,6 +70,7 @@ class Alias {
         // If no arguments, display all aliases
         if (!aliasString) {
             if (Object.keys(aliases).length === 0) {
+                log.log('No aliases found to display.');
                 output.textContent = 'No aliases defined.';
             } else {
                 let aliasText = '';
@@ -74,6 +78,7 @@ class Alias {
                     aliasText += `alias ${name}='${value}'\n`;
                 }
                 output.textContent = aliasText.trim();
+                log.log('Displaying all defined aliases.');
             }
             return output;
         }
@@ -84,8 +89,10 @@ class Alias {
         if (newAlias) {
             aliases[newAlias.name] = newAlias.value;
             this.#environmentService.setAliases(aliases);
+            log.log(`Created alias: ${newAlias.name}='${newAlias.value}'`);
             output.textContent = `Alias '${newAlias.name}' created.`;
         } else {
+            log.warn('Invalid alias format:', aliasString);
             output.textContent = `alias: invalid format. Use name="value"`;
         }
 

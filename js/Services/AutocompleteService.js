@@ -22,6 +22,9 @@
  * from the command line, queries the command service for suggestions, and dispatches events with filtered
  * and processed suggestions.
  */
+import { createLogger } from './LogService.js';
+const log = createLogger('Autocomplete');
+
 class AutocompleteService extends EventTarget {
 
   /** @private {CommandLine} #commandLine - Reference to the CommandLine component for event listening. */
@@ -94,32 +97,32 @@ class AutocompleteService extends EventTarget {
   async autocompleteReceive(event) {
     event.stopPropagation();
     const input = event.detail;
-    console.log('[AutocompleteService] Received input:', `"${input}"`);
+    log.log('Received input:', `"${input}"`);
     
     // Split the input into parts. If the input is empty or just spaces, parts will be [''].
     // If it ends with a space, the last part will be an empty string, which is what we want.
     const parts = input.split(/\s+/);
-    console.log('[AutocompleteService] Split parts:', parts);
+    log.log('Split parts:', parts);
     
     // The part we are trying to complete is always the last one.
     const partial = parts[parts.length - 1];
-    console.log('[AutocompleteService] Partial to complete:', `"${partial}"`);
+    log.log('Partial to complete:', `"${partial}"`);
     
     // The context for autocompletion is always the full set of parts.
     const commandContext = parts;
-    console.log('[AutocompleteService] Context for CommandService:', commandContext);
+    log.log('Context for CommandService:', commandContext);
 
     // Await all possible completions from the command service based on the context.
     const allSuggestions = await this.#commandService.autocomplete(commandContext);
-    console.log('[AutocompleteService] Suggestions from CommandService:', allSuggestions);
+    log.log('Suggestions from CommandService:', allSuggestions);
 
     // Filter suggestions based on the partial word the user is typing.
     const filteredSuggestions = [...new Set(allSuggestions.filter(name => name.startsWith(partial)))];
-    console.log('[AutocompleteService] Filtered suggestions:', filteredSuggestions);
+    log.log('Filtered suggestions:', filteredSuggestions);
 
     // Find the longest common prefix among the filtered suggestions.
     const sharedPrefix = this.#findSharedPrefix(filteredSuggestions);
-    console.log('[AutocompleteService] Shared prefix:', `"${sharedPrefix}"`);
+    log.log('Shared prefix:', `"${sharedPrefix}"`);
 
     let completeCommand = input; // Default to original input
 
@@ -129,7 +132,7 @@ class AutocompleteService extends EventTarget {
       currentParts.push(sharedPrefix);
       completeCommand = currentParts.join(" ");
     }
-    console.log('[AutocompleteService] Completed command string:', `"${completeCommand}"`);
+    log.log('Completed command string:', `"${completeCommand}"`);
 
     const isInputEndingWithSpace = input.endsWith(" ");
 
@@ -150,7 +153,7 @@ class AutocompleteService extends EventTarget {
         prefix: sharedPrefix.length
       }
     });
-    console.log('[AutocompleteService] Dispatching suggestions event with detail:', autocompleteEvent.detail);
+    log.log('Dispatching suggestions event with detail:', autocompleteEvent.detail);
     this.dispatchEvent(autocompleteEvent);
   }
 }

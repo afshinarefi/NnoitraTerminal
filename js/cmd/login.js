@@ -15,6 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('login');
 /**
  * @class Login
  * @description Implements the 'login' command for user authentication.
@@ -60,6 +62,7 @@ class Login {
     }
 
     async execute(args) {
+        log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         const username = args[1];
         let password = args[2];
@@ -71,6 +74,7 @@ class Login {
 
         // If password is not provided as an argument, prompt for it interactively.
         if (!password) {
+            log.log('Password not provided, prompting user.');
             password = await this.#prompt.requestPassword();
         }
 
@@ -79,6 +83,7 @@ class Login {
             formData.append('username', username);
             formData.append('password', password);
 
+            log.log(`Attempting login for user: "${username}"`);
             const loginResponse = await fetch('/server/accounting.py?action=login', {
                 method: 'POST',
                 body: formData
@@ -87,6 +92,7 @@ class Login {
             outputDiv.textContent = loginResult.message;
 
             if (loginResult.status === 'success') {
+                log.log('Login successful. Setting session variables.');
                 this.#environmentService.setVariable('TOKEN', loginResult.token);
                 this.#environmentService.setVariable('USER', loginResult.user);
                 this.#environmentService.setVariable('TOKEN_EXPIRY', loginResult.expires_at);
@@ -94,9 +100,12 @@ class Login {
                 await this.#environmentService.fetchRemoteVariables();
                 // Fetch remote command history for the logged-in user
                 await this.#historyService.loadRemoteHistory();
+            } else {
+                log.warn('Login failed:', loginResult.message);
             }
         } catch (error) {
-            outputDiv.textContent = `Error during login: ${error.message}`;
+            log.error('Network or parsing error during login:', error);
+            outputDiv.textContent = `Error: ${error.message}`;
         }
 
         return outputDiv;

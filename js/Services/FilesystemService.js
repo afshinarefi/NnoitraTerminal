@@ -20,6 +20,9 @@
  * @description Manages a virtual filesystem based on a JSON structure fetched from the server.
  * This service provides methods to navigate, list contents, and retrieve information about files and directories.
  */
+import { createLogger } from './LogService.js';
+const log = createLogger('FS');
+
 class FilesystemService {
     /**
      * Normalizes a path, removing redundant slashes and resolving '.' and '..'.
@@ -78,9 +81,9 @@ class FilesystemService {
             } else {
                 this.#filesystemTree = data;
             }
-            console.log('Filesystem tree loaded:', this.#filesystemTree);
+            log.log('Filesystem tree loaded:', this.#filesystemTree);
         } catch (error) {
-            console.error('Failed to load filesystem tree:', error);
+            log.error('Failed to load filesystem tree:', error);
             this.#filesystemTree = {};
         }
     }
@@ -124,7 +127,7 @@ class FilesystemService {
             if (files.length === 0 && directories.length === 0) {
                 shouldFetch = true;
             } else {
-                console.log(`[FS] listContents cache hit for ${normalizedPath}:`, { files, directories });
+                log.log(`listContents cache hit for ${normalizedPath}:`, { files, directories });
                 return { files, directories };
             }
         } else {
@@ -133,11 +136,11 @@ class FilesystemService {
         if (shouldFetch) {
             try {
                 const url = `/fs/index.py?path=${encodeURIComponent(normalizedPath.replace(/^\//, ''))}`;
-                console.log(`[FS] Fetching backend for ${normalizedPath}: ${url}`);
+                log.log(`Fetching backend for ${normalizedPath}: ${url}`);
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
-                console.log(`[FS] Backend response for ${normalizedPath}:`, data);
+                log.log(`Backend response for ${normalizedPath}:`, data);
                 if (Array.isArray(data.directories) && Array.isArray(data.files)) {
                     // Build node and cache it
                     node = {};
@@ -145,11 +148,11 @@ class FilesystemService {
                     node._files = data.files;
                     // Insert into tree
                     this.#setNodeAtPath(normalizedPath, node);
-                    console.log(`[FS] Cached node for ${normalizedPath}:`, { files: data.files, directories: data.directories });
+                    log.log(`Cached node for ${normalizedPath}:`, { files: data.files, directories: data.directories });
                     return { files: data.files, directories: data.directories };
                 }
             } catch (error) {
-                console.error('Failed to fetch directory contents:', error);
+                log.error('Failed to fetch directory contents:', error);
             }
         }
         return null;

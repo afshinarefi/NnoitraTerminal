@@ -15,6 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('history');
 /**
  * @class History
  * @description Implements the 'history' command, which displays the command history.
@@ -65,6 +67,7 @@ class History {
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the history.
      */
     async execute(args) {
+        log.log('Executing...');
         const outputDiv = document.createElement('div');
         const history = this.#historyService.getFullHistory();
         if (!history || history.length === 0) {

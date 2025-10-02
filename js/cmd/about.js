@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { ArefiMedia } from '../Components/Media.js';
+import { createLogger } from '../Services/LogService.js';
 /**
  * @class About
  * @description Implements the 'about' command, which displays personal information from a JSON file.
@@ -23,6 +24,7 @@ import { ArefiMedia } from '../Components/Media.js';
 class About {
     static DATA_FILE = '/data/about.json';
     static DESCRIPTION = 'A short introduction.';
+    static #log = createLogger('about'); // Keep static for static methods
 
     static man() {
         return `NAME\n       about - Display information about the author.\n\nSYNOPSIS\n       about\n\nDESCRIPTION\n       The about command displays a short bio, contact information, and a profile picture.`;
@@ -33,12 +35,14 @@ class About {
     }
 
     async execute(args) {
+        About.#log.log('Executing...');
         const outputDiv = document.createElement('div');
         try {
             const response = await fetch(About.DATA_FILE);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+            About.#log.log('Successfully fetched about.json');
             const data = await response.json();
 
             for (const item of data) {
@@ -74,7 +78,8 @@ class About {
                 }
             }
         } catch (error) {
-            outputDiv.textContent = `Error fetching about information: ${error.message}`;
+            About.#log.error('Failed to fetch about information:', error);
+            outputDiv.textContent = `Error: ${error.message}`;
         }
         return outputDiv;
     }

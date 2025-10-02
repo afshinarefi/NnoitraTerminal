@@ -15,6 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('useradd');
 /**
  * @class Useradd
  * @description Implements the 'useradd' command to create a new user.
@@ -26,6 +28,7 @@ class Useradd {
 
     constructor(services) {
         this.#prompt = services.prompt;
+        log.log('Initializing...');
     }
 
     static man() {
@@ -47,6 +50,7 @@ class Useradd {
     }
 
     async execute(args) {
+        log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         const username = args[1];
         let password = args[2];
@@ -58,6 +62,7 @@ class Useradd {
 
         // If password is not provided as an argument, prompt for it interactively.
         if (!password) {
+            log.log('Password not provided, prompting user.');
             password = await this.#prompt.requestPassword();
         }
 
@@ -66,14 +71,17 @@ class Useradd {
         formData.append('password', password);
 
         try {
+            log.log(`Attempting to create user: "${username}"`);
             const response = await fetch('/server/accounting.py?action=useradd', {
                 method: 'POST',
                 body: formData
             });
             const result = await response.json();
+            log.log('Server response:', result);
             outputDiv.textContent = result.message;
         } catch (error) {
-            outputDiv.textContent = `Error creating user: ${error.message}`;
+            log.error('Network or parsing error during useradd:', error);
+            outputDiv.textContent = `Error: ${error.message}`;
         }
 
         return outputDiv;

@@ -15,6 +15,9 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('BaseComponent');
+
 /**
  * @class ArefiBaseComponent
  * @extends HTMLElement
@@ -27,7 +30,6 @@
  * 2. Call `super(htmlTemplate, componentMap)` in the constructor of the derived class.
  */
 class ArefiBaseComponent extends HTMLElement {
-
   /** @private {ShadowRoot} #shadow - The closed Shadow DOM root for the component. */
   #shadow;
   /** @private {Object.<string, Element>} #refs - A map of elements within the Shadow DOM, keyed by their `part` attribute. */
@@ -98,6 +100,7 @@ class ArefiBaseComponent extends HTMLElement {
     elementsWithPart.forEach(el => {
       const partName = el.getAttribute('part');
       // Use the part name as the key for the refs object.
+      log.log(`Mapping ref: "${partName}" to element`, el);
       this.#refs[partName] = el;
     });
   }

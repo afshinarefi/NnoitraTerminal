@@ -15,6 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('logout');
 /**
  * @class Logout
  * @description Implements the 'logout' command to end a user session.
@@ -48,12 +50,14 @@ class Logout {
     }
 
     async execute(args) {
+        log.log('Executing...');
         const outputDiv = document.createElement('div');
         const token = this.#environmentService.getVariable('TOKEN');
 
         // If there's no token, we are already logged out.
         // Ensure the state is clean and inform the user.
         if (!token) {
+            log.log('No token found, already logged out.');
             this.#environmentService.removeVariable('TOKEN');
             this.#environmentService.removeVariable('TOKEN_EXPIRY');
             this.#environmentService.setVariable('USER', 'guest');
@@ -65,6 +69,7 @@ class Logout {
         formData.append('token', token);
 
         try {
+            log.log('Sending logout request to server.');
             const response = await fetch('/server/accounting.py?action=logout', {
                 method: 'POST',
                 body: formData
@@ -75,6 +80,7 @@ class Logout {
             // Always clear the local session on logout, even if the server reports the token was already expired.
             // The only time we don't clear is on a network failure.
             if (result.status === 'success' || (result.status === 'error' && result.message.includes('expired'))) {
+                log.log('Clearing local session data.');
                 this.#environmentService.removeVariable('TOKEN');
                 this.#environmentService.removeVariable('TOKEN_EXPIRY');
                 this.#environmentService.setVariable('USER', 'guest'); // Reset to default user
@@ -82,7 +88,8 @@ class Logout {
                 this.#historyService.clearHistory(); // Clear the history from memory
             }
         } catch (error) {
-            outputDiv.textContent = `Error during logout: ${error.message}`;
+            log.error('Network or parsing error during logout:', error);
+            outputDiv.textContent = `Error: ${error.message}`;
         }
 
         return outputDiv;

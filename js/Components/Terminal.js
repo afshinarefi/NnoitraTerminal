@@ -25,6 +25,9 @@ import { HistoryService } from '../Services/HistoryService.js';
 import { CommandService } from '../Services/CommandService.js';
 import { AutocompleteService } from '../Services/AutocompleteService.js';
 import { FilesystemService } from '../Services/FilesystemService.js';
+import { createLogger } from '../Services/LogService.js';
+
+const log = createLogger('Terminal');
 
 /**
  * @constant {string} TEMPLATE - HTML template for the Terminal component's shadow DOM.
@@ -132,6 +135,7 @@ class Terminal extends ArefiBaseComponent {
     const user = this.#services.environment.getVariable('USER');
 
     if (!token || !user || user === 'guest') {
+      log.log('No active session found to restore.');
       return; // No session to restore.
     }
 
@@ -146,17 +150,19 @@ class Terminal extends ArefiBaseComponent {
       const result = await response.json();
 
       if (result.status === 'success') {
+        log.log('Session validated successfully. Restoring remote state.');
         // Session is valid, load remote data.
         await this.#services.environment.fetchRemoteVariables();
         await this.#services.history.loadRemoteHistory();
       } else {
+        log.warn('Session validation failed. Clearing local session data.', result.message);
         // Session is invalid (e.g., expired), clear local session data.
         this.#services.environment.removeVariable('TOKEN');
         this.#services.environment.removeVariable('TOKEN_EXPIRY');
         this.#services.environment.setVariable('USER', 'guest');
       }
     } catch (error) {
-      console.error('Session restoration failed:', error);
+      log.error('Session restoration failed:', error);
     }
   }
 
@@ -171,7 +177,7 @@ class Terminal extends ArefiBaseComponent {
         const welcomeOutput = await welcomeCommand.execute([]);
         this.refs['welcome-output'].appendChild(welcomeOutput);
       } catch (error) {
-        console.error("Failed to display welcome message:", error);
+        log.error("Failed to display welcome message:", error);
       }
     }
   }
@@ -193,7 +199,7 @@ class Terminal extends ArefiBaseComponent {
     // Initialize the filesystem service asynchronously
     this.#services.filesystem.init('/fs/index.py').then(() => {
     }).catch(error => {
-        console.error('Failed to initialize filesystem service:', error);
+        log.error('Failed to initialize filesystem service:', error);
     });
 
     // Pass the full services object for consistency
@@ -327,7 +333,7 @@ class Terminal extends ArefiBaseComponent {
       .then(() => {
         // This block runs after the command successfully executes.
       }).catch(err => {
-        console.error("Command Execution Error", err);
+        log.error("Command Execution Error", err);
         // This block runs if the command execution throws an error.
       }).finally(() => {
         // This block runs regardless of success or failure.

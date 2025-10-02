@@ -15,10 +15,12 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Services/LogService.js';
 /**
  * @class Clear
  * @description Implements the 'clear' command, which clears the terminal output.
  */
+const log = createLogger('clear');
 class Clear {
     static DESCRIPTION = 'Clear the terminal output.';
     static dependencies = [];
@@ -33,6 +35,7 @@ class Clear {
      * @returns {HTMLElement} The output div
      */
     execute(args) {
+        log.log('Dispatching terminal-clear event.');
         const outputDiv = document.createElement('div');
         // Dispatch a custom event that the Terminal component will listen for
         const clearEvent = new CustomEvent('terminal-clear');

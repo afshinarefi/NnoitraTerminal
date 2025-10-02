@@ -15,7 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('unalias');
 /**
  * @class Unalias
  * @description Implements the 'unalias' command to remove command aliases.
@@ -27,6 +28,7 @@ class Unalias {
 
     constructor(services) {
         this.#environmentService = services.environment;
+        log.log('Initializing...');
     }
 
     static man() {
@@ -45,10 +47,12 @@ class Unalias {
     }
 
     async execute(args) {
+        log.log('Executing with args:', args);
         const output = document.createElement('pre');
         const aliasName = args[1];
 
         if (!aliasName) {
+            log.warn('No alias name provided.');
             output.textContent = 'unalias: usage: unalias <alias_name>';
             return output;
         }
@@ -56,10 +60,12 @@ class Unalias {
         const aliases = this.#environmentService.getAliases();
 
         if (aliasName in aliases) {
+            log.log(`Removing alias: "${aliasName}"`);
             delete aliases[aliasName];
             this.#environmentService.setAliases(aliases);
             output.textContent = `Alias '${aliasName}' removed.`;
         } else {
+            log.warn(`Alias not found: "${aliasName}"`);
             output.textContent = `unalias: ${aliasName}: not found`;
         }
 

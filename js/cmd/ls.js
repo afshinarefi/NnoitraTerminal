@@ -15,7 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
+import { createLogger } from '../Services/LogService.js';
+const log = createLogger('ls');
 /**
  * @class Ls
  * @description Implements the 'ls' command, which lists the contents of a directory using FilesystemService.
@@ -27,6 +28,7 @@ class Ls {
 
     constructor(services) {
         this.#filesystemService = services.filesystem;
+        log.log('Initializing...');
     }
 
     static man() {
@@ -44,6 +46,7 @@ class Ls {
     }
 
     async execute(args) {
+        log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         let path = args[1] || this.#filesystemService.getCurrentPath();
         if (!path.startsWith('/')) {
@@ -51,6 +54,7 @@ class Ls {
         }
         path = this.#filesystemService.normalizePath(path);
         // Check if path is a file
+        log.log(`Listing contents for path: "${path}"`);
         if (this.#filesystemService.isFile(path)) {
             // Extract file name from path
             const parts = path.split('/').filter(p => p);
@@ -73,6 +77,7 @@ class Ls {
         }
         const contents = await this.#filesystemService.listContents(path);
         if (!contents) {
+            log.warn(`Cannot access path: "${path}"`);
             outputDiv.textContent = `ls: cannot access '${path}': No such directory`;
             return outputDiv;
         }
