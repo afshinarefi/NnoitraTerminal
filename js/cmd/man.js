@@ -63,16 +63,16 @@ class Man {
         }
         // If starting the first argument, suggest all command names
         if (currentArgs.length === 0) {
-            return commandService.getAvailableCommandNames();
+            return commandService.getHelpCommandNames();
         }
         // If typing the first argument, suggest matching command names
         if (currentArgs.length === 1) {
             const input = currentArgs[0] || '';
             // If input is already a valid command name, do not suggest anything
-            if (commandService.getAvailableCommandNames().includes(input)) {
+            if (commandService.getHelpCommandNames().includes(input)) {
                 return [];
             }
-            return commandService.getAvailableCommandNames().filter(cmd => cmd.startsWith(input));
+            return commandService.getHelpCommandNames().filter(cmd => cmd.startsWith(input));
         }
         // If typing the second or later argument, do not suggest anything
         return [];
