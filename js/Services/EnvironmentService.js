@@ -22,39 +22,59 @@
  * @description Manages environment variables for the terminal session.
  * Stores variables as key-value pairs, typically in uppercase, following shell conventions.
  */
+
+// Define variable categories
+const VAR_CATEGORIES = {
+	TEMP: 'TEMP',     // In-memory only for the current session
+	LOCAL: 'LOCAL',   // Persisted in browser localStorage
+	REMOTE: 'REMOTE'  // Persisted on the server for the logged-in user
+};
+
+// Define the properties of each environment variable
+const VAR_DEFINITIONS = {
+	'USER': { category: VAR_CATEGORIES.LOCAL, defaultValue: 'guest' },
+	'HOST': { category: VAR_CATEGORIES.TEMP, defaultValue: window.location.host },
+	'PWD': { category: VAR_CATEGORIES.TEMP, defaultValue: '/' },
+	'TOKEN': { category: VAR_CATEGORIES.LOCAL },
+	'TOKEN_EXPIRY': { category: VAR_CATEGORIES.LOCAL },
+	'HISTSIZE': { category: VAR_CATEGORIES.REMOTE, defaultValue: '1000' },
+	'ALIAS': { category: VAR_CATEGORIES.REMOTE, defaultValue: '{}' }
+};
+
 class EnvironmentService {
 	/** @private {Map<string, string>} #variables - A private Map to hold all environment variables. */
 	#variables = new Map();
-
-	/** @private {string[]} #persistentKeys - A list of keys to persist in localStorage. */
-	#persistentKeys = ['USER', 'TOKEN', 'TOKEN_EXPIRY', 'ALIAS'];
 
 	/**
 	 * Initializes the EnvironmentService with an optional set of initial variables.
 	 * Variable keys are automatically converted to uppercase for consistency.
 	 * @param {Object.<string, string>} [initialEnv={}] - An object containing initial environment variables.
 	 *   Example: `{ USER: 'guest', PWD: '/' }`.
-	 */	constructor(initialEnv = {}) {
-		// Load persistent variables from localStorage first.
+	 */
+	constructor() {
+		this.#initializeDefaults();
 		this.#loadFromStorage();
+	}
 
-		// Initialize the internal map with provided variables.
-		for (const [key, value] of Object.entries(initialEnv)) {
-			this.setVariable(key, value); 
+	/** @private Initializes variables with their default values. */
+	#initializeDefaults() {
+		for (const [key, def] of Object.entries(VAR_DEFINITIONS)) {
+			if (def.defaultValue !== undefined) {
+				this.#variables.set(key, def.defaultValue);
+			}
 		}
 	}
 
-	/**
-	 * @private
-	 * Loads persistent variables from localStorage into the service.
-	 */
+	/** @private Loads LOCAL variables from localStorage. */
 	#loadFromStorage() {
-		this.#persistentKeys.forEach(key => {
-			const value = localStorage.getItem(key);
-			if (value) {
-				this.#variables.set(key, value);
+		for (const [key, def] of Object.entries(VAR_DEFINITIONS)) {
+			if (def.category === VAR_CATEGORIES.LOCAL) {
+				const value = localStorage.getItem(key);
+				if (value) {
+					this.#variables.set(key, value);
+				}
 			}
-		});
+		}
 	}
 
 	/**
@@ -62,7 +82,8 @@ class EnvironmentService {
 	 * @param {string} key - The name of the variable to retrieve (case-insensitive for lookup).
 	 * @returns {string | undefined} The variable's value, or `undefined` if the variable is not set.
 	 */	getVariable(key) {
-		return this.#variables.get(key);
+		const upperKey = key.toUpperCase();
+		return this.#variables.get(upperKey);
 	}
 
 	/**
@@ -71,16 +92,40 @@ class EnvironmentService {
 	 * @param {string} key - The name of the variable.
 	 * @param {string} value - The new string value for the variable.
 	 */	setVariable(key, value) {
-		if (!key || typeof key !== 'string' || typeof value !== 'string') {
-			// Basic validation for key and value types.
+		const upperKey = key.toUpperCase();
+		if (!upperKey || typeof value !== 'string') {
 			console.error("Invalid key or value provided to EnvironmentService.");
 			return;
 		}
-		this.#variables.set(key, value);
 
-		// If the key is one that should be persisted, save it to localStorage.
-		if (this.#persistentKeys.includes(key)) {
-			localStorage.setItem(key, value);
+		this.#variables.set(upperKey, value);
+
+		const def = VAR_DEFINITIONS[upperKey];
+		if (!def) return; // Ad-hoc variable, treat as TEMP
+
+		if (def.category === VAR_CATEGORIES.LOCAL) {
+			localStorage.setItem(upperKey, value);
+		} else if (def.category === VAR_CATEGORIES.REMOTE) {
+			this.#saveRemoteVariable(upperKey, value);
+		}
+	}
+
+	/** @private Saves a single REMOTE variable to the backend. */
+	async #saveRemoteVariable(key, value) {
+		const token = this.getVariable('TOKEN');
+		if (!token || this.getVariable('USER') === 'guest') {
+			return; // Don't save for guests
+		}
+
+		const formData = new FormData();
+		formData.append('token', token);
+		formData.append('var_name', key);
+		formData.append('var_value', value);
+
+		try {
+			await fetch('/server/accounting.py?action=set_env', { method: 'POST', body: formData });
+		} catch (error) {
+			console.error(`Failed to save remote variable ${key}:`, error);
 		}
 	}
 
@@ -88,12 +133,11 @@ class EnvironmentService {
 	 * Removes an environment variable from the session.
 	 * @param {string} key - The name of the variable to remove.
 	 */
-	removeVariable(key) {
-		this.#variables.delete(key);
-
-		// If the key is one that was persisted, remove it from localStorage.
-		if (this.#persistentKeys.includes(key)) {
-			localStorage.removeItem(key);
+	removeVariable(key) {		const upperKey = key.toUpperCase();
+		this.#variables.delete(upperKey);
+		const def = VAR_DEFINITIONS[upperKey];
+		if (def && def.category === VAR_CATEGORIES.LOCAL) {
+			localStorage.removeItem(upperKey);
 		}
 	}
 
@@ -102,7 +146,8 @@ class EnvironmentService {
 	 * @param {string} key - The name of the variable to check.
 	 * @returns {boolean} `true` if the variable is set, `false` otherwise.
 	 */	hasVariable(key) {
-		return this.#variables.has(key);
+		const upperKey = key.toUpperCase();
+		return this.#variables.has(upperKey);
 	}
 
 	/**
@@ -136,6 +181,38 @@ class EnvironmentService {
 	 */
 	setAliases(aliases) {
 		this.setVariable('ALIAS', JSON.stringify(aliases));
+	}
+
+	/** Fetches remote variables and loads them into the environment. */
+	async fetchRemoteVariables() {
+		const token = this.getVariable('TOKEN');
+		if (!token || this.getVariable('USER') === 'guest') {
+			return; // No user logged in
+		}
+
+		const formData = new FormData();
+		formData.append('token', token);
+
+		try {
+			const response = await fetch('/server/accounting.py?action=get_env', { method: 'POST', body: formData });
+			const result = await response.json();
+			if (result.status === 'success' && result.env) {
+				for (const [key, value] of Object.entries(result.env)) {
+					this.#variables.set(key, value);
+				}
+			}
+		} catch (error) {
+			console.error('Failed to fetch remote environment variables:', error);
+		}
+	}
+
+	/** Clears remote variables from memory, typically on logout. */
+	clearRemoteVariables() {
+		for (const [key, def] of Object.entries(VAR_DEFINITIONS)) {
+			if (def.category === VAR_CATEGORIES.REMOTE) {
+				this.#variables.set(key, def.defaultValue);
+			}
+		}
 	}
 }
 

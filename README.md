@@ -11,7 +11,7 @@ Arefi Terminal is a sophisticated, web-based terminal simulator built entirely w
 *   **Command History**: Navigate through previously executed commands using the `ArrowUp` and `ArrowDown` keys.
 *   **Autocompletion**: Press `Tab` to autocomplete commands and file paths. Press `Tab` again to cycle through suggestions.
 *   **User Management**: Includes commands for user creation (`useradd`) and login, with a simple Python backend for persistence.
-*   **Persistent Sessions**: User sessions are stored in `localStorage` and automatically validated, providing a seamless experience across browser reloads.
+*   **Persistent Sessions**: User sessions are stored in `localStorage` and automatically validated on page load. Remote environment variables (like aliases) and command history are fetched from the server, providing a seamless experience across browser reloads.
 *   **Rich Command Output**: Commands can render rich HTML, including links, images, and formatted text, not just plain text.
 
 ## Live Demo
@@ -77,6 +77,7 @@ Interact with the terminal by typing commands into the prompt and pressing `Ente
 | `history`   | Shows the command history.                      | `history`                      |
 | `view`      | Displays an image or video file.                | `view /images/photo.jpg`       |
 | `alias`     | Define or display command aliases.              | `alias l="ls -a"`              |
+| `unalias`   | Remove a command alias.                         | `unalias l`                    |
 | `login`     | Log in as a registered user.                    | `login myuser`                 |
 | `logout`    | Log out of the current session.                 | `logout`                       |
 | `useradd`   | Create a new user account.                      | `useradd newuser`              |

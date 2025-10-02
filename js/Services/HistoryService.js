@@ -50,14 +50,14 @@ class HistoryService {
     }
 
     /**
-     * Adds a command to the history list.
+     * Adds a command to the history list and persists it if the user is logged in.
      * Empty or sequentially repeated commands are ignored.
      * @param {string} command - The command string to add.
      */
-    addCommand(command) {
+    async addCommand(command) {
         const trimmedCommand = command.trim();
         if (!trimmedCommand) return;
-        
+
         // Prevent adding repeated commands sequentially.
         if (this.#history.length > 0 && this.#history[0] === trimmedCommand) {
             return;
@@ -65,7 +65,27 @@ class HistoryService {
 
         // Add the new command to the beginning of the history array.
         this.#history.unshift(trimmedCommand);
-        
+
+        // If the user is logged in, save the command to the remote history.
+        const token = this.#environmentService.getVariable('TOKEN');
+        if (token && this.#environmentService.getVariable('USER') !== 'guest') {
+            try {
+                const formData = new FormData();
+                formData.append('token', token);
+                formData.append('command', trimmedCommand);
+                await fetch('/server/accounting.py?action=add_history', {
+                    method: 'POST',
+                    body: formData
+                });
+            } catch (error) {
+                console.error('Failed to save command to remote history:', error);
+            }
+        }
+
+        // Update maxSize from environment in case it changed
+        const histSizeEnv = this.#environmentService.getVariable('HISTSIZE');
+        this.#maxSize = (histSizeEnv && !isNaN(parseInt(histSizeEnv))) ? parseInt(histSizeEnv) : 1000;
+
         // Enforce maximum history size.
         if (this.#history.length > this.#maxSize) {
             this.#history.pop(); // Remove the oldest command.
@@ -140,6 +160,40 @@ class HistoryService {
             command: command,
             index: index + 1
         }));
+    }
+
+    /**
+     * Fetches and loads the command history from the server for a logged-in user.
+     */
+    async loadRemoteHistory() {
+        const token = this.#environmentService.getVariable('TOKEN');
+        if (!token || this.#environmentService.getVariable('USER') === 'guest') {
+            return; // Not logged in, do nothing.
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('token', token);
+            const response = await fetch('/server/accounting.py?action=get_history', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (result.status === 'success' && Array.isArray(result.history)) {
+                this.#history = result.history;
+                this.resetCursor();
+            }
+        } catch (error) {
+            console.error('Failed to load remote history:', error);
+        }
+    }
+
+    /**
+     * Clears the current history array and resets the cursor. Used on logout.
+     */
+    clearHistory() {
+        this.#history = [];
+        this.resetCursor();
     }
 }
 

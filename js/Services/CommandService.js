@@ -29,6 +29,7 @@ import { Useradd } from '../cmd/useradd.js';
 import { Login } from '../cmd/login.js';
 import { Logout } from '../cmd/logout.js';
 import { Alias } from '../cmd/alias.js';
+import { Unalias } from '../cmd/unalias.js';
 import { FilesystemService } from './FilesystemService.js';
 
 /**
@@ -71,6 +72,7 @@ class CommandService {
       this.register('login', Login);
       this.register('logout', Logout);
       this.register('alias', Alias);
+      this.register('unalias', Unalias);
     }
 
     /**

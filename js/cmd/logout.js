@@ -23,9 +23,11 @@ class Logout {
     static DESCRIPTION = 'Log out of the current session.';
 
     #environmentService;
+    #historyService;
 
     constructor(services) {
         this.#environmentService = services.environment;
+        this.#historyService = services.history;
     }
 
     static man() {
@@ -76,6 +78,8 @@ class Logout {
                 this.#environmentService.removeVariable('TOKEN');
                 this.#environmentService.removeVariable('TOKEN_EXPIRY');
                 this.#environmentService.setVariable('USER', 'guest'); // Reset to default user
+                this.#environmentService.clearRemoteVariables(); // Reset remote vars to defaults
+                this.#historyService.clearHistory(); // Clear the history from memory
             }
         } catch (error) {
             outputDiv.textContent = `Error during logout: ${error.message}`;

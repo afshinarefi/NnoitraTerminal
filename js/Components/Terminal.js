@@ -112,10 +112,50 @@ class Terminal extends ArefiBaseComponent {
     // Use an immediately-invoked async function to handle async setup
     (async () => {
       // Display the initial welcome message before creating the first prompt.
+      // Also, check for and restore a previous session.
+      await this.#restoreSession();
       await this.#displayWelcomeMessage();
       // Now that the welcome message is loaded, create the first command prompt.
       this.createNextItem();
     })();
+  }
+
+  /**
+   * Checks for a session token on load, validates it with the backend,
+   * and restores the user's remote environment and history if valid.
+   * @private
+   */
+  async #restoreSession() {
+    const token = this.#services.environment.getVariable('TOKEN');
+    const user = this.#services.environment.getVariable('USER');
+
+    if (!token || !user || user === 'guest') {
+      return; // No session to restore.
+    }
+
+    const formData = new FormData();
+    formData.append('token', token);
+
+    try {
+      const response = await fetch('/server/accounting.py?action=validate', {
+        method: 'POST',
+        body: formData
+      });
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        // Session is valid, load remote data.
+        await this.#services.environment.fetchRemoteVariables();
+        await this.#services.history.loadRemoteHistory();
+      } else {
+        // Session is invalid (e.g., expired), clear local session data.
+        this.#services.environment.removeVariable('TOKEN');
+        this.#services.environment.removeVariable('TOKEN_EXPIRY');
+        this.#services.environment.setVariable('USER', 'guest');
+      }
+    } catch (error) {
+      console.error('Session restoration failed:', error);
+    }
   }
 
   /**
@@ -140,12 +180,6 @@ class Terminal extends ArefiBaseComponent {
    */
   #initializeServices() {
     this.#services.environment = new EnvironmentService();
-    // Set initial environment variables before other services use them
-    if (!this.#services.environment.hasVariable('USER')) {
-      this.#services.environment.setVariable('USER', 'guest');
-    }
-    this.#services.environment.setVariable('PWD', '/');
-    this.#services.environment.setVariable('HOST', window.location.host);
 
     this.#services.history = new HistoryService(this.#services);
     this.#services.filesystem = new FilesystemService();
@@ -269,8 +303,8 @@ class Terminal extends ArefiBaseComponent {
    * creates a new TerminalItem for output, and re-enables the prompt after execution.
    * @param {string} cmd - The command string to execute.
    */
-  runCommand(cmd) {
-    this.#services.history.addCommand(cmd);
+  async runCommand(cmd) {
+    await this.#services.history.addCommand(cmd);
     this.refs.prompt.clear();
     this.refs.prompt.disable();
 

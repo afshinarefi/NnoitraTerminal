@@ -24,14 +24,16 @@ class Login {
 
     #environmentService;
     #prompt;
+    #historyService;
 
     constructor(services) {
         this.#environmentService = services.environment;
         this.#prompt = services.prompt;
+        this.#historyService = services.history;
     }
 
     static man() {
-        return `NAME\n       login - Log in to the system.\n\nSYNOPSIS\n       login [username] [password]\n\nDESCRIPTION\n       Authenticates the user and starts a session.`;
+        return `NAME\n       login - Log in to the system.\n\nSYNOPSIS\n       login [username]\n\nDESCRIPTION\n       Authenticates the user and starts a session.`;
     }
 
     static autocompleteArgs(currentArgs, services) {
@@ -88,6 +90,10 @@ class Login {
                 this.#environmentService.setVariable('TOKEN', loginResult.token);
                 this.#environmentService.setVariable('USER', loginResult.user);
                 this.#environmentService.setVariable('TOKEN_EXPIRY', loginResult.expires_at);
+                // Fetch remote environment variables for the logged-in user
+                await this.#environmentService.fetchRemoteVariables();
+                // Fetch remote command history for the logged-in user
+                await this.#historyService.loadRemoteHistory();
             }
         } catch (error) {
             outputDiv.textContent = `Error during login: ${error.message}`;
