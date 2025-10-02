@@ -73,6 +73,10 @@ Interact with the terminal by typing commands into the prompt and pressing `Ente
 | `cat`       | Displays the content of a file.                 | `cat /documents/notes.txt`     |
 | `about`     | Shows information about the project.            | `about`                        |
 | `welcome`   | Displays the welcome message (MOTD).            | `welcome`                      |
+| `env`       | Lists all environment variables.                | `env`                          |
+| `history`   | Shows the command history.                      | `history`                      |
+| `view`      | Displays an image or video file.                | `view /images/photo.jpg`       |
+| `alias`     | Define or display command aliases.              | `alias l="ls -a"`              |
 | `login`     | Log in as a registered user.                    | `login myuser`                 |
 | `logout`    | Log out of the current session.                 | `logout`                       |
 | `useradd`   | Create a new user account.                      | `useradd newuser`              |

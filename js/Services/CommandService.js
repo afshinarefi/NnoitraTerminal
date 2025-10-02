@@ -28,6 +28,7 @@ import { View } from '../cmd/view.js';
 import { Useradd } from '../cmd/useradd.js';
 import { Login } from '../cmd/login.js';
 import { Logout } from '../cmd/logout.js';
+import { Alias } from '../cmd/alias.js';
 import { FilesystemService } from './FilesystemService.js';
 
 /**
@@ -69,6 +70,7 @@ class CommandService {
       this.register('useradd', Useradd);
       this.register('login', Login);
       this.register('logout', Logout);
+      this.register('alias', Alias);
     }
 
     /**
@@ -115,8 +117,22 @@ class CommandService {
      * @returns {string[]} An array of available command names.
      */
     getAvailableCommandNames() {
-        const allCommands = this.getCommandNames();
-        const availableCommands = allCommands.filter(name => {
+        const availableRegistered = this.getHelpCommandNames();
+        const aliases = this.#services.environment.getAliases();
+        const aliasNames = Object.keys(aliases);
+
+        // Combine registered commands and aliases, ensuring no duplicates, and sort them.
+        return [...new Set([...availableRegistered, ...aliasNames])].sort();
+    }
+
+    /**
+     * Returns a sorted list of command names suitable for the 'help' command.
+     * This excludes aliases.
+     * @returns {string[]} An array of command names for the help listing.
+     */
+    getHelpCommandNames() {
+        const registeredCommands = this.getCommandNames();
+        const availableCommands = registeredCommands.filter(name => {
             const CommandClass = this.getCommandClass(name);
             if (CommandClass && typeof CommandClass.isAvailable === 'function') {
                 return CommandClass.isAvailable(this.#services);
@@ -165,11 +181,23 @@ class CommandService {
           return;
       }
 
-      const args = trimmedCmd.split(/\s+/);
-      const commandName = args[0];
+      let args = trimmedCmd.split(/\s+/);
+      let commandName = args[0];
+
+      // Check for alias and substitute if found
+      const aliases = this.#services.environment.getAliases();
+      if (aliases[commandName]) {
+          const aliasValue = aliases[commandName];
+          const aliasArgs = aliasValue.split(/\s+/);
+          const remainingUserArgs = args.slice(1);
+          // Reconstruct the command string and re-parse
+          const newCmd = [...aliasArgs, ...remainingUserArgs].join(' ');
+          args = newCmd.split(/\s+/);
+          commandName = args[0];
+      }
 
       // Check if the command is registered.
-      if (this.getAvailableCommandNames().includes(commandName)) {
+      if (this.#registry.has(commandName)) {
           try {
               const commandHandler = this.getCommand(commandName);
               // Execute the command handler and append its result to the output.
@@ -177,11 +205,11 @@ class CommandService {
               output.appendChild(resultElement);
           } catch (e) {
               // Handle errors during command execution.
-              output.innerText = `Error executing ${commandName}: ${e.message}`;
+              output.textContent = `Error executing ${commandName}: ${e.message}`;
           }
       } else {
-          // Command not found message.
-          output.innerText = commandName + ": command not found";
+          // If it's not a registered command (it might have been an alias that resolved to a non-existent command)
+          output.textContent = commandName + ": command not found";
       }
   }
 }

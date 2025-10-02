@@ -66,7 +66,7 @@ class Help {
      */
     async execute(args) {
         const outputDiv = document.createElement('div');
-        const commands = this.#commandService.getAvailableCommandNames();
+        const commands = this.#commandService.getHelpCommandNames();
 
         if (commands.length === 0) {
             const p = document.createElement('p');

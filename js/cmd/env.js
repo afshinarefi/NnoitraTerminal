@@ -50,7 +50,13 @@ class Env {
         let output = '';
 
         for (const [key, value] of Object.entries(allVariables)) {
-            output += `${key}=${JSON.stringify(value)}\n`;
+            // Check if the value contains spaces or is a JSON-like string, and quote it if so.
+            // This avoids double-stringifying the ALIAS value.
+            if (/\s/.test(value) || (value.startsWith('{') && value.endsWith('}'))) {
+                output += `${key}="${value}"\n`;
+            } else {
+                output += `${key}=${value}\n`;
+            }
         }
         pre.innerText = output.trim();
         return pre;

@@ -27,7 +27,7 @@ class EnvironmentService {
 	#variables = new Map();
 
 	/** @private {string[]} #persistentKeys - A list of keys to persist in localStorage. */
-	#persistentKeys = ['USER', 'TOKEN', 'TOKEN_EXPIRY'];
+	#persistentKeys = ['USER', 'TOKEN', 'TOKEN_EXPIRY', 'ALIAS'];
 
 	/**
 	 * Initializes the EnvironmentService with an optional set of initial variables.
@@ -111,6 +111,31 @@ class EnvironmentService {
 	 * @returns {Object.<string, string>} A copy of all environment variables as a plain object.
 	 */	getAllVariables() {
 		return Object.fromEntries(this.#variables);
+	}
+
+	/**
+	 * Retrieves all defined aliases as an object.
+	 * @returns {Object.<string, string>} An object of aliases.
+	 */
+	getAliases() {
+		const aliasString = this.getVariable('ALIAS');
+		if (aliasString) {
+			try {
+				return JSON.parse(aliasString);
+			} catch (e) {
+				console.error("Error parsing ALIAS environment variable:", e);
+				return {};
+			}
+		}
+		return {};
+	}
+
+	/**
+	 * Sets the aliases object in the environment.
+	 * @param {Object.<string, string>} aliases - The object of aliases to store.
+	 */
+	setAliases(aliases) {
+		this.setVariable('ALIAS', JSON.stringify(aliases));
 	}
 }
 
