@@ -59,8 +59,11 @@ def list_directory(path):
         result["error"] = str(e)
     return result
 
-# Restrict root_dir to the directory containing index.py
-root_dir = os.path.dirname(os.path.abspath(__file__))
+# The root directory that this script will serve files from.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR) # This will be /var/www/html
+root_dir = os.path.join(PROJECT_ROOT, 'fs') # We want to serve the /fs directory
+
 
 # Get requested path from query parameter
 req_path = get_query_param('path')

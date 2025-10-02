@@ -80,7 +80,7 @@ Interact with the terminal by typing commands into the prompt and pressing `Ente
 | `unalias`   | Remove a command alias.                         | `unalias l`                    |
 | `login`     | Log in as a registered user.                    | `login myuser`                 |
 | `logout`    | Log out of the current session.                 | `logout`                       |
-| `useradd`   | Create a new user account.                      | `useradd newuser`              |
+| `adduser`   | Create a new user account.                      | `adduser newuser`              |
 | `clear`     | Clears the terminal screen.                     | `clear`                        |
 
 ## Project Structure
@@ -126,13 +126,14 @@ This project demonstrates a modern approach to building web applications without
     *   `HistoryService`: Manages the command history stack.
     *   `EnvironmentService`: Manages session variables like `USER`, `PWD`, and `HOST`.
     *   `AutocompleteService`: Provides command and path completion logic.
+*   **`LogService`**: A centralized, performant logger that allows enabling/disabling logs by category for easier debugging.
 
 ### Backend
 
 The backend is intentionally lightweight, using Python CGI scripts for simple server-side tasks.
 
-*   `/fs/index.py`: A script that can be run to scan a directory structure and generate the `filesystem.json` used by the `FilesystemService`.
-*   `/server/accounting.py`: A CGI script that handles user creation (`useradd`) and login requests, interacting with a simple user database (e.g., a JSON file).
+*   `/server/filesystem.py`: A CGI script that dynamically lists the contents of the `/fs/` directory.
+*   `/server/accounting.py`: A CGI script that handles user creation (`adduser`), login, and persistence of remote environment variables and command history.
 *   `/db/users.db`: A SQLite database file that is automatically created to store user credentials and session tokens. It is recommended to add this file to your `.gitignore`.
 This approach allows the frontend to remain a static application for the most part, while still enabling dynamic, persistent features like user accounts.
 

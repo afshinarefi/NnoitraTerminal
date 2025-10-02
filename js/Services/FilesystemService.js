@@ -135,7 +135,7 @@ class FilesystemService {
         }
         if (shouldFetch) {
             try {
-                const url = `/fs/index.py?path=${encodeURIComponent(normalizedPath.replace(/^\//, ''))}`;
+                const url = `/server/filesystem.py?path=${encodeURIComponent(normalizedPath.replace(/^\//, ''))}`;
                 log.log(`Fetching backend for ${normalizedPath}: ${url}`);
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);

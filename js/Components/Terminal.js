@@ -197,7 +197,7 @@ class Terminal extends ArefiBaseComponent {
     this.#services.prompt = this.refs.prompt;
 
     // Initialize the filesystem service asynchronously
-    this.#services.filesystem.init('/fs/index.py').then(() => {
+    this.#services.filesystem.init('/server/filesystem.py').then(() => {
     }).catch(error => {
         log.error('Failed to initialize filesystem service:', error);
     });

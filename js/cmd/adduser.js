@@ -16,13 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Services/LogService.js';
-const log = createLogger('useradd');
+const log = createLogger('adduser');
 /**
- * @class Useradd
- * @description Implements the 'useradd' command to create a new user.
+ * @class Adduser
+ * @description Implements the 'adduser' command to create a new user.
  */
-class Useradd {
-    static DESCRIPTION = 'Create a new user account.';
+class Adduser {
+    static DESCRIPTION = 'Add a new user interactively.';
 
     #prompt;
 
@@ -32,21 +32,11 @@ class Useradd {
     }
 
     static man() {
-        return `NAME\n       useradd - Create a new user account.\n\nSYNOPSIS\n       useradd [username] [password]\n\nDESCRIPTION\n       Creates a new user with the specified username and password.`;
+        return `NAME\n       adduser - Add a new user account.\n\nSYNOPSIS\n       adduser [username]\n\nDESCRIPTION\n       Interactively creates a new user with the specified username and prompts for a password.`;
     }
 
     static autocompleteArgs(currentArgs, services) {
         return []; // No autocomplete for username/password.
-    }
-
-    /**
-     * Determines if the command is available in the current context.
-     * For now, only 'guest' can add users. This can be updated for 'root' privileges later.
-     * @param {object} services - A collection of all services.
-     * @returns {boolean} True if the command is available, false otherwise.
-     */
-    static isAvailable(services) {
-        return services.environment.getVariable('USER') === 'guest';
     }
 
     async execute(args) {
@@ -56,7 +46,7 @@ class Useradd {
         let password = args[2];
 
         if (!username) {
-            outputDiv.textContent = 'Usage: useradd <username>';
+            outputDiv.textContent = 'Usage: adduser <username>';
             return outputDiv;
         }
 
@@ -88,4 +78,4 @@ class Useradd {
     }
 }
 
-export { Useradd };
+export { Adduser };

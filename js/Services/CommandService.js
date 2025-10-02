@@ -26,7 +26,7 @@ import { Cd } from '../cmd/cd.js';
 import { Cat } from '../cmd/cat.js';
 import { Clear } from '../cmd/clear.js';
 import { View } from '../cmd/view.js';
-import { Useradd } from '../cmd/useradd.js';
+import { Adduser } from '../cmd/adduser.js';
 import { Login } from '../cmd/login.js';
 import { Logout } from '../cmd/logout.js';
 import { Alias } from '../cmd/alias.js';
@@ -73,7 +73,7 @@ class CommandService {
       this.register('cat', Cat);
       this.register('clear', Clear);
       this.register('view', View);
-      this.register('useradd', Useradd);
+      this.register('adduser', Adduser);
       this.register('login', Login);
       this.register('logout', Logout);
       this.register('alias', Alias);

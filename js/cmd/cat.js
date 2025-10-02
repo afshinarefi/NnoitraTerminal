@@ -47,6 +47,7 @@ export class Cat {
         const filePathArg = args[1];
 
         if (!filePathArg) {
+            log.warn('Missing file operand.');
             output.textContent = 'cat: missing file operand';
             return output;
         }
