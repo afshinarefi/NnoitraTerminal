@@ -18,6 +18,7 @@
 import { ArefiBaseComponent } from './ArefiBaseComponent.js';
 import { createLogger } from '../Services/LogService.js';
 import { Icon } from './Icon.js';
+const log = createLogger('CommandLine');
 
 /**
  * @constant {string} TEMPLATE - HTML template for the CommandLine component's shadow DOM.
@@ -87,14 +88,16 @@ commandLineSpecificStyles.replaceSync(CSS);
  * keyboard navigation for command history, and dispatches events for command submission and autocomplete.
  */
 class CommandLine extends ArefiBaseComponent {
-  #log = createLogger('CommandLine');
-
   /** @private {Object.<string, Service>} #services - A collection of services used by the command line (e.g., history). */
   #services = {};
   /** @private {string} #inputBuffer - Stores the current input value when navigating history. */
   #inputBuffer;
   /** @private {HTMLInputElement} #activeInput - A reference to the currently visible input element. */
   #activeInput;
+  /** @private {number} #touchStartX - The starting X coordinate of a touch event. */
+  #touchStartX = 0;
+  /** @private {number} #touchStartY - The starting Y coordinate of a touch event. */
+  #touchStartY = 0;
 
   /**
    * Creates an instance of CommandLine.
@@ -109,6 +112,10 @@ class CommandLine extends ArefiBaseComponent {
 
     // Set the initial active input to the text prompt.
     this.#activeInput = this.refs['prompt-text'];
+
+    // Add touch event listeners for swipe-to-autocomplete gesture.
+    this.refs.footer.addEventListener('touchstart', this.#handleTouchStart.bind(this), { passive: true });
+    this.refs.footer.addEventListener('touchend', this.#handleTouchEnd.bind(this), { passive: true });
   }
 
   /**
@@ -117,7 +124,7 @@ class CommandLine extends ArefiBaseComponent {
    */
   setHistoryService(service) {
     if (!service) {
-      this.#log.error("Attempted to set null history manager on CommandLine.");
+      log.error("Attempted to set null history manager on CommandLine.");
       return;
     }
     this.#services.history = service;
@@ -129,7 +136,7 @@ class CommandLine extends ArefiBaseComponent {
    * @returns {Promise<string>} A promise that resolves with the entered password.
    */
   requestPassword(promptText = 'Password') {
-    this.#log.log(`Requesting password with prompt: "${promptText}"`);
+    log.log(`Requesting password with prompt: "${promptText}"`);
     return new Promise(resolve => {
       // Switch to the password input.
       this.refs['prompt-text'].style.display = 'none';
@@ -148,7 +155,7 @@ class CommandLine extends ArefiBaseComponent {
           event.preventDefault(); // Prevent default 'Enter' behavior.
           event.stopPropagation(); // Stop the event from bubbling up to other listeners.
           const password = this.#activeInput.value;
-          this.#log.log('Password entered, resolving promise.');
+          log.log('Password entered, resolving promise.');
           this.#activeInput.removeEventListener('keydown', passwordHandler);
 
           // Switch back to the text input.
@@ -163,6 +170,47 @@ class CommandLine extends ArefiBaseComponent {
       };
       this.#activeInput.addEventListener('keydown', passwordHandler);
     });
+  }
+
+  /**
+   * Records the starting position of a touch event for swipe detection.
+   * @private
+   * @param {TouchEvent} event - The touchstart event.
+   */
+  #handleTouchStart(event) {
+    if (event.touches.length === 1) {
+      this.#touchStartX = event.touches[0].clientX;
+      this.#touchStartY = event.touches[0].clientY;
+    }
+  }
+
+  /**
+   * Calculates the gesture at the end of a touch and triggers autocomplete on a right swipe.
+   * @private
+   * @param {TouchEvent} event - The touchend event.
+   */
+  #handleTouchEnd(event) {
+    if (this.#touchStartX === 0) return;
+
+    const touchEndX = event.changedTouches[0].clientX;
+    const touchEndY = event.changedTouches[0].clientY;
+
+    const deltaX = touchEndX - this.#touchStartX;
+    const deltaY = touchEndY - this.#touchStartY;
+
+    // Reset start coordinates
+    this.#touchStartX = 0;
+    this.#touchStartY = 0;
+
+    // Check for a right swipe: significant horizontal movement, minimal vertical movement.
+    if (deltaX > 50 && Math.abs(deltaY) < 50) {
+      log.log('Right swipe detected, dispatching autocomplete request.');
+      this.dispatchEvent(new CustomEvent('autocomplete-request', {
+        bubbles: true,
+        composed: true,
+        detail: this.#activeInput.value
+      }));
+    }
   }
 
   /**
@@ -182,7 +230,7 @@ class CommandLine extends ArefiBaseComponent {
     switch (event.key) {
       case 'Enter':
         event.preventDefault();
-        this.#log.log('Enter key pressed.');
+        log.log('Enter key pressed.');
         const command = this.#activeInput.value;
         this.#services.history.resetCursor(); // Reset history cursor after command submission.
         this.clear(); // Clear the input field.
@@ -199,7 +247,7 @@ class CommandLine extends ArefiBaseComponent {
 
       case 'ArrowUp':
         event.preventDefault();
-        this.#log.log('ArrowUp key pressed.');
+        log.log('ArrowUp key pressed.');
         // Save current input before loading history if at the beginning of history navigation.
         if (this.#services.history.getCursorIndex() === 0) {
           this.#inputBuffer = this.#activeInput.value;
@@ -214,7 +262,7 @@ class CommandLine extends ArefiBaseComponent {
 
       case 'ArrowDown':
         event.preventDefault();
-        this.#log.log('ArrowDown key pressed.');
+        log.log('ArrowDown key pressed.');
         const nextHistoryItem = this.#services.history.getNext();
 
         // If at the end of history (new/empty command line), restore the buffered input.
@@ -230,7 +278,7 @@ class CommandLine extends ArefiBaseComponent {
 
       case 'Tab':
         event.preventDefault();
-        this.#log.log('Tab key pressed, dispatching autocomplete request.');
+        log.log('Tab key pressed, dispatching autocomplete request.');
         // Dispatch a custom event to request autocomplete suggestions.
         const autocompleteEvent = new CustomEvent('autocomplete-request', {
           bubbles: true,
