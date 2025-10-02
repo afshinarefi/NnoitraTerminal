@@ -1,3 +1,20 @@
+/**
+ * Arefi Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 import { ArefiBaseComponent } from './ArefiBaseComponent.js';
 import { Icon } from './Icon.js';
 
@@ -50,6 +67,12 @@ const CSS = `
   color: var(--arefi-color-output);
   margin-top: 5px;
   margin-bottom: 5px;
+}
+
+[part=output] pre {
+  white-space: pre-wrap; /* Preserve whitespace but wrap long lines */
+  word-wrap: break-word; /* Ensure long words without spaces also break */
+  margin: 0; /* Reset default margins on pre for consistency */
 }
 
 /* Styles for 'about' command content */
