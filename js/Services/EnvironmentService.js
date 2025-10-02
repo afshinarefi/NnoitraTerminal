@@ -159,6 +159,27 @@ class EnvironmentService {
 	}
 
 	/**
+	 * Returns a plain JavaScript object containing all currently set environment variables,
+	 * categorized by their scope (TEMP, LOCAL, REMOTE).
+	 * @returns {{TEMP: Object.<string, string>, LOCAL: Object.<string, string>, REMOTE: Object.<string, string>}}
+	 */
+	getAllVariablesCategorized() {
+		const categorized = {
+			[VAR_CATEGORIES.TEMP]: {},
+			[VAR_CATEGORIES.LOCAL]: {},
+			[VAR_CATEGORIES.REMOTE]: {}
+		};
+
+		for (const [key, value] of this.#variables.entries()) {
+			const def = VAR_DEFINITIONS[key];
+			const category = def ? def.category : VAR_CATEGORIES.TEMP; // Default ad-hoc vars to TEMP
+			categorized[category][key] = value;
+		}
+
+		return categorized;
+	}
+
+	/**
 	 * Retrieves all defined aliases as an object.
 	 * @returns {Object.<string, string>} An object of aliases.
 	 */

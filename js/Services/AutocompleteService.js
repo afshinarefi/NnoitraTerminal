@@ -94,50 +94,44 @@ class AutocompleteService extends EventTarget {
   async autocompleteReceive(event) {
     event.stopPropagation();
     const input = event.detail;
-    console.log('AutocompleteService: Input received:', input);
-    const rawParts = input.trimStart().split(/\s+/);
-    let lastPart = rawParts.at(-1);
-    console.log('AutocompleteService: Raw parts:', rawParts, 'Last part:', lastPart);
-
-    // Determine the parts to send to CommandService for context.
-    const isInputEndingWithSpace = input.endsWith(" ");
-    let partsForCommandService;
-
-    if (rawParts.length > 1) {
-      partsForCommandService = rawParts.slice(0, 1).concat([rawParts.slice(1).join(' ')]);
-      lastPart = rawParts.slice(1).join(' ');
-    } else if (isInputEndingWithSpace) {
-      partsForCommandService = rawParts;
-      lastPart = "";
-    } else {
-      partsForCommandService = rawParts.slice(0, -1);
-    }
-    console.log('AutocompleteService: Parts for CommandService:', partsForCommandService, 'Adjusted lastPart:', lastPart);
+    console.log('[AutocompleteService] Received input:', `"${input}"`);
+    
+    // Split the input into parts. If the input is empty or just spaces, parts will be [''].
+    // If it ends with a space, the last part will be an empty string, which is what we want.
+    const parts = input.split(/\s+/);
+    console.log('[AutocompleteService] Split parts:', parts);
+    
+    // The part we are trying to complete is always the last one.
+    const partial = parts[parts.length - 1];
+    console.log('[AutocompleteService] Partial to complete:', `"${partial}"`);
+    
+    // The context for autocompletion is always the full set of parts.
+    const commandContext = parts;
+    console.log('[AutocompleteService] Context for CommandService:', commandContext);
 
     // Await all possible completions from the command service based on the context.
-    const allSuggestions = await this.#commandService.autocomplete(partsForCommandService);
-    console.log('AutocompleteService: All suggestions from CommandService:', allSuggestions);
+    const allSuggestions = await this.#commandService.autocomplete(commandContext);
+    console.log('[AutocompleteService] Suggestions from CommandService:', allSuggestions);
 
-    // Filter suggestions based on the lastPart (which might be empty if a space was typed).
-    const filteredSuggestions = [...new Set(allSuggestions.filter(name => name.startsWith(lastPart)))];
-    console.log('AutocompleteService: Filtered suggestions:', filteredSuggestions);
+    // Filter suggestions based on the partial word the user is typing.
+    const filteredSuggestions = [...new Set(allSuggestions.filter(name => name.startsWith(partial)))];
+    console.log('[AutocompleteService] Filtered suggestions:', filteredSuggestions);
 
     // Find the longest common prefix among the filtered suggestions.
     const sharedPrefix = this.#findSharedPrefix(filteredSuggestions);
-    console.log('AutocompleteService: Shared prefix:', sharedPrefix);
+    console.log('[AutocompleteService] Shared prefix:', `"${sharedPrefix}"`);
 
     let completeCommand = input; // Default to original input
 
     if (filteredSuggestions.length > 0) {
-      const currentParts = rawParts.slice(0, -1);
+      // Reconstruct the command with the completed part.
+      const currentParts = parts.slice(0, -1);
       currentParts.push(sharedPrefix);
       completeCommand = currentParts.join(" ");
-    } else {
-      const currentParts = rawParts.slice(0, -1);
-      currentParts.push(lastPart);
-      completeCommand = currentParts.join(" ");
     }
-    console.log('AutocompleteService: Complete command:', completeCommand);
+    console.log('[AutocompleteService] Completed command string:', `"${completeCommand}"`);
+
+    const isInputEndingWithSpace = input.endsWith(" ");
 
     if (
       filteredSuggestions.length === 1 &&
@@ -156,7 +150,7 @@ class AutocompleteService extends EventTarget {
         prefix: sharedPrefix.length
       }
     });
-    console.log('AutocompleteService: Dispatching event with detail:', autocompleteEvent.detail);
+    console.log('[AutocompleteService] Dispatching suggestions event with detail:', autocompleteEvent.detail);
     this.dispatchEvent(autocompleteEvent);
   }
 }

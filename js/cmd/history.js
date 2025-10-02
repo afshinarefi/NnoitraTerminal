@@ -74,7 +74,9 @@ class History {
             return outputDiv;
         }
         const pre = document.createElement('pre');
-        pre.innerText = history.map(item => `${item.index}: ${item.command}`).join('\n');
+        // Reverse the history to show the oldest commands first (largest index to smallest).
+        const reversedHistory = history.slice().reverse();
+        pre.innerText = reversedHistory.map(item => `${item.index}: ${item.command}`).join('\n');
         outputDiv.appendChild(pre);
         return outputDiv;
     }

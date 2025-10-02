@@ -105,6 +105,13 @@ class TerminalItem extends ArefiBaseComponent {
   #id;
 
   /**
+   * Resets the static ID counter back to 1.
+   */
+  static resetIdCounter() {
+    TerminalItem.#nextId = 1;
+  }
+
+  /**
    * Creates an instance of TerminalItem.
    * Initializes the shadow DOM, applies component-specific styles, and assigns a unique ID.
    */

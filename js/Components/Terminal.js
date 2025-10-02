@@ -93,6 +93,8 @@ class Terminal extends ArefiBaseComponent {
     if (output) {
       output.innerHTML = '';
     }
+    // Reset the command ID counter.
+    TerminalItem.resetIdCounter();
   };
 
   /**

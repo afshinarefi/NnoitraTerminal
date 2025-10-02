@@ -46,18 +46,29 @@ class Env {
      */
     async execute(args) {
         const pre = document.createElement('pre');
-        const allVariables = this.#environmentService.getAllVariables();
+        const categorizedVars = this.#environmentService.getAllVariablesCategorized();
         let output = '';
 
-        for (const [key, value] of Object.entries(allVariables)) {
-            // Check if the value contains spaces or is a JSON-like string, and quote it if so.
-            // This avoids double-stringifying the ALIAS value.
-            if (/\s/.test(value) || (value.startsWith('{') && value.endsWith('}'))) {
-                output += `${key}="${value}"\n`;
-            } else {
-                output += `${key}=${value}\n`;
+        const formatCategory = (title, vars) => {
+            if (Object.keys(vars).length === 0) return '';
+
+            let categoryOutput = `\n# ${title} Variables\n`;
+            for (const [key, value] of Object.entries(vars)) {
+                // Check if the value contains spaces or is a JSON-like string, and quote it if so.
+                if (/\s/.test(value) || (value.startsWith('{') && value.endsWith('}'))) {
+                    categoryOutput += `${key}="${value}"\n`;
+                } else {
+                    categoryOutput += `${key}=${value}\n`;
+                }
             }
-        }
+            return categoryOutput;
+        };
+
+        // Using "Session" as a more user-friendly name for "Temporary"
+        output += formatCategory('Session (In-Memory)', categorizedVars.TEMP);
+        output += formatCategory('Local (Browser Storage)', categorizedVars.LOCAL);
+        output += formatCategory('Remote (User Account)', categorizedVars.REMOTE);
+
         pre.innerText = output.trim();
         return pre;
     }

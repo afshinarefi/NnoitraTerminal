@@ -150,22 +150,55 @@ class CommandService {
          * @returns {Promise<string[]>} Promise resolving to an array of possible completions.
          */
         async autocomplete(parts) {
-            if (parts.length === 0) {
+            console.log('[CommandService] Autocomplete received parts:', parts);
+
+            const isCompletingCommandName = parts.length === 1 && parts[0] !== '';
+
+            // If completing the first word (command name)
+            if (isCompletingCommandName) {
+                console.log('[CommandService] Completing command name.');
                 return this.getAvailableCommandNames();
             }
 
-            const commandName = parts[0];
-            const CommandClass = this.getCommandClass(commandName);
-
-            if (CommandClass && typeof CommandClass.autocompleteArgs === 'function') {
-                    const currentArgs = parts.slice(1);
-                    const result = CommandClass.autocompleteArgs(currentArgs, this.#services);
-                    if (result instanceof Promise) {
-                            return await result;
-                    }
-                    return result;
+            // If input is empty, also complete command name
+            if (!parts || parts.length === 0 || (parts.length === 1 && parts[0] === '')) {
+                return this.getAvailableCommandNames();
             }
-
+    
+            let commandName = parts[0];
+            let argsForCompletion = parts.slice(1);
+            console.log(`[CommandService] Initial command: "${commandName}", args:`, argsForCompletion);
+    
+            // Check for alias and substitute if found
+            const aliases = this.#services.environment.getAliases();
+            if (aliases[commandName]) {
+                console.log(`[CommandService] Found alias for "${commandName}"`);
+                const aliasValue = aliases[commandName];
+                const aliasParts = aliasValue.split(/\s+/).filter(p => p); // Split and remove empty strings
+                
+                commandName = aliasParts[0];
+                const aliasArgs = aliasParts.slice(1);
+                
+                // Prepend the alias's own arguments to the arguments typed by the user
+                argsForCompletion = [...aliasArgs, ...argsForCompletion];
+                console.log(`[CommandService] Expanded to command: "${commandName}", combined args:`, argsForCompletion);
+            }
+    
+            const CommandClass = this.getCommandClass(commandName);
+    
+            if (CommandClass && typeof CommandClass.autocompleteArgs === 'function') {
+                console.log(`[CommandService] Found CommandClass for "${commandName}" with autocompleteArgs.`);
+                // If the original input ended with a space, it means we are completing a new, empty argument.
+                // Otherwise, we are completing the last partial argument.
+                const completionArgs = argsForCompletion;
+                console.log('[CommandService] Calling autocompleteArgs with:', completionArgs);
+                const result = CommandClass.autocompleteArgs(completionArgs, this.#services);
+                // Handle both sync and async results from autocompleteArgs
+                const finalResult = (result instanceof Promise) ? await result : result;
+                console.log('[CommandService] Received suggestions from command:', finalResult);
+                return finalResult;
+            }
+    
             return [];
         }
 

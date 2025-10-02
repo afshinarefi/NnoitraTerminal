@@ -145,7 +145,7 @@ class FilesystemService {
                     node._files = data.files;
                     // Insert into tree
                     this.#setNodeAtPath(normalizedPath, node);
-                    console.log(`[FS] Cached node for ${normalizedPath}:`, node);
+                    console.log(`[FS] Cached node for ${normalizedPath}:`, { files: data.files, directories: data.directories });
                     return { files: data.files, directories: data.directories };
                 }
             } catch (error) {
@@ -302,19 +302,18 @@ class FilesystemService {
      * @returns {Promise<string[]>} A promise that resolves to an array of completion suggestions.
      */
     async autocompletePath(input, includeFiles = true) {
-        let basePath = input;
-        if (!input.startsWith('/')) {
-            basePath = this.getCurrentPath().replace(/\/$/, '') + '/' + input;
-        }
-        basePath = this.normalizePath(basePath);
+        const isAbsolute = input.startsWith('/');
+        const fullPath = isAbsolute ? input : this.getCurrentPath().replace(/\/$/, '') + '/' + input;
 
         let parentPath, partial;
         if (input.endsWith('/') || input === '') {
-            parentPath = basePath;
+            parentPath = this.normalizePath(fullPath);
             partial = '';
         } else {
-            parentPath = basePath.substring(0, basePath.lastIndexOf('/')) || '/';
-            partial = input.split('/').pop();
+            const lastSlashIndex = fullPath.lastIndexOf('/');
+            // If there's no slash, parent is root, otherwise it's the path up to the last slash.
+            parentPath = this.normalizePath(lastSlashIndex > 0 ? fullPath.substring(0, lastSlashIndex) : '/');
+            partial = fullPath.substring(lastSlashIndex + 1);
         }
 
         const contents = await this.listContents(parentPath);
