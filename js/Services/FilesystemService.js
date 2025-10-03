@@ -181,19 +181,30 @@ class FilesystemService {
 
     /**
      * Checks if a given path exists in the filesystem.
+     * This method is now async to ensure it can fetch parent directories if they are not cached.
      * @param {string} path - The path to check.
-     * @returns {boolean} True if the path exists, false otherwise.
+     * @returns {Promise<boolean>} A promise that resolves to true if the path exists, false otherwise.
      */
-    pathExists(path) {
+    async pathExists(path) {
+        const parentPath = this.#getParentPath(path);
+        // Ensure the parent directory's contents are loaded into the cache.
+        await this.listContents(parentPath);
         return !!this.#getNodeAtPath(path);
     }
 
     /**
      * Checks if a given path is a directory.
+     * This method is now async to ensure it can fetch parent directories if they are not cached.
      * @param {string} path - The path to check.
-     * @returns {boolean} True if the path is a directory, false otherwise.
+     * @returns {Promise<boolean>} A promise that resolves to true if the path is a directory, false otherwise.
      */
-    isDirectory(path) {
+    async isDirectory(path) {
+        // For directories, we check the path itself, not its parent.
+        // listContents will return null if the path is not a directory.
+        const contents = await this.listContents(path);
+        if (contents) return true;
+
+        // Fallback check for the root directory, which might not be fetched in the same way.
         const node = this.#getNodeAtPath(path);
         return node && typeof node === 'object' && !Array.isArray(node);
     }
@@ -201,13 +212,18 @@ class FilesystemService {
     /**
      * Checks if a given path is a file.
      * @param {string} path - The path to check.
-     * @returns {boolean} True if the path is a file, false otherwise.
+     * @returns {Promise<boolean>} A promise that resolves to true if the path is a file, false otherwise.
      */
-    isFile(path) {
+    async isFile(path) {
         const parentPath = this.#getParentPath(path);
         const fileName = this.#getFileName(path);
+
+        // Ensure the parent directory's contents are loaded into the cache.
+        await this.listContents(parentPath);
+
+        // Now that the cache is populated, check for the file.
         const parentNode = this.#getNodeAtPath(parentPath);
-        return parentNode && Array.isArray(parentNode._files) && parentNode._files.some(f => f.name === fileName);
+        return !!(parentNode && Array.isArray(parentNode._files) && parentNode._files.some(f => f.name === fileName));
     }
 
     /**

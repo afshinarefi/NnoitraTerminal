@@ -55,7 +55,7 @@ class Ls {
         path = this.#filesystemService.normalizePath(path);
         // Check if path is a file
         log.log(`Listing contents for path: "${path}"`);
-        if (this.#filesystemService.isFile(path)) {
+        if (await this.#filesystemService.isFile(path)) {
             // Extract file name from path
             const parts = path.split('/').filter(p => p);
             const fileName = parts.length > 0 ? parts[parts.length - 1] : path;

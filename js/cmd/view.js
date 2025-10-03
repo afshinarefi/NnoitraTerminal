@@ -65,7 +65,7 @@ class View {
         path = this.#filesystemService.normalizePath(path);
         log.log(`Attempting to view normalized path: "${path}"`);
 
-        if (!this.#filesystemService.isFile(path)) {
+        if (!await this.#filesystemService.isFile(path)) {
             log.warn(`Path is not a file or does not exist: "${path}"`);
             outputDiv.textContent = `view: cannot access '${filePathArg}': No such file or it is a directory`;
             return outputDiv;
