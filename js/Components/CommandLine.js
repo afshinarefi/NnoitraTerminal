@@ -98,6 +98,10 @@ class CommandLine extends ArefiBaseComponent {
   #touchStartX = 0;
   /** @private {number} #touchStartY - The starting Y coordinate of a touch event. */
   #touchStartY = 0;
+  /** @private {Function|null} #readResolve - The resolve function for the current read operation. */
+  #readResolve = null;
+  /** @private {boolean} #isReading - Flag indicating if the component is in interactive read mode. */
+  #isReading = false;
 
   /**
    * Creates an instance of CommandLine.
@@ -128,6 +132,36 @@ class CommandLine extends ArefiBaseComponent {
       return;
     }
     this.#services.history = service;
+  }
+
+  /**
+   * Reads a single line of input from the user for interactive commands.
+   * @param {string} prompt - The prompt to display to the user (e.g., "Password:").
+   * @param {boolean} [isSecret=false] - If true, the input will be masked.
+   * @returns {Promise<string|null>} A promise that resolves with the user's input, or null if cancelled (Ctrl+C).
+   */
+  read(prompt, isSecret = false) {
+      this.#isReading = true;
+      if (isSecret) {
+          this.refs['prompt-text'].style.display = 'none';
+          this.refs['prompt-password'].style.display = 'block';
+          this.#activeInput = this.refs['prompt-password'];
+      } else {
+          this.refs['prompt-password'].style.display = 'none';
+          this.refs['prompt-text'].style.display = 'block';
+          this.#activeInput = this.refs['prompt-text'];
+      }
+
+      this.refs.icon.key(); // Use a key icon for prompts
+      
+      this.clear();
+      this.enable(); // Ensure the prompt is enabled for reading
+      this.#activeInput.placeholder = prompt;
+      this.focus();
+
+      return new Promise(resolve => {
+          this.#readResolve = resolve;
+      });
   }
 
   /**
@@ -218,6 +252,20 @@ class CommandLine extends ArefiBaseComponent {
    * @param {KeyboardEvent} event - The keyboard event.
    */
   handleEvent(event) {
+    // If we are in interactive read mode, handle input differently.
+    if (this.#isReading) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const value = this.#activeInput.value;
+            this.#finishRead(value);
+        } else if (event.key === 'c' && event.ctrlKey) {
+            event.preventDefault();
+            this.#finishRead(null); // Resolve with null for cancellation
+        }
+        // In read mode, we don't process other special keys like Tab or ArrowUp.
+        return;
+    }
+
     // If the prompt is disabled, ignore all keyboard events.
     if (this.#activeInput.disabled) {
       event.stopPropagation();
@@ -294,6 +342,24 @@ class CommandLine extends ArefiBaseComponent {
     }
   }
 
+  /**
+   * Finishes an interactive read operation and restores the normal prompt.
+   * @private
+   * @param {string|null} value - The value to resolve the read promise with.
+   */
+  #finishRead(value) {
+      if (this.#readResolve) {
+          this.#readResolve(value);
+      }
+      this.#isReading = false;
+      this.#readResolve = null;
+
+      // Restore normal prompt state
+      this.refs['prompt-password'].style.display = 'none';
+      this.refs['prompt-text'].style.display = 'block';
+      this.#activeInput = this.refs['prompt-text'];
+      this.enable();
+  }
   /**
    * Sets focus on the command prompt input field.
    */

@@ -154,6 +154,35 @@ def handle_logout(form_data):
         conn.close()
         return {'status': 'error', 'message': 'Invalid or expired session.'}
 
+def handle_passwd(form_data):
+    """Handles a user's password change request."""
+    token = form_data.get('token')
+    old_password = form_data.get('old_password')
+    new_password = form_data.get('new_password')
+
+    username = validate_token(token)
+    if not username:
+        return {'status': 'error', 'message': 'Invalid or expired session. Please log in again.'}
+
+    if not old_password or not new_password:
+        return {'status': 'error', 'message': 'Old and new passwords are required.'}
+
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    try:
+        # First, verify the old password is correct
+        cursor.execute("SELECT password_hash FROM users WHERE username = ?", (username,))
+        result = cursor.fetchone()
+        if result and result[0] == hash_password(old_password):
+            # Old password is correct, update to the new one
+            cursor.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hash_password(new_password), username))
+            conn.commit()
+            return {'status': 'success', 'message': 'Password changed successfully.'}
+        else:
+            return {'status': 'error', 'message': 'Incorrect old password.'}
+    finally:
+        conn.close()
+
 def validate_token(token):
     """Checks if a token is valid and not expired, deleting it if it is expired."""
     if not token:
@@ -357,6 +386,8 @@ def main():
         response = handle_useradd(form_data)
     elif action == 'login':
         response = handle_login(form_data)
+    elif action == 'passwd':
+        response = handle_passwd(form_data)
     elif action == 'logout':
         response = handle_logout(form_data)
     elif action == 'get_env':

@@ -17,12 +17,13 @@
  */
 import { createLogger } from '../Services/LogService.js';
 const log = createLogger('adduser');
+
 /**
- * @class Adduser
- * @description Implements the 'adduser' command to create a new user.
+ * @class AddUser
+ * @description Implements the 'adduser' command for creating new users.
  */
-class Adduser {
-    static DESCRIPTION = 'Add a new user interactively.';
+class AddUser {
+    static DESCRIPTION = 'Add a new user.';
 
     #prompt;
 
@@ -32,50 +33,80 @@ class Adduser {
     }
 
     static man() {
-        return `NAME\n       adduser - Add a new user account.\n\nSYNOPSIS\n       adduser [username]\n\nDESCRIPTION\n       Interactively creates a new user with the specified username and prompts for a password.`;
-    }
+        return `
+NAME
+       adduser - Add a new user.
 
-    static autocompleteArgs(currentArgs, services) {
-        return []; // No autocomplete for username/password.
+SYNOPSIS
+       adduser [username]
+
+DESCRIPTION
+       The adduser command creates a new user account. You will be prompted to enter and confirm a password.
+       Usernames must be between 3 and 32 characters and can only contain letters, numbers, and underscores.
+`;
     }
 
     async execute(args) {
         log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         const username = args[1];
-        let password = args[2];
 
         if (!username) {
-            outputDiv.textContent = 'Usage: adduser <username>';
+            outputDiv.textContent = 'adduser: missing username operand.';
             return outputDiv;
         }
 
-        // If password is not provided as an argument, prompt for it interactively.
-        if (!password) {
-            log.log('Password not provided, prompting user.');
-            password = await this.#prompt.requestPassword();
+        const usernameRegex = /^[a-zA-Z0-9_]{3,32}$/;
+        if (!usernameRegex.test(username)) {
+            outputDiv.textContent = `adduser: invalid username '${username}'. Usernames must be 3-32 characters and contain only letters, numbers, and underscores.`;
+            return outputDiv;
         }
 
-        const formData = new FormData();
-        formData.append('username', username);
-        formData.append('password', password);
-
         try {
-            log.log(`Attempting to create user: "${username}"`);
+            // Prompt for password
+            const password = await this.#prompt.read('Password', true);
+            if (password === null) { // User cancelled with Ctrl+C
+                outputDiv.textContent = 'adduser: Operation cancelled.';
+                return outputDiv;
+            }
+
+            // Prompt for password confirmation
+            const confirmPassword = await this.#prompt.read('Confirm password', true);
+            if (confirmPassword === null) { // User cancelled with Ctrl+C
+                outputDiv.textContent = 'adduser: Operation cancelled.';
+                return outputDiv;
+            }
+
+            if (password !== confirmPassword) {
+                outputDiv.textContent = 'adduser: Passwords do not match. User not created.';
+                return outputDiv;
+            }
+
+            outputDiv.textContent = 'Creating user...';
+
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('password', password);
+
             const response = await fetch('/server/accounting.py?action=useradd', {
                 method: 'POST',
                 body: formData
             });
+
             const result = await response.json();
-            log.log('Server response:', result);
-            outputDiv.textContent = result.message;
+
+            if (result.status === 'success') {
+                outputDiv.textContent = `User '${username}' created successfully.`;
+            } else {
+                outputDiv.textContent = `adduser: ${result.message}`;
+            }
         } catch (error) {
-            log.error('Network or parsing error during useradd:', error);
-            outputDiv.textContent = `Error: ${error.message}`;
+            log.error('Error during user creation:', error);
+            outputDiv.textContent = 'adduser: An unexpected error occurred.';
         }
 
         return outputDiv;
     }
 }
 
-export { Adduser };
+export { AddUser };
