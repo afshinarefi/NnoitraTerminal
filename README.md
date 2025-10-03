@@ -40,13 +40,7 @@ To run this project locally, you will need a local web server capable of serving
     cd var/www/html
     ```
 
-3.  **(Optional) Generate Filesystem Index:**
-    The virtual filesystem is powered by `fs/filesystem.json`. To generate or update this file based on the contents of the `fs/` directory, run the `index.py` script.
-    ```sh
-    python3 fs/index.py
-    ```
-
-4.  **Start the server:**
+3.  **Start the server:**
     Use Python's built-in server from the `html` directory. The `--cgi` flag enables the execution of backend scripts in the `/server/` directory.
     ```sh
     python3 -m http.server --cgi 8000
@@ -88,18 +82,17 @@ Interact with the terminal by typing commands into the prompt and pressing `Ente
 The project is organized to separate concerns, making it modular and easy to maintain.
 
 ```
-/
-├── var/www/html/
-│   ├── js/
-│   │   ├── Components/   # Reusable Web Components (Terminal, CommandLine, etc.)
-│   │   ├── Services/     # Core logic (CommandService, FilesystemService, etc.)
-│   │   └── cmd/          # Implementations for each terminal command
-│   ├── fs/               # Simulated filesystem data (index.py generates JSON)
-│   ├── server/           # Backend Python CGI scripts (e.g., user accounting)
-│   ├── data/             # Static data files (e.g., motd.txt)
-│   ├── css/              # Global CSS styles and variables
-│   └── index.html        # Main entry point
-└── README.md             # This file
+/var/www/html/
+├── js/
+│   ├── Components/   # Reusable Web Components (Terminal, CommandLine, etc.)
+│   ├── Services/     # Core logic (CommandService, FilesystemService, etc.)
+│   └── cmd/          # Implementations for each terminal command
+├── fs/               # The simulated filesystem's data (files and folders)
+├── server/           # Backend Python CGI scripts
+├── data/             # Static data files (e.g., motd.txt)
+├── css/              # Global CSS styles and variables
+├── index.html        # Main entry point
+└── README.md         # This file
 ```
 
 ## Architecture Deep Dive
@@ -132,8 +125,8 @@ This project demonstrates a modern approach to building web applications without
 
 The backend is intentionally lightweight, using Python CGI scripts for simple server-side tasks.
 
-*   `/server/filesystem.py`: A CGI script that dynamically lists the contents of the `/fs/` directory.
-*   `/server/accounting.py`: A CGI script that handles user creation (`adduser`), login, and persistence of remote environment variables and command history.
+*   `/server/filesystem.py`: A CGI script that dynamically lists the contents of the `/fs/` directory, serving directory structures to the frontend on demand.
+*   `/server/accounting.py`: A CGI script that handles user creation (`adduser`), login, and the persistence of remote environment variables and command history.
 *   `/db/users.db`: A SQLite database file that is automatically created to store user credentials and session tokens. It is recommended to add this file to your `.gitignore`.
 This approach allows the frontend to remain a static application for the most part, while still enabling dynamic, persistent features like user accounts.
 
