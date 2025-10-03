@@ -4,7 +4,7 @@
 
 :root {
   /* Global Theming Variables */
-  --arefi-color-theme: #0c0;
+  --arefi-color-theme: #5CB338;
   --arefi-color-muted: rgb(0, 204, 0, 0.5);
   --arefi-color-placeholder: var(--arefi-color-muted);
   --arefi-color-background: #000;
