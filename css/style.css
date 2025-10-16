@@ -1,33 +1,63 @@
-* {
-  font-size: clamp(0.8rem, 3vw, 1.1rem);
+@font-face {
+  font-family: 'Ubuntu Mono';
+  src: url('fonts/ubuntu/UbuntuMono-R.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap; /* Ensures text is visible while the font loads */
+}
+
+@font-face {
+  font-family: 'Ubuntu Mono';
+  src: url('fonts/ubuntu/UbuntuMono-B.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ubuntu Mono';
+  src: url('fonts/ubuntu/UbuntuMono-RI.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ubuntu Mono';
+  src: url('fonts/ubuntu/UbuntuMono-BI.ttf') format('truetype');
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
 }
 
 :root {
   /* Global Theming Variables */
-  --arefi-color-theme: #5CB338;
-  --arefi-color-muted: rgb(0, 204, 0, 0.5);
+  --arefi-color-green: #5CB338;
+  --arefi-color-yellow: #ECE852;
+  --arefi-color-orange: #FFC145;
+  --arefi-color-red: #FB4141;
+  --arefi-color-black: #000000;
+  --arefi-color-white: #FFFFFF;
+  --arefi-color-theme: var(--arefi-color-green);
+   --arefi-color-muted: color-mix(in srgb, var(--arefi-color-theme), black 40%);
   --arefi-color-placeholder: var(--arefi-color-muted);
-  --arefi-color-background: #000;
+  --arefi-color-background: var(--arefi-color-black);
   --arefi-color-text: var(--arefi-color-theme);
-  --arefi-color-output: #fff;
+  --arefi-color-output: var(--arefi-color-white);
   --arefi-color-highlight: var(--arefi-color-theme); /* Used for prompt icon/header background */
-  --arefi-color-text-highlight: #000; /* Used for text on highlight background */
+  --arefi-color-text-highlight: var(--arefi-color-black); /* Used for text on highlight background */
   --arefi-font-size: clamp(0.8rem, 3vw, 1.1rem);
-  --arefi-font-family: monospace;
+  --arefi-font-family: 'Ubuntu Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 html, body {
+  height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
-  /* Use global variables */
-  background-color: var(--arefi-color-background); 
+  background-color: var(--arefi-color-background);
   color: var(--arefi-color-text);
   font-family: var(--arefi-font-family);
   font-size: var(--arefi-font-size);
-  height: 100%;
-}
-
-html {
   touch-action: pan-y;
 }
-

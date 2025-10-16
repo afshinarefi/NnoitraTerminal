@@ -29,6 +29,8 @@ const TEMPLATE = `<span part="symbol"></span>`;
  */
 const CSS = `
 [part=symbol] {
+  font-family: var(--arefi-font-family);
+  font-size: var(--arefi-font-size);
   color: var(--arefi-color-text-highlight); /* VAR */
   background-color: var(--arefi-color-highlight); /* VAR */
   padding: 3px 0.3em;

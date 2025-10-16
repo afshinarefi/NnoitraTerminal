@@ -24,15 +24,29 @@ class Favicon {
     /**
      * @private
      * @static
-     * @readonly
-     * @type {Object.<string, string>}
+     * @type {Object.<string, string> | null}
      */
-    static #COLORS = {
-        green: '#5CB338',
-        yellow: '#ECE852',
-        orange: '#FFC145',
-        red: '#FB4141',
-    };
+    static #COLORS = null;
+
+    /**
+     * Lazily initializes and retrieves the color palette from CSS custom properties.
+     * @private
+     * @static
+     * @returns {Object.<string, string>} The color palette.
+     */
+    static #getColors() {
+        if (!this.#COLORS) {
+            const styles = getComputedStyle(document.documentElement);
+            this.#COLORS = {
+                green: styles.getPropertyValue('--arefi-color-green').trim(),
+                yellow: styles.getPropertyValue('--arefi-color-yellow').trim(),
+                orange: styles.getPropertyValue('--arefi-color-orange').trim(),
+                red: styles.getPropertyValue('--arefi-color-red').trim(),
+            };
+        }
+        return this.#COLORS;
+    }
+
 
     /**
      * @private
@@ -57,12 +71,12 @@ class Favicon {
      */
     static #drawIcon({
         size = 32,
-        bgColor = '#ffffff',
-        borderColor = '#000',
-        borderWidth = 1,
+        bgColor = getComputedStyle(document.documentElement).getPropertyValue('--arefi-color-highlight').trim(),
+        borderColor = getComputedStyle(document.documentElement).getPropertyValue('--arefi-color-text-highlight').trim(),
+        borderWidthRatio = 32,
         chevron = '>',
-        chevronColor = '#000',
-        fontFamily = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial'
+        chevronColor = getComputedStyle(document.documentElement).getPropertyValue('--arefi-color-text-highlight').trim(),
+        fontFamily = getComputedStyle(document.documentElement).getPropertyValue('--arefi-font-family').trim()
     } = {}) {
         const dpr = Math.max(1, window.devicePixelRatio || 1);
         const canvasSize = size * dpr;
@@ -73,7 +87,7 @@ class Favicon {
         ctx.scale(dpr, dpr);
 
         // Draw background
-        const halfBorder = borderWidth / 2;
+        const halfBorder = (size / borderWidthRatio) / 2;
         const radius = Math.max(2, size * 0.12);
         ctx.beginPath();
         ctx.moveTo(halfBorder + radius, halfBorder);
@@ -86,16 +100,16 @@ class Favicon {
         ctx.fill();
 
         // Draw border
-        ctx.lineWidth = borderWidth;
+        ctx.lineWidth = size / borderWidthRatio;
         ctx.strokeStyle = borderColor;
         ctx.stroke();
 
         // Draw chevron
-        ctx.font = `bold ${Math.floor(size)}px ${fontFamily}`;
+        ctx.font = `bold ${Math.floor(size * 0.85)}px ${fontFamily}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = chevronColor;
-        ctx.fillText(chevron, size / 2, size / 2);
+        ctx.fillText(chevron, size / 2, size / 2 + 2);
 
         return c.toDataURL('image/png');
     }
@@ -116,7 +130,8 @@ class Favicon {
         }
 
         // If not cached, generate the new favicon links.
-        const bgColor = this.#COLORS[colorName] || this.#COLORS.green;
+        const colors = this.#getColors();
+        const bgColor = colors[colorName] || colors.green;
         const newLinks = [];
 
         this.#SIZES.forEach(size => {

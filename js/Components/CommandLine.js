@@ -43,7 +43,6 @@ const CSS = `
   background-color: var(--arefi-color-background); /* VAR */
   box-sizing: border-box;
   z-index: 100;
-  font-family: var(--arefi-font-family);
   font-size: var(--arefi-font-size);
 }
 [part=prompt-text],
@@ -53,7 +52,6 @@ const CSS = `
   outline: none;
   color: var(--arefi-color-text); /* VAR */
   flex-grow: 1;
-  width: 100%;
   font-family: var(--arefi-font-family);
   font-size: var(--arefi-font-size);
 }
