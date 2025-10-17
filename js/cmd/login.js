@@ -75,7 +75,7 @@ class Login {
         // If password is not provided as an argument, prompt for it interactively.
         if (!password) {
             log.log('Password not provided, prompting user.');
-            password = await this.#prompt.requestPassword();
+            password = await this.#prompt.read('Password', true);
         }
 
         try {

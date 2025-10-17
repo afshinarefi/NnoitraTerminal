@@ -33,12 +33,14 @@ const CSS = `
   font-size: var(--arefi-font-size);
   color: var(--arefi-color-text-highlight); /* VAR */
   background-color: var(--arefi-color-highlight); /* VAR */
-  padding: 3px 0.3em;
-  display: inline-block;
+  display: inline-flex;
+  justify-content: center; /* Center horizontally */
+  align-items: center;     /* Center vertically */
   border-radius: 3px;
   margin: 3px 3px 3px 0px;
-  text-align: center;
   min-width: 1.5em;
+  height: 1.5em;
+  padding: 0.25em;
 }
 `;
 
@@ -63,7 +65,7 @@ class Icon extends ArefiBaseComponent {
     busy: '⧗',
     history: 'H:',
     indexed: ':>',
-    password: '$'
+    password: '⚷'
   };
 
   /**

@@ -26,8 +26,7 @@ const log = createLogger('CommandLine');
 const TEMPLATE = `
   <div part="footer">
   <arefi-icon part="icon"></arefi-icon>
-  <input type="text" autocomplete="off" spellcheck="false" autofocus="true" part="prompt-text">
-  <input type="password" autocomplete="password" spellcheck="false" part="prompt-password" style="display: none;">
+  <input type="text" autocomplete="off" spellcheck="false" autofocus="true" part="prompt">
   </div>
   `;
 
@@ -45,18 +44,15 @@ const CSS = `
   z-index: 100;
   font-size: var(--arefi-font-size);
 }
-[part=prompt-text],
-[part=prompt-password] {
+[part=prompt] {
   background: none;
   border: none;
   outline: none;
   color: var(--arefi-color-text); /* VAR */
   flex-grow: 1;
-  font-family: var(--arefi-font-family);
   font-size: var(--arefi-font-size);
 }
-[part=prompt-text]::placeholder,
-[part=prompt-password]::placeholder {
+[part=prompt]::placeholder {
   color: var(--arefi-color-placeholder);
   opacity: 1; /* Firefox has a lower default opacity for placeholders */
 }
@@ -65,11 +61,11 @@ const CSS = `
 [part=prompt-text]:-webkit-autofill:hover,
 [part=prompt-text]:-webkit-autofill:focus,
 [part=prompt-text]:-webkit-autofill:active,
-[part=prompt-password]:-webkit-autofill,
-[part=prompt-password]:-webkit-autofill:hover,
-[part-password]:-webkit-autofill:focus,
-[part=prompt-password]:-webkit-autofill:active {
-    -webkit-text-fill-color: var(--arefi-color-text);
+[part=prompt]:-webkit-autofill,
+[part=prompt]:-webkit-autofill:hover,
+[part=prompt]:-webkit-autofill:focus,
+[part=prompt]:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--arefi-color-text) !important;
     box-shadow: 0 0 0 1000px var(--arefi-color-background) inset;
     -webkit-box-shadow: 0 0 0 1000px var(--arefi-color-background) inset;
     transition: background-color 5000s ease-in-out 0s;
@@ -90,8 +86,6 @@ class CommandLine extends ArefiBaseComponent {
   #services = {};
   /** @private {string} #inputBuffer - Stores the current input value when navigating history. */
   #inputBuffer;
-  /** @private {HTMLInputElement} #activeInput - A reference to the currently visible input element. */
-  #activeInput;
   /** @private {number} #touchStartX - The starting X coordinate of a touch event. */
   #touchStartX = 0;
   /** @private {number} #touchStartY - The starting Y coordinate of a touch event. */
@@ -100,6 +94,10 @@ class CommandLine extends ArefiBaseComponent {
   #readResolve = null;
   /** @private {boolean} #isReading - Flag indicating if the component is in interactive read mode. */
   #isReading = false;
+  /** @private {boolean} #isSecret - Flag indicating if the read mode is for secret (password) input. */
+  #isSecret = false;
+  /** @private {string} #secretValue - Stores the actual value when in secret input mode. */
+  #secretValue = '';
 
   /**
    * Creates an instance of CommandLine.
@@ -112,12 +110,11 @@ class CommandLine extends ArefiBaseComponent {
     // Apply component-specific styles to the shadow DOM.
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, commandLineSpecificStyles];
 
-    // Set the initial active input to the text prompt.
-    this.#activeInput = this.refs['prompt-text'];
-
     // Add touch event listeners for swipe-to-autocomplete gesture.
     this.refs.footer.addEventListener('touchstart', this.#handleTouchStart.bind(this), { passive: true });
     this.refs.footer.addEventListener('touchend', this.#handleTouchEnd.bind(this), { passive: true });
+    // Listen for input to handle manual password masking.
+    this.refs.prompt.addEventListener('input', this.#handleInput.bind(this));
   }
 
   /**
@@ -139,68 +136,21 @@ class CommandLine extends ArefiBaseComponent {
    * @returns {Promise<string|null>} A promise that resolves with the user's input, or null if cancelled (Ctrl+C).
    */
   read(prompt, isSecret = false) {
-      this.#isReading = true;
-      if (isSecret) {
-          this.refs['prompt-text'].style.display = 'none';
-          this.refs['prompt-password'].style.display = 'block';
-          this.#activeInput = this.refs['prompt-password'];
-      } else {
-          this.refs['prompt-password'].style.display = 'none';
-          this.refs['prompt-text'].style.display = 'block';
-          this.#activeInput = this.refs['prompt-text'];
-      }
+    this.#isReading = true;
+    this.#isSecret = isSecret;
+    this.#secretValue = '';
 
-      this.refs.icon.key(); // Use a key icon for prompts
-      
-      this.clear();
-      this.enable(); // Ensure the prompt is enabled for reading
-      this.#activeInput.placeholder = prompt;
-      this.focus();
+    this.clear();
+    this.enable(); // Ensure the prompt is enabled for reading
+    if (isSecret) {
+      this.refs.icon.key(); // Use a key icon for secret prompts
+    }
 
-      return new Promise(resolve => {
-          this.#readResolve = resolve;
-      });
-  }
+    this.refs.prompt.placeholder = prompt;
+    this.focus();
 
-  /**
-   * Switches the command line into a password input mode.
-   * @param {string} promptText - The text to display before the password input (e.g., "Password:").
-   * @returns {Promise<string>} A promise that resolves with the entered password.
-   */
-  requestPassword(promptText = 'Password') {
-    log.log(`Requesting password with prompt: "${promptText}"`);
     return new Promise(resolve => {
-      // Switch to the password input.
-      this.refs['prompt-text'].style.display = 'none';
-      this.refs['prompt-password'].style.display = 'block';
-      this.#activeInput = this.refs['prompt-password'];
-
-      this.#activeInput.disabled = false;
-      this.clear();
-
-      this.refs.icon.key(); // Change icon to a key
-      this.#activeInput.placeholder = promptText;
-      this.focus(); // Ensure the input field has focus in password mode.
-
-      const passwordHandler = (event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault(); // Prevent default 'Enter' behavior.
-          event.stopPropagation(); // Stop the event from bubbling up to other listeners.
-          const password = this.#activeInput.value;
-          log.log('Password entered, resolving promise.');
-          this.#activeInput.removeEventListener('keydown', passwordHandler);
-
-          // Switch back to the text input.
-          this.refs['prompt-password'].style.display = 'none';
-          this.refs['prompt-text'].style.display = 'block';
-          this.#activeInput = this.refs['prompt-text'];
-
-          this.clear();
-          // The calling command will re-disable the prompt, so we don't need to change the icon here.
-          resolve(password);
-        }
-      };
-      this.#activeInput.addEventListener('keydown', passwordHandler);
+      this.#readResolve = resolve;
     });
   }
 
@@ -240,9 +190,43 @@ class CommandLine extends ArefiBaseComponent {
       this.dispatchEvent(new CustomEvent('autocomplete-request', {
         bubbles: true,
         composed: true,
-        detail: this.#activeInput.value
+        detail: this.refs.prompt.value
       }));
     }
+  }
+  /**
+   * Handles the input event to manually mask characters for secret input.
+   * @private
+   * @param {InputEvent} event - The input event.
+   */
+  #handleInput(event) {
+      if (!this.#isSecret) {
+          return; // Do nothing if not in secret mode.
+      }
+  
+      const input = this.refs.prompt;
+      const realValue = this.#secretValue;
+      const displayValue = input.value;
+      const selectionStart = input.selectionStart;
+  
+      // Find the difference between the real value and what's displayed
+      let diff = '';
+      if (displayValue.length > realValue.length) {
+          // Character(s) were added
+          const start = selectionStart - (displayValue.length - realValue.length);
+          diff = displayValue.substring(start, selectionStart);
+      }
+  
+      // Reconstruct the real value based on the change
+      const before = realValue.slice(0, selectionStart - diff.length);
+      const after = realValue.slice(selectionStart - diff.length + (realValue.length - displayValue.length) + diff.length);
+      this.#secretValue = before + diff + after;
+  
+      // Update the display to be all asterisks again, preserving cursor position
+      const newDisplay = '●'.repeat(this.#secretValue.length);
+      input.value = newDisplay;
+      // Restore the cursor position
+      input.setSelectionRange(selectionStart, selectionStart);
   }
 
   /**
@@ -254,7 +238,7 @@ class CommandLine extends ArefiBaseComponent {
     if (this.#isReading) {
         if (event.key === 'Enter') {
             event.preventDefault();
-            const value = this.#activeInput.value;
+            const value = this.#isSecret ? this.#secretValue : this.refs.prompt.value;
             this.#finishRead(value);
         } else if (event.key === 'c' && event.ctrlKey) {
             event.preventDefault();
@@ -265,7 +249,7 @@ class CommandLine extends ArefiBaseComponent {
     }
 
     // If the prompt is disabled, ignore all keyboard events.
-    if (this.#activeInput.disabled) {
+    if (this.refs.prompt.disabled) {
       event.stopPropagation();
       event.preventDefault();
       return;
@@ -277,7 +261,7 @@ class CommandLine extends ArefiBaseComponent {
       case 'Enter':
         event.preventDefault();
         log.log('Enter key pressed.');
-        const command = this.#activeInput.value;
+        const command = this.refs.prompt.value;
         this.#services.history.resetCursor(); // Reset history cursor after command submission.
         this.clear(); // Clear the input field.
         this.refs.icon.ready(); // Set icon to ready state.
@@ -296,12 +280,12 @@ class CommandLine extends ArefiBaseComponent {
         log.log('ArrowUp key pressed.');
         // Save current input before loading history if at the beginning of history navigation.
         if (this.#services.history.getCursorIndex() === 0) {
-          this.#inputBuffer = this.#activeInput.value;
+          this.#inputBuffer = this.refs.prompt.value;
         }
 
         const previousHistoryItem = this.#services.history.getPrevious();
         if (previousHistoryItem.index !== 0) {
-          this.#activeInput.value = previousHistoryItem.command;
+          this.refs.prompt.value = previousHistoryItem.command;
           this.refs.icon.history(previousHistoryItem.index);
         }
         break;
@@ -313,11 +297,11 @@ class CommandLine extends ArefiBaseComponent {
 
         // If at the end of history (new/empty command line), restore the buffered input.
         if (nextHistoryItem.index === 0) {
-          this.#activeInput.value = this.#inputBuffer;
+          this.refs.prompt.value = this.#inputBuffer;
           this.refs.icon.ready();
         } else {
           // Otherwise, load the command from history.
-          this.#activeInput.value = nextHistoryItem.command;
+          this.refs.prompt.value = nextHistoryItem.command;
           this.refs.icon.history(nextHistoryItem.index);
         }
         break;
@@ -329,7 +313,7 @@ class CommandLine extends ArefiBaseComponent {
         const autocompleteEvent = new CustomEvent('autocomplete-request', {
           bubbles: true,
           composed: true,
-          detail: this.#activeInput.value
+          detail: this.refs.prompt.value
         });
         this.dispatchEvent(autocompleteEvent);
         break;
@@ -351,18 +335,18 @@ class CommandLine extends ArefiBaseComponent {
       }
       this.#isReading = false;
       this.#readResolve = null;
+      this.#isSecret = false;
+      this.#secretValue = '';
 
-      // Restore normal prompt state
-      this.refs['prompt-password'].style.display = 'none';
-      this.refs['prompt-text'].style.display = 'block';
-      this.#activeInput = this.refs['prompt-text'];
+      // Restore normal prompt state and enable it
+      this.clear();
       this.enable();
   }
   /**
    * Sets focus on the command prompt input field.
    */
   focus() {
-    this.#activeInput.focus();
+    this.refs.prompt.focus();
   }
 
   /**
@@ -370,7 +354,7 @@ class CommandLine extends ArefiBaseComponent {
    * @returns {string} The current value of the command prompt.
    */
   command() {
-    return this.#activeInput.value;
+    return this.refs.prompt.value;
   }
 
   /**
@@ -378,32 +362,33 @@ class CommandLine extends ArefiBaseComponent {
    * @param {string} value - The string to set as the command prompt's value.
    */
   setCommand(value) {
-    this.#activeInput.value = value;
+    this.refs.prompt.value = value;
   }
 
   /**
    * Clears the command prompt input field.
    */
   clear() {
-    this.#activeInput.value = '';
+    this.refs.prompt.value = '';
+    this.#secretValue = '';
   }
 
   /**
    * Disables the command prompt, visually indicating that a command is running.
    */
   disable() {
-    this.#activeInput.disabled = true;
+    this.refs.prompt.disabled = true;
     this.refs.icon.busy(); // Set icon to busy state.
-    this.#activeInput.placeholder = 'Running Command ...'; // Provide feedback to the user.
+    this.refs.prompt.placeholder = 'Running Command ...'; // Provide feedback to the user.
   }
 
   /**
    * Enables the command prompt, clearing any temporary messages and setting focus.
    */
   enable() {
-    this.#activeInput.placeholder = ''; // Clear the temporary message.
+    this.refs.prompt.placeholder = ''; // Clear the temporary message.
     this.refs.icon.ready(); // Set icon back to ready state.
-    this.#activeInput.disabled = false; // Enable the input field.
+    this.refs.prompt.disabled = false; // Enable the input field.
     this.focus(); // Set focus back to the prompt.
   }
 }
