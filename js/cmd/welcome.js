@@ -37,19 +37,20 @@ class Welcome {
      */
     async execute(args) {
       this.#log.log('Executing...');
-      const pre = document.createElement('pre');
+      const outputDiv = document.createElement('div');
+      outputDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
       try {
         const response = await fetch('data/motd.txt');
         if (!response.ok) {
           throw new Error(`Failed to load welcome message: ${response.statusText}`);
         }
         const welcomeText = await response.text();
-        pre.innerText = welcomeText;
+        outputDiv.innerText = welcomeText;
       } catch (error) {
         this.#log.error('Error loading welcome message:', error);
-        pre.innerText = 'Error: Could not load welcome message.';
+        outputDiv.innerText = 'Error: Could not load welcome message.';
       }
-      return pre;
+      return outputDiv;
     }
 
     /**

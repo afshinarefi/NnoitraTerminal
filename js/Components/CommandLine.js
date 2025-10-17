@@ -50,25 +50,14 @@ const CSS = `
   outline: none;
   color: var(--arefi-color-text); /* VAR */
   flex-grow: 1;
+  font-family: var(--arefi-font-family);
   font-size: var(--arefi-font-size);
 }
 [part=prompt]::placeholder {
   color: var(--arefi-color-placeholder);
+  font-family: var(--arefi-font-family);
+  font-size: var(--arefi-font-size);
   opacity: 1; /* Firefox has a lower default opacity for placeholders */
-}
-/* Override browser default autofill styles */
-[part=prompt-text]:-webkit-autofill,
-[part=prompt-text]:-webkit-autofill:hover,
-[part=prompt-text]:-webkit-autofill:focus,
-[part=prompt-text]:-webkit-autofill:active,
-[part=prompt]:-webkit-autofill,
-[part=prompt]:-webkit-autofill:hover,
-[part=prompt]:-webkit-autofill:focus,
-[part=prompt]:-webkit-autofill:active {
-    -webkit-text-fill-color: var(--arefi-color-text) !important;
-    box-shadow: 0 0 0 1000px var(--arefi-color-background) inset;
-    -webkit-box-shadow: 0 0 0 1000px var(--arefi-color-background) inset;
-    transition: background-color 5000s ease-in-out 0s;
 }
 `;
 // Define component-specific styles
@@ -240,9 +229,6 @@ class CommandLine extends ArefiBaseComponent {
             event.preventDefault();
             const value = this.#isSecret ? this.#secretValue : this.refs.prompt.value;
             this.#finishRead(value);
-        } else if (event.key === 'c' && event.ctrlKey) {
-            event.preventDefault();
-            this.#finishRead(null); // Resolve with null for cancellation
         }
         // In read mode, we don't process other special keys like Tab or ArrowUp.
         return;
