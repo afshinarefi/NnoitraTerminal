@@ -58,8 +58,11 @@ class Env {
             let categoryOutput = `\n# ${title} Variables\n`;
             for (const [key, value] of Object.entries(vars)) {
                 // Check if the value contains spaces or is a JSON-like string, and quote it if so.
-                if (/\s/.test(value) || (value.startsWith('{') && value.endsWith('}'))) {
+                // Also ensure the value is a string before calling string methods on it.
+                if (typeof value === 'string' && (/\s/.test(value) || (value.startsWith('{') && value.endsWith('}')))) {
                     categoryOutput += `${key}="${value}"\n`;
+                } else if (value !== undefined && value !== null) {
+                    categoryOutput += `${key}=${value}\n`;
                 } else {
                     categoryOutput += `${key}=${value}\n`;
                 }
@@ -71,6 +74,7 @@ class Env {
         output += formatCategory('Session (In-Memory)', categorizedVars.TEMP);
         output += formatCategory('Local (Browser Storage)', categorizedVars.LOCAL);
         output += formatCategory('Remote (User Account)', categorizedVars.REMOTE);
+        output += formatCategory('User (Configurable)', categorizedVars.USERSPACE);
 
         pre.innerText = output.trim();
         return pre;

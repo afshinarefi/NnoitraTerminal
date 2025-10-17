@@ -20,7 +20,7 @@ import { TerminalItem } from './TerminalItem.js';
 import { CommandLine } from './CommandLine.js';
 import { HintBox } from './HintBox.js';
 
-import { EnvironmentService } from '../Services/EnvironmentService.js';
+import { EnvironmentService, VAR_CATEGORIES } from '../Services/EnvironmentService.js';
 import { HistoryService } from '../Services/HistoryService.js';
 import { CommandService } from '../Services/CommandService.js';
 import { AutocompleteService } from '../Services/AutocompleteService.js';
@@ -189,6 +189,20 @@ class Terminal extends ArefiBaseComponent {
   #initializeServices() {
     this.#services.environment = new EnvironmentService();
 
+    // Register all core environment variables.
+    // This decouples the definitions from the service itself.
+    this.#services.environment.registerVariable('USER', { category: VAR_CATEGORIES.LOCAL, defaultValue: 'guest' });
+    this.#services.environment.registerVariable('HOST', { category: VAR_CATEGORIES.TEMP, defaultValue: window.location.host });
+    this.#services.environment.registerVariable('PWD', { category: VAR_CATEGORIES.TEMP, defaultValue: '/' });
+    this.#services.environment.registerVariable('TOKEN', { category: VAR_CATEGORIES.LOCAL });
+    this.#services.environment.registerVariable('TOKEN_EXPIRY', { category: VAR_CATEGORIES.LOCAL });
+    this.#services.environment.registerVariable('HISTSIZE', { category: VAR_CATEGORIES.USERSPACE, defaultValue: '1000' });
+    this.#services.environment.registerVariable('ALIAS', { category: VAR_CATEGORIES.REMOTE, defaultValue: '{}' });
+    this.#services.environment.registerVariable('PS1', { category: VAR_CATEGORIES.USERSPACE, defaultValue: '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}' });
+
+    // Now that variables are registered, initialize the service to load from storage.
+    this.#services.environment.init();
+
     this.#services.history = new HistoryService(this.#services);
     this.#services.filesystem = new FilesystemService();
     this.#services.command = new CommandService(this.#services);
@@ -320,10 +334,7 @@ class Terminal extends ArefiBaseComponent {
     const item = this.refs.output.lastElementChild;
 
     // Populate the placeholder item with the actual command details and activate it.
-    const user = this.#services.environment.getVariable('USER');
-    const path = this.#services.environment.getVariable('PWD');
-    const host = this.#services.environment.getVariable('HOST');
-    item.setContent(user, path, cmd, host);
+    item.setContent(this.#services.environment, cmd);
     item.classList.add('active');
 
     // Scroll to the bottom immediately to show the command being run.
@@ -347,11 +358,8 @@ class Terminal extends ArefiBaseComponent {
    * Creates a new, empty TerminalItem that acts as a placeholder for the next command.
    */
   createNextItem() {
-    const user = this.#services.environment.getVariable('USER');
-    const path = this.#services.environment.getVariable('PWD');
-    const host = this.#services.environment.getVariable('HOST');
     const item = new TerminalItem();
-    item.setContent(user, path, '', host); // Create with an empty command for the placeholder
+    item.setContent(this.#services.environment, ''); // Create with an empty command for the placeholder
     this.refs.output.appendChild(item);
     return item;
   }

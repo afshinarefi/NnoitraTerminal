@@ -24,10 +24,7 @@ import { Icon } from './Icon.js';
  * @constant {string} TEMPLATE - HTML template for the TerminalItem component's shadow DOM.
  */
 const TEMPLATE = `
-  <div part='header'>
-  [<span part='date'></span> <span part='time'></span>]
-  <span part='user'></span>@<span part='host'></span>:<span part='path'></span>
-  </div>
+  <div part='header'></div>
   <div part='command-container'>
   <arefi-icon part='icon'></arefi-icon>
   <span part='command'></span>
@@ -104,6 +101,8 @@ class TerminalItem extends ArefiBaseComponent {
   static #nextId = 1;
   /** @private {number} #id - The unique ID for this specific TerminalItem instance. */
   #id;
+  /** @private {Date} #timestamp - The timestamp when the item was created. */
+  #timestamp;
 
   /**
    * Resets the static ID counter back to 1.
@@ -126,48 +125,36 @@ class TerminalItem extends ArefiBaseComponent {
     // Assign a unique ID to this terminal item and set its `id` attribute.
     this.#id = TerminalItem.#nextId++;
     this.id = `term-item-${this.#id}`;
+    this.#timestamp = new Date(); // Store the creation timestamp.
     log.log(`Created item with ID: ${this.#id}`);
-  }
-
-  /**
-   * Generates the current date in YYYY-MM-DD format.
-   * @private
-   * @returns {string} The formatted date string.
-   */
-  #getDate() {
-    const now = new Date();
-    const Y = now.getFullYear();
-    const M = String(now.getMonth() + 1).padStart(2, '0');
-    const D = String(now.getDate()).padStart(2, '0');
-    return `${Y}-${M}-${D}`;
-  }
-
-  /**
-   * Generates the current time in HH:MM:SS format.
-   * @private
-   * @returns {string} The formatted time string.
-   */
-  #getTime() {
-    const now = new Date();
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
-    const s = String(now.getSeconds()).padStart(2, '0');
-    return `${h}:${m}:${s}`;
   }
 
   /**
    * Sets the header information for the terminal item.
    * @private
-   * @param {string} user - The username to display.
-   * @param {string} path - The current path to display.
-   * @param {string} host - The host name to display.
+   * @param {EnvironmentService} environmentService - The environment service to get variables from.
    */
-  #setHeader(user, path, host) {
-    this.refs.date.textContent = this.#getDate();
-    this.refs.time.textContent = this.#getTime();
-    this.refs.user.textContent = user;
-    this.refs.host.textContent = host;
-    this.refs.path.textContent = path;
+  #setHeader(environmentService) {
+    let format = environmentService.getVariable('PS1');
+
+    const replacements = {
+      user: environmentService.getVariable('USER'),
+      host: environmentService.getVariable('HOST'),
+      path: environmentService.getVariable('PWD'),
+      year: this.#timestamp.getFullYear(),
+      month: String(this.#timestamp.getMonth() + 1).padStart(2, '0'),
+      day: String(this.#timestamp.getDate()).padStart(2, '0'),
+      hour: String(this.#timestamp.getHours()).padStart(2, '0'),
+      minute: String(this.#timestamp.getMinutes()).padStart(2, '0'),
+      second: String(this.#timestamp.getSeconds()).padStart(2, '0')
+    };
+
+    // Replace all {key} placeholders with their corresponding values.
+    const headerText = format.replace(/\{(\w+)\}/g, (match, key) => {
+      return replacements[key] !== undefined ? replacements[key] : match;
+    });
+
+    this.refs.header.textContent = headerText;
   }
 
   /**
@@ -197,15 +184,13 @@ class TerminalItem extends ArefiBaseComponent {
 
   /**
    * Sets the full content of the terminal item.
-   * @param {string} user - The username for the terminal item header.
-   * @param {string} path - The path for the terminal item header.
+   * @param {EnvironmentService} environmentService - The environment service for context.
    * @param {string} command - The command string to display.
-   * @param {string} host - The host name for the terminal item header.
    */
-  setContent(user, path, command, host) {
-    log.log(`Setting content for ID ${this.#id}:`, { user, path, command });
+  setContent(environmentService, command) {
+    log.log(`Setting content for ID ${this.#id}:`, { command });
     this.setCommand(command);
-    this.#setHeader(user, path, host);
+    this.#setHeader(environmentService);
     this.#setIcon();
   }
 }

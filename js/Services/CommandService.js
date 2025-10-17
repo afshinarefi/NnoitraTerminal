@@ -32,6 +32,7 @@ import { Logout } from '../cmd/logout.js';
 import { Passwd } from '../cmd/passwd.js';
 import { Alias } from '../cmd/alias.js';
 import { Unalias } from '../cmd/unalias.js';
+import { Export } from '../cmd/export.js';
 import { Version } from '../cmd/version.js';
 import { FilesystemService } from './FilesystemService.js';
 import { createLogger } from './LogService.js';
@@ -81,6 +82,7 @@ class CommandService {
       this.register('passwd', Passwd);
       this.register('alias', Alias);
       this.register('unalias', Unalias);
+      this.register('export', Export);
       this.register('version', Version);
     }
 

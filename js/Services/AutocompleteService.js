@@ -139,7 +139,8 @@ class AutocompleteService extends EventTarget {
     if (
       filteredSuggestions.length === 1 &&
       !isInputEndingWithSpace &&
-      !filteredSuggestions[0].endsWith('/')
+      !filteredSuggestions[0].endsWith('/') &&
+      !filteredSuggestions[0].endsWith('=')
     ) {
       completeCommand += " ";
     }

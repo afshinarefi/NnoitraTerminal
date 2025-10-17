@@ -27,26 +27,18 @@ import { createLogger } from './LogService.js';
 const log = createLogger('EnvService');
 
 // Define variable categories
-const VAR_CATEGORIES = {
+export const VAR_CATEGORIES = {
 	TEMP: 'TEMP',     // In-memory only for the current session
 	LOCAL: 'LOCAL',   // Persisted in browser localStorage
-	REMOTE: 'REMOTE'  // Persisted on the server for the logged-in user
-};
-
-// Define the properties of each environment variable
-const VAR_DEFINITIONS = {
-	'USER': { category: VAR_CATEGORIES.LOCAL, defaultValue: 'guest' },
-	'HOST': { category: VAR_CATEGORIES.TEMP, defaultValue: window.location.host },
-	'PWD': { category: VAR_CATEGORIES.TEMP, defaultValue: '/' },
-	'TOKEN': { category: VAR_CATEGORIES.LOCAL },
-	'TOKEN_EXPIRY': { category: VAR_CATEGORIES.LOCAL },
-	'HISTSIZE': { category: VAR_CATEGORIES.REMOTE, defaultValue: '1000' },
-	'ALIAS': { category: VAR_CATEGORIES.REMOTE, defaultValue: '{}' }
+	REMOTE: 'REMOTE',  // Persisted on the server, not directly user-modifiable
+    USERSPACE: 'USERSPACE' // Persisted on the server, user-modifiable via `export`
 };
 
 class EnvironmentService {
 	/** @private {Map<string, string>} #variables - A private Map to hold all environment variables. */
 	#variables = new Map();
+	/** @private {Map<string, object>} #definitions - A private Map to hold variable definitions. */
+	#definitions = new Map();
 
 	/**
 	 * Initializes the EnvironmentService with an optional set of initial variables.
@@ -55,27 +47,38 @@ class EnvironmentService {
 	 *   Example: `{ USER: 'guest', PWD: '/' }`.
 	 */
 	constructor() {
-		this.#initializeDefaults();
+		// The constructor is now simpler. Initialization happens in `init()`.
+	}
+
+	/**
+	 * Initializes the service by loading variables from local storage.
+	 * This should be called after all variables have been registered.
+	 */
+	init() {
 		this.#loadFromStorage();
 	}
 
-	/** @private Initializes variables with their default values. */
-	#initializeDefaults() {
-		for (const [key, def] of Object.entries(VAR_DEFINITIONS)) {
-			if (def.defaultValue !== undefined) {
-				this.#variables.set(key, def.defaultValue);
-			}
+	/**
+	 * Registers a variable's definition (category and default value).
+	 * @param {string} key - The variable name.
+	 * @param {{category: string, defaultValue?: string}} definition - The definition object.
+	 */
+	registerVariable(key, { category, defaultValue }) {
+		const upperKey = key.toUpperCase();
+		this.#definitions.set(upperKey, { category, defaultValue });
+		// Set the default value if the variable isn't already set from a higher priority source (like remote).
+		if (defaultValue !== undefined && !this.#variables.has(upperKey)) {
+			this.#variables.set(upperKey, defaultValue);
 		}
 	}
 
 	/** @private Loads LOCAL variables from localStorage. */
 	#loadFromStorage() {
-		for (const [key, def] of Object.entries(VAR_DEFINITIONS)) {
+		for (const [key, def] of this.#definitions.entries()) {
 			if (def.category === VAR_CATEGORIES.LOCAL) {
 				const value = localStorage.getItem(key);
-				if (value) {
-					this.#variables.set(key, value);
-				}
+				// Only load from storage if it's not already set (e.g., by a default)
+				if (value) this.#variables.set(key, value);
 			}
 		}
 	}
@@ -94,7 +97,8 @@ class EnvironmentService {
 	 * Keys are stored as provided (case-sensitive), but lookup can be case-insensitive depending on usage.
 	 * @param {string} key - The name of the variable.
 	 * @param {string} value - The new string value for the variable.
-	 */	setVariable(key, value) {
+	 * @param {string} [category=null] - The category to assign to a new variable.
+	 */	setVariable(key, value, category = null) {
 		const upperKey = key.toUpperCase();
 
 		// Coerce numbers to strings to handle timestamps like TOKEN_EXPIRY.
@@ -109,14 +113,46 @@ class EnvironmentService {
 
 		this.#variables.set(upperKey, value);
 
-		const def = VAR_DEFINITIONS[upperKey];
-		if (!def) return; // Ad-hoc variable, treat as TEMP
+		let def = this.#definitions.get(upperKey);
+		if (!def) {
+			// If it's a new, ad-hoc variable, assign it a definition so it can be categorized.
+			def = { category: category || VAR_CATEGORIES.TEMP };
+			this.#definitions.set(upperKey, def);
+		}
 
 		if (def.category === VAR_CATEGORIES.LOCAL) {
 			localStorage.setItem(upperKey, value);
-		} else if (def.category === VAR_CATEGORIES.REMOTE) {
+		} else if (def.category === VAR_CATEGORIES.REMOTE || def.category === VAR_CATEGORIES.USERSPACE) {
 			this.#saveRemoteVariable(upperKey, value);
 		}
+	}
+
+	/**
+	 * Checks if a variable is read-only (i.e., not in USERSPACE).
+	 * @param {string} key - The variable name.
+	 * @returns {boolean} True if the variable is read-only.
+	 */
+	isReadOnly(key) {
+		const upperKey = key.toUpperCase();
+		const def = this.#definitions.get(upperKey);
+		return def && def.category !== VAR_CATEGORIES.USERSPACE;
+	}
+
+	/**
+	 * Exports a variable, creating it in the USERSPACE category if it doesn't exist
+	 * or updating it if it's already a USERSPACE variable.
+	 * @param {string} key - The name of the variable.
+	 * @param {string} value - The new value for the variable.
+	 * @returns {boolean} True on success, false if permission is denied.
+	 */
+	exportVariable(key, value) {
+		const upperKey = key.toUpperCase();
+		if (this.isReadOnly(upperKey)) {
+			return false; // Permission denied
+		}
+		// This will either create a new ad-hoc variable or update an existing one.
+		this.setVariable(key, value, VAR_CATEGORIES.USERSPACE);
+		return true;
 	}
 
 	/** @private Saves a single REMOTE variable to the backend. */
@@ -130,6 +166,7 @@ class EnvironmentService {
 		formData.append('token', token);
 		formData.append('var_name', key);
 		formData.append('var_value', value);
+		formData.append('var_category', this.#definitions.get(key)?.category || VAR_CATEGORIES.USERSPACE);
 
 		try {
 			await fetch('/server/accounting.py?action=set_env', { method: 'POST', body: formData });
@@ -144,7 +181,7 @@ class EnvironmentService {
 	 */
 	removeVariable(key) {		const upperKey = key.toUpperCase();
 		this.#variables.delete(upperKey);
-		const def = VAR_DEFINITIONS[upperKey];
+		const def = this.#definitions.get(upperKey);
 		if (def && def.category === VAR_CATEGORIES.LOCAL) {
 			localStorage.removeItem(upperKey);
 		}
@@ -176,11 +213,18 @@ class EnvironmentService {
 		const categorized = {
 			[VAR_CATEGORIES.TEMP]: {},
 			[VAR_CATEGORIES.LOCAL]: {},
-			[VAR_CATEGORIES.REMOTE]: {}
+			[VAR_CATEGORIES.REMOTE]: {},
+			[VAR_CATEGORIES.USERSPACE]: {}
 		};
+		// Ensure all defined USERSPACE vars have a home, even if not set.
+		for (const [key, def] of this.#definitions.entries()) {
+			if (def.category === VAR_CATEGORIES.USERSPACE && !this.#variables.has(key)) {
+				categorized.USERSPACE[key] = def.defaultValue || '';
+			}
+		}
 
 		for (const [key, value] of this.#variables.entries()) {
-			const def = VAR_DEFINITIONS[key];
+			const def = this.#definitions.get(key);
 			const category = def ? def.category : VAR_CATEGORIES.TEMP; // Default ad-hoc vars to TEMP
 			categorized[category][key] = value;
 		}
@@ -227,8 +271,13 @@ class EnvironmentService {
 			const response = await fetch('/server/accounting.py?action=get_env', { method: 'POST', body: formData });
 			const result = await response.json();
 			if (result.status === 'success' && result.env) {
-				for (const [key, value] of Object.entries(result.env)) {
-					this.#variables.set(key, value);
+				for (const [key, remoteVar] of Object.entries(result.env)) {
+					// If a fetched variable doesn't have a predefined definition,
+					// it must be a user-created one, so we register its definition.
+					if (!this.#definitions.has(key)) {
+						this.registerVariable(key, { category: remoteVar.category || VAR_CATEGORIES.USERSPACE });
+					}
+					this.#variables.set(key, remoteVar.value); // Set the variable's value.
 				}
 			}
 		} catch (error) {
@@ -238,8 +287,8 @@ class EnvironmentService {
 
 	/** Clears remote variables from memory, typically on logout. */
 	clearRemoteVariables() {
-		for (const [key, def] of Object.entries(VAR_DEFINITIONS)) {
-			if (def.category === VAR_CATEGORIES.REMOTE) {
+		for (const [key, def] of this.#definitions.entries()) {
+			if (def.category === VAR_CATEGORIES.REMOTE || def.category === VAR_CATEGORIES.USERSPACE) {
 				this.#variables.set(key, def.defaultValue);
 			}
 		}

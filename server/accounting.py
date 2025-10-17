@@ -58,7 +58,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS user_env (
             username TEXT NOT NULL,
             var_name TEXT NOT NULL,
-            var_value TEXT NOT NULL,
+            var_value TEXT,
+            var_category TEXT NOT NULL,
             PRIMARY KEY (username, var_name)
         )
     ''')
@@ -248,11 +249,11 @@ def handle_get_env(form_data):
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT var_name, var_value FROM user_env WHERE username = ?", (username,))
+    cursor.execute("SELECT var_name, var_value, var_category FROM user_env WHERE username = ?", (username,))
     rows = cursor.fetchall()
     conn.close()
 
-    env_vars = {row[0]: row[1] for row in rows}
+    env_vars = {row[0]: {'value': row[1], 'category': row[2]} for row in rows}
     return {'status': 'success', 'env': env_vars}
 
 def handle_set_env(form_data):
@@ -260,20 +261,21 @@ def handle_set_env(form_data):
     token = form_data.get('token')
     var_name = form_data.get('var_name')
     var_value = form_data.get('var_value')
+    var_category = form_data.get('var_category')
 
     username = validate_token(token)
     if not username:
         return {'status': 'error', 'message': 'Invalid or expired session.'}
 
-    if not var_name or var_value is None:
-        return {'status': 'error', 'message': 'Variable name and value are required.'}
+    if not var_name or var_value is None or not var_category:
+        return {'status': 'error', 'message': 'Variable name, value, and category are required.'}
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     try:
         # Use INSERT OR REPLACE to handle both creation and update
-        cursor.execute("INSERT OR REPLACE INTO user_env (username, var_name, var_value) VALUES (?, ?, ?)",
-                       (username, var_name, var_value))
+        cursor.execute("INSERT OR REPLACE INTO user_env (username, var_name, var_value, var_category) VALUES (?, ?, ?, ?)",
+                       (username, var_name, var_value, var_category))
         conn.commit()
         return {'status': 'success', 'message': f'Variable {var_name} set.'}
     finally:
