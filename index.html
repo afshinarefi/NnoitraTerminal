@@ -23,15 +23,12 @@
   <title>Afshin Arefi</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-  <!-- The custom terminal component will be loaded here -->
+<body>  
   <arefi-terminal id="terminal"></arefi-terminal>
+  <arefi-favicon></arefi-favicon>
 
   <!-- Load the main terminal component script as a module -->
   <script type="module" src="./js/Components/Terminal.js"></script>
-  <script type="module">
-    import { Favicon } from './js/utils/Favicon.js';
-    Favicon.set('green');
-  </script>
+  <script type="module" src="./js/Components/Favicon.js"></script>
 </body>
 </html>

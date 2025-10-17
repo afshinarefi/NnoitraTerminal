@@ -61,3 +61,11 @@ html, body {
   font-size: var(--arefi-font-size);
   touch-action: pan-y;
 }
+
+arefi-favicon {
+  --favicon-symbol: >;
+  --favicon-bg-color: var(--arefi-color-green);
+  --favicon-symbol-color: var(--arefi-color-black);
+  --favicon-border-color: var(--arefi-color-black);
+  --favicon-border-width: 1; /* A base width, scales with icon size */
+}

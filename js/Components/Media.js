@@ -27,9 +27,14 @@ const CSS = `
     display: block; /* Ensures the host element takes up space */
   }
   .media {
-    width: 96%;
-    max-width: 600px;
-    margin: 10px 2%;
+    /* Let the browser calculate width and height to preserve aspect ratio */
+    width: auto;
+    height: auto;
+    /* On larger screens, cap the width at a reasonable size (e.g., 80rem) */
+    /* Use min() to be responsive but also cap the width on large screens. */
+    max-width: min(100%, 80rem);
+    max-height: 80vh;
+    margin: 10px 0;
     display: block; /* Helps with layout and margin */
   }
 `;
