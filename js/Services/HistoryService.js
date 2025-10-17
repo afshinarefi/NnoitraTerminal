@@ -175,9 +175,9 @@ class HistoryService extends EventTarget {
      */
     async loadRemoteHistory() {
         try {
-            const result = await this.#loginService.post('get_history');
-            if (result.status === 'success' && Array.isArray(result.history)) {
-                this.#history = result.history;
+            const result = await this.#loginService.post('get_data', { category: 'HISTORY', sort_order: 'DESC' });
+            if (result && result.status === 'success' && result.data) {
+                this.#history = Object.values(result.data);
                 this.resetCursor();
             }
         } catch (error) {
@@ -192,7 +192,11 @@ class HistoryService extends EventTarget {
      */
     async #saveRemoteCommand(command) {
         try {
-            await this.#loginService.post('add_history', { command });
+            await this.#loginService.post('set_data', {
+                category: 'HISTORY',
+                key: Date.now(), // Use timestamp as the unique index
+                value: command
+            });
         } catch (error) {
             this.#log.error('Failed to save command to remote history:', error);
         }

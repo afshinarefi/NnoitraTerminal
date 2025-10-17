@@ -183,8 +183,11 @@ class EnvironmentService {
 		}
 
 		try {
-			const category = this.#definitions.get(key)?.category || VAR_CATEGORIES.USERSPACE;
-			await this.#loginService.post('set_env', { var_name: key, var_value: value, var_category: category });
+			await this.#loginService.post('set_data', {
+				category: 'ENV',
+				key: key,
+				value: value
+			});
 		} catch (error) {
 			log.error(`Failed to save remote variable ${key}:`, error);
 		}
@@ -280,15 +283,15 @@ class EnvironmentService {
 		}
 
 		try {
-			const result = await this.#loginService.post('get_env');
-			if (result.status === 'success' && result.env) {
-				for (const [key, remoteVar] of Object.entries(result.env)) {
+			const result = await this.#loginService.post('get_data', { category: 'ENV' });
+			if (result && result.status === 'success' && result.data) {
+				for (const [key, value] of Object.entries(result.data)) {
 					// If a fetched variable doesn't have a predefined definition,
 					// it must be a user-created one, so we register its definition.
 					if (!this.#definitions.has(key)) {
-						this.registerVariable(key, { category: remoteVar.category || VAR_CATEGORIES.USERSPACE });
+						this.registerVariable(key, { category: VAR_CATEGORIES.USERSPACE });
 					}
-					this.#variables.set(key, remoteVar.value); // Set the variable's value.
+					this.#variables.set(key, value); // Set the variable's value.
 				}
 			}
 		} catch (error) {

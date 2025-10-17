@@ -17,6 +17,7 @@
  */
 import { createLogger } from './LogService.js';
 import { VAR_CATEGORIES } from './EnvironmentService.js';
+import { ApiService } from './ApiService.js';
 
 const log = createLogger('LoginService');
 
@@ -31,7 +32,7 @@ export class LoginService extends EventTarget {
     constructor(services) {
         super();
         this.#environmentService = services.environment;
-        this.#apiService = services.api;
+        this.#apiService = new ApiService(services, '/server/accounting.py');
         this.#environmentService.registerVariable('USER', { category: VAR_CATEGORIES.LOCAL, defaultValue: 'guest' });
         this.#environmentService.registerVariable('TOKEN', { category: VAR_CATEGORIES.LOCAL });
         this.#environmentService.registerVariable('TOKEN_EXPIRY', { category: VAR_CATEGORIES.LOCAL });

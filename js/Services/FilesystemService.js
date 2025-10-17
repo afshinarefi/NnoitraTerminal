@@ -22,6 +22,7 @@
  */
 import { createLogger } from './LogService.js';
 import { VAR_CATEGORIES } from './EnvironmentService.js';
+import { ApiService } from './ApiService.js';
 const log = createLogger('FS');
 
 class FilesystemService {
@@ -52,6 +53,7 @@ class FilesystemService {
     /** @private {string} #currentPath - The current working directory in the virtual filesystem. */
     #currentPath = '/';
     #environmentService;
+    #apiService;
 
     /**
      * Creates an instance of FilesystemService.
@@ -59,6 +61,7 @@ class FilesystemService {
      */
     constructor(services) {
         this.#environmentService = services.environment;
+        this.#apiService = new ApiService(services, '/server/filesystem.py');
         // Register the PWD variable this service is responsible for.
         this.#environmentService.registerVariable('PWD', { category: VAR_CATEGORIES.TEMP, defaultValue: '/' });
         this.#currentPath = this.#environmentService.getVariable('PWD');
@@ -66,16 +69,11 @@ class FilesystemService {
 
     /**
      * Initializes the filesystem service by fetching the directory tree from the server.
-     * @param {string} url - The URL to fetch the filesystem tree from (e.g., '/fs/index.py').
      * @returns {Promise<void>} A promise that resolves when the filesystem tree is loaded.
      */
-    async init(url) {
+    async init() {
         try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
+            const data = await this.#apiService.get();
             // If backend returns {directories: [...], files: [...]}, map to expected tree
             if (Array.isArray(data.directories) && Array.isArray(data.files)) {
                 // Root node only, build tree with metadata objects
@@ -141,11 +139,8 @@ class FilesystemService {
         }
         if (shouldFetch) {
             try {
-                const url = `/server/filesystem.py?path=${encodeURIComponent(normalizedPath.replace(/^\//, ''))}`;
-                log.log(`Fetching backend for ${normalizedPath}: ${url}`);
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
+                const pathForApi = normalizedPath.replace(/^\//, '');
+                const data = await this.#apiService.get({ path: pathForApi });
                 log.log(`Backend response for ${normalizedPath}:`, data);
                 if (Array.isArray(data.directories) && Array.isArray(data.files)) {
                     // Build node and cache it

@@ -194,15 +194,15 @@ class Terminal extends ArefiBaseComponent {
    */
   #initializeServices() {
     // EnvironmentService is special as it's a dependency for ApiService.
-    this.#services.environment = new EnvironmentService();
-    // ApiService is now an internal dependency of LoginService.
-    const apiService = new ApiService(this.#services);
-    this.#services.login = new LoginService({ ...this.#services, api: apiService });
-    // Inject LoginService into EnvironmentService to break the circular dependency.
-    this.#services.environment.setLoginService(this.#services.login);
-    
+    this.#services.environment = new EnvironmentService(this.#services);
+
+    // Services now create their own internal ApiService instances.
+    this.#services.login = new LoginService(this.#services);
     this.#services.history = new HistoryService(this.#services);
     this.#services.filesystem = new FilesystemService(this.#services);
+
+    // Inject LoginService into EnvironmentService to break the circular dependency.
+    this.#services.environment.setLoginService(this.#services.login);
 
     // Register variables that are core to the terminal's own operation.
     this.#services.environment.registerVariable('HOST', { category: VAR_CATEGORIES.TEMP, defaultValue: window.location.host });
@@ -218,7 +218,7 @@ class Terminal extends ArefiBaseComponent {
     this.#services.prompt = this.refs.prompt;
 
     // Initialize the filesystem service asynchronously
-    this.#services.filesystem.init('/server/filesystem.py').then(() => {
+    this.#services.filesystem.init().then(() => {
     }).catch(error => {
         log.error('Failed to initialize filesystem service:', error);
     });

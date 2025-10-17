@@ -24,10 +24,11 @@ const log = createLogger('ApiService');
  */
 export class ApiService {
     #environmentService;
-    #apiEndpoint = '/server/accounting.py';
+    #apiEndpoint;
 
-    constructor(services) {
+    constructor(services, endpoint) {
         this.#environmentService = services.environment;
+        this.#apiEndpoint = endpoint;
     }
 
     /**
@@ -52,6 +53,24 @@ export class ApiService {
         const response = await fetch(`${this.#apiEndpoint}?action=${action}`, {
             method: 'POST',
             body: formData
+        });
+        return response.json();
+    }
+
+    /**
+     * Makes a GET request to the backend API.
+     * @param {Object} [data={}] - An object containing data to be sent as URL query parameters.
+     * @returns {Promise<object>} The JSON response from the server.
+     */
+    async get(data = {}) {
+        const url = new URL(this.#apiEndpoint, window.location.origin);
+        for (const [key, value] of Object.entries(data)) {
+            url.searchParams.append(key, value);
+        }
+
+        log.log(`Making API call (GET): url=${url}`);
+        const response = await fetch(url, {
+            method: 'GET'
         });
         return response.json();
     }

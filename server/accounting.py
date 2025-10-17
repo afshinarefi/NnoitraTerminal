@@ -53,26 +53,16 @@ def init_db():
             FOREIGN KEY (username) REFERENCES users (username)
         )
     ''')
-    # Create user_env table for remote environment variables
+    # Create a generic user_data table for all user-specific remote data
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_env (
+        CREATE TABLE IF NOT EXISTS user_data (
             username TEXT NOT NULL,
-            var_name TEXT NOT NULL,
-            var_value TEXT,
-            var_category TEXT NOT NULL,
-            PRIMARY KEY (username, var_name)
+            category TEXT NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT,
+            PRIMARY KEY (username, category, key)
         )
     ''')
-    # Create user_history table for remote command history
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            command TEXT NOT NULL,
-            timestamp INTEGER NOT NULL
-        )
-    ''')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_user_history_user_ts ON user_history (username, timestamp DESC)')
     conn.commit()
     conn.close()
 
@@ -240,101 +230,75 @@ def validate_and_update_token(token):
     conn.close()
     return username # Return the associated username on success.
 
-def handle_get_env(form_data):
-    """Fetches all environment variables for a validated user."""
+def handle_get_data(form_data):
+    """Fetches all data for a given data_key for a validated user."""
     token = form_data.get('token')
+    category = form_data.get('category')
+    sort_order = form_data.get('sort_order', 'ASC').upper() # Default to ASC
     username = validate_token(token)
     if not username:
         return {'status': 'error', 'message': 'Invalid or expired session.'}
+
+    if not category:
+        return {'status': 'error', 'message': 'category is required.'}
+
+    order_by_clause = ""
+    if sort_order in ['ASC', 'DESC']:
+        order_by_clause = f"ORDER BY key {sort_order}"
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT var_name, var_value, var_category FROM user_env WHERE username = ?", (username,))
+    cursor.execute(f"SELECT key, value FROM user_data WHERE username = ? AND category = ? {order_by_clause}", (username, category))
     rows = cursor.fetchall()
     conn.close()
 
-    env_vars = {row[0]: {'value': row[1], 'category': row[2]} for row in rows}
-    return {'status': 'success', 'env': env_vars}
+    # Return data as a list of [index, value] pairs
+    data = {row[0]: row[1] for row in rows}
+    return {'status': 'success', 'data': data}
 
-def handle_set_env(form_data):
-    """Sets a single environment variable for a validated user."""
+def handle_set_data(form_data):
+    """Sets a single data item for a validated user."""
     token = form_data.get('token')
-    var_name = form_data.get('var_name')
-    var_value = form_data.get('var_value')
-    var_category = form_data.get('var_category')
+    category = form_data.get('category')
+    key = form_data.get('key')
+    value = form_data.get('value')
 
     username = validate_token(token)
     if not username:
         return {'status': 'error', 'message': 'Invalid or expired session.'}
 
-    if not var_name or var_value is None or not var_category:
-        return {'status': 'error', 'message': 'Variable name, value, and category are required.'}
+    if not category or key is None or value is None:
+        return {'status': 'error', 'message': 'category, key, and value are required.'}
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     try:
         # Use INSERT OR REPLACE to handle both creation and update
-        cursor.execute("INSERT OR REPLACE INTO user_env (username, var_name, var_value, var_category) VALUES (?, ?, ?, ?)",
-                       (username, var_name, var_value, var_category))
+        cursor.execute("INSERT OR REPLACE INTO user_data (username, category, key, value) VALUES (?, ?, ?, ?)",
+                       (username, category, key, value))
         conn.commit()
-        return {'status': 'success', 'message': f'Variable {var_name} set.'}
+        return {'status': 'success', 'message': f'Data for category {category} set.'}
     finally:
         conn.close()
 
-def handle_get_history(form_data):
-    """Fetches command history for a validated user."""
+def handle_delete_data(form_data):
+    """Deletes a single data item for a validated user."""
     token = form_data.get('token')
+    category = form_data.get('category')
+    key = form_data.get('key')
     username = validate_token(token)
     if not username:
         return {'status': 'error', 'message': 'Invalid or expired session.'}
-
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    # Get HISTSIZE for the user, default to 1000
-    cursor.execute("SELECT var_value FROM user_env WHERE username = ? AND var_name = 'HISTSIZE'", (username,))
-    histsize_row = cursor.fetchone()
-    histsize = int(histsize_row[0]) if histsize_row and histsize_row[0].isdigit() else 1000
-
-    cursor.execute("SELECT command FROM user_history WHERE username = ? ORDER BY timestamp DESC LIMIT ?", (username, histsize))
-    rows = cursor.fetchall()
-    conn.close()
-
-    history = [row[0] for row in rows]
-    return {'status': 'success', 'history': history}
-
-def handle_add_history(form_data):
-    """Adds a command to the user's history and trims old entries."""
-    token = form_data.get('token')
-    command = form_data.get('command')
-
-    username = validate_token(token)
-    if not username:
-        return {'status': 'error', 'message': 'Invalid or expired session.'}
-
-    if not command:
-        return {'status': 'error', 'message': 'Command is required.'}
+    if not category or not key:
+        return {'status': 'error', 'message': 'category and key are required.'}
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     try:
-        # Add new history item
-        timestamp = int(datetime.now(timezone.utc).timestamp())
-        cursor.execute("INSERT INTO user_history (username, command, timestamp) VALUES (?, ?, ?)",
-                       (username, command, timestamp))
-
-        # Get HISTSIZE and trim history
-        cursor.execute("SELECT var_value FROM user_env WHERE username = ? AND var_name = 'HISTSIZE'", (username,))
-        histsize_row = cursor.fetchone()
-        histsize = int(histsize_row[0]) if histsize_row and histsize_row[0].isdigit() else 1000
-
-        # Delete oldest entries if history exceeds HISTSIZE
-        cursor.execute("""
-            DELETE FROM user_history WHERE id IN (
-                SELECT id FROM user_history WHERE username = ? ORDER BY timestamp ASC LIMIT -1 OFFSET ?
-            )
-        """, (username, histsize))
+        cursor.execute("DELETE FROM user_data WHERE username = ? AND category = ? AND key = ?",
+                       (username, category, key))
         conn.commit()
-        return {'status': 'success'}
+        return {'status': 'success', 'message': f'Data for category {category} at key {key} deleted.'}
     finally:
         conn.close()
 
@@ -392,14 +356,12 @@ def main():
         response = handle_passwd(form_data)
     elif action == 'logout':
         response = handle_logout(form_data)
-    elif action == 'get_env':
-        response = handle_get_env(form_data)
-    elif action == 'set_env':
-        response = handle_set_env(form_data)
-    elif action == 'get_history':
-        response = handle_get_history(form_data)
-    elif action == 'add_history':
-        response = handle_add_history(form_data)
+    elif action == 'get_data':
+        response = handle_get_data(form_data)
+    elif action == 'set_data':
+        response = handle_set_data(form_data)
+    elif action == 'delete_data':
+        response = handle_delete_data(form_data)
     else:
         response = {'status': 'error', 'message': 'Invalid action.'}
 
