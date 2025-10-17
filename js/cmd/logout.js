@@ -24,12 +24,10 @@ const log = createLogger('logout');
 class Logout {
     static DESCRIPTION = 'Log out of the current session.';
 
-    #environmentService;
-    #historyService;
+    #loginService;
 
     constructor(services) {
-        this.#environmentService = services.environment;
-        this.#historyService = services.history;
+        this.#loginService = services.login;
     }
 
     static man() {
@@ -46,47 +44,15 @@ class Logout {
      * @returns {boolean} True if the command is available, false otherwise.
      */
     static isAvailable(services) {
-        return services.environment.hasVariable('TOKEN');
+        return services.login.isLoggedIn();
     }
 
     async execute(args) {
         log.log('Executing...');
         const outputDiv = document.createElement('div');
-        const token = this.#environmentService.getVariable('TOKEN');
-
-        // If there's no token, we are already logged out.
-        // Ensure the state is clean and inform the user.
-        if (!token) {
-            log.log('No token found, already logged out.');
-            this.#environmentService.removeVariable('TOKEN');
-            this.#environmentService.removeVariable('TOKEN_EXPIRY');
-            this.#environmentService.setVariable('USER', 'guest');
-            outputDiv.textContent = 'Already logged out.';
-            return outputDiv;
-        }
-
-        const formData = new FormData();
-        formData.append('token', token);
-
         try {
-            log.log('Sending logout request to server.');
-            const response = await fetch('/server/accounting.py?action=logout', {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
+            const result = await this.#loginService.logout();
             outputDiv.textContent = result.message;
-
-            // Always clear the local session on logout, even if the server reports the token was already expired.
-            // The only time we don't clear is on a network failure.
-            if (result.status === 'success' || (result.status === 'error' && result.message.includes('expired'))) {
-                log.log('Clearing local session data.');
-                this.#environmentService.removeVariable('TOKEN');
-                this.#environmentService.removeVariable('TOKEN_EXPIRY');
-                this.#environmentService.setVariable('USER', 'guest'); // Reset to default user
-                this.#environmentService.clearRemoteVariables(); // Reset remote vars to defaults
-                this.#historyService.clearHistory(); // Clear the history from memory
-            }
         } catch (error) {
             log.error('Network or parsing error during logout:', error);
             outputDiv.textContent = `Error: ${error.message}`;

@@ -26,9 +26,11 @@ class AddUser {
     static DESCRIPTION = 'Add a new user.';
 
     #prompt;
+    #loginService;
 
     constructor(services) {
         this.#prompt = services.prompt;
+        this.#loginService = services.login;
         log.log('Initializing...');
     }
 
@@ -44,6 +46,10 @@ DESCRIPTION
        The adduser command creates a new user account. You will be prompted to enter and confirm a password.
        Usernames must be between 3 and 32 characters and can only contain letters, numbers, and underscores.
 `;
+    }
+    
+    static autocompleteArgs(currentArgs, services) {
+        return []; // No autocomplete for username.
     }
 
     async execute(args) {
@@ -84,16 +90,7 @@ DESCRIPTION
 
             outputDiv.textContent = 'Creating user...';
 
-            const formData = new FormData();
-            formData.append('username', username);
-            formData.append('password', password);
-
-            const response = await fetch('/server/accounting.py?action=useradd', {
-                method: 'POST',
-                body: formData
-            });
-
-            const result = await response.json();
+            const result = await this.#loginService.addUser(username, password);
 
             if (result.status === 'success') {
                 outputDiv.textContent = `User '${username}' created successfully.`;

@@ -24,14 +24,12 @@ const log = createLogger('login');
 class Login {
     static DESCRIPTION = 'Log in as a user.';
 
-    #environmentService;
     #prompt;
-    #historyService;
+    #loginService;
 
     constructor(services) {
-        this.#environmentService = services.environment;
         this.#prompt = services.prompt;
-        this.#historyService = services.history;
+        this.#loginService = services.login;
     }
 
     static man() {
@@ -48,7 +46,7 @@ class Login {
      * @returns {boolean} True if the command is available, false otherwise.
      */
     static isAvailable(services) {
-        return !services.environment.hasVariable('TOKEN');
+        return !services.login.isLoggedIn();
     }
 
     /**
@@ -79,30 +77,8 @@ class Login {
         }
 
         try {
-            const formData = new FormData();
-            formData.append('username', username);
-            formData.append('password', password);
-
-            log.log(`Attempting login for user: "${username}"`);
-            const loginResponse = await fetch('/server/accounting.py?action=login', {
-                method: 'POST',
-                body: formData
-            });
-            const loginResult = await loginResponse.json();
+            const loginResult = await this.#loginService.login(username, password);
             outputDiv.textContent = loginResult.message;
-
-            if (loginResult.status === 'success') {
-                log.log('Login successful. Setting session variables.');
-                this.#environmentService.setVariable('TOKEN', loginResult.token);
-                this.#environmentService.setVariable('USER', loginResult.user);
-                this.#environmentService.setVariable('TOKEN_EXPIRY', loginResult.expires_at);
-                // Fetch remote environment variables for the logged-in user
-                await this.#environmentService.fetchRemoteVariables();
-                // Fetch remote command history for the logged-in user
-                await this.#historyService.loadRemoteHistory();
-            } else {
-                log.warn('Login failed:', loginResult.message);
-            }
         } catch (error) {
             log.error('Network or parsing error during login:', error);
             outputDiv.textContent = `Error: ${error.message}`;

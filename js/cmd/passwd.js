@@ -26,11 +26,11 @@ class Passwd {
     static DESCRIPTION = 'Change user password.';
 
     #prompt;
-    #environmentService;
+    #loginService;
 
     constructor(services) {
         this.#prompt = services.prompt;
-        this.#environmentService = services.environment;
+        this.#loginService = services.login;
         log.log('Initializing...');
     }
 
@@ -54,7 +54,7 @@ DESCRIPTION
      * @returns {boolean} True if the command is available, false otherwise.
      */
     static isAvailable(services) {
-        return services.environment.hasVariable('TOKEN');
+        return services.login.isLoggedIn();
     }
 
     async execute(args) {
@@ -85,17 +85,7 @@ DESCRIPTION
                 return outputDiv;
             }
 
-            const formData = new FormData();
-            formData.append('token', this.#environmentService.getVariable('TOKEN'));
-            formData.append('old_password', oldPassword);
-            formData.append('new_password', newPassword);
-
-            const response = await fetch('/server/accounting.py?action=passwd', {
-                method: 'POST',
-                body: formData
-            });
-
-            const result = await response.json();
+            const result = await this.#loginService.changePassword(oldPassword, newPassword);
             outputDiv.textContent = result.message;
 
         } catch (error) {

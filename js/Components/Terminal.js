@@ -24,6 +24,8 @@ import { EnvironmentService, VAR_CATEGORIES } from '../Services/EnvironmentServi
 import { HistoryService } from '../Services/HistoryService.js';
 import { CommandService } from '../Services/CommandService.js';
 import { AutocompleteService } from '../Services/AutocompleteService.js';
+import { LoginService } from '../Services/LoginService.js';
+import { ApiService } from '../Services/ApiService.js';
 import { FilesystemService } from '../Services/FilesystemService.js';
 import { createLogger } from '../Services/LogService.js';
 
@@ -151,19 +153,23 @@ class Terminal extends ArefiBaseComponent {
 
       if (result.status === 'success') {
         log.log('Session validated successfully. Restoring remote state.');
-        // Session is valid, load remote data.
-        await this.#services.environment.fetchRemoteVariables();
-        await this.#services.history.loadRemoteHistory();
+        await this.#handleSuccessfulLogin();
       } else {
         log.warn('Session validation failed. Clearing local session data.', result.message);
-        // Session is invalid (e.g., expired), clear local session data.
-        this.#services.environment.removeVariable('TOKEN');
-        this.#services.environment.removeVariable('TOKEN_EXPIRY');
-        this.#services.environment.setVariable('USER', 'guest');
+        this.#services.login.clearLocalSession();
       }
     } catch (error) {
       log.error('Session restoration failed:', error);
     }
+  }
+
+  /**
+   * Fetches remote data after a successful login or session validation.
+   * @private
+   */
+  async #handleSuccessfulLogin() {
+    await this.#services.environment.fetchRemoteVariables();
+    await this.#services.history.loadRemoteHistory();
   }
 
   /**
@@ -187,24 +193,25 @@ class Terminal extends ArefiBaseComponent {
    * @private
    */
   #initializeServices() {
+    // EnvironmentService is special as it's a dependency for ApiService.
     this.#services.environment = new EnvironmentService();
+    // ApiService is now an internal dependency of LoginService.
+    const apiService = new ApiService(this.#services);
+    this.#services.login = new LoginService({ ...this.#services, api: apiService });
+    // Inject LoginService into EnvironmentService to break the circular dependency.
+    this.#services.environment.setLoginService(this.#services.login);
+    
+    this.#services.history = new HistoryService(this.#services);
+    this.#services.filesystem = new FilesystemService(this.#services);
 
-    // Register all core environment variables.
-    // This decouples the definitions from the service itself.
-    this.#services.environment.registerVariable('USER', { category: VAR_CATEGORIES.LOCAL, defaultValue: 'guest' });
+    // Register variables that are core to the terminal's own operation.
     this.#services.environment.registerVariable('HOST', { category: VAR_CATEGORIES.TEMP, defaultValue: window.location.host });
-    this.#services.environment.registerVariable('PWD', { category: VAR_CATEGORIES.TEMP, defaultValue: '/' });
-    this.#services.environment.registerVariable('TOKEN', { category: VAR_CATEGORIES.LOCAL });
-    this.#services.environment.registerVariable('TOKEN_EXPIRY', { category: VAR_CATEGORIES.LOCAL });
-    this.#services.environment.registerVariable('HISTSIZE', { category: VAR_CATEGORIES.USERSPACE, defaultValue: '1000' });
     this.#services.environment.registerVariable('ALIAS', { category: VAR_CATEGORIES.REMOTE, defaultValue: '{}' });
     this.#services.environment.registerVariable('PS1', { category: VAR_CATEGORIES.USERSPACE, defaultValue: '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}' });
 
     // Now that variables are registered, initialize the service to load from storage.
     this.#services.environment.init();
 
-    this.#services.history = new HistoryService(this.#services);
-    this.#services.filesystem = new FilesystemService();
     this.#services.command = new CommandService(this.#services);
 
     // Add the command line prompt component to services so commands can interact with it.
@@ -229,6 +236,17 @@ class Terminal extends ArefiBaseComponent {
     // is a pragmatic way to handle events from deeply nested components (like a command)
     // without complex prop-drilling or a state management library.
     document.addEventListener('terminal-clear', () => this.#clearOutput());
+
+    // Listen for successful login to fetch remote data.
+    this.#services.login.addEventListener('login-success', async () => {
+      log.log('Login successful, handling post-login tasks.');
+      await this.#handleSuccessfulLogin();
+    });
+
+    // Listen for successful logout to clear local state.
+    this.#services.login.addEventListener('logout-success', () => {
+      this.#services.history.clearHistory();
+    });
 
     // Add event listeners for command submission and autocomplete suggestions
     this.refs.prompt.addEventListener('command-submit', this.commandReceive.bind(this));

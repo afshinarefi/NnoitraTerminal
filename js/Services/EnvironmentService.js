@@ -39,6 +39,8 @@ class EnvironmentService {
 	#variables = new Map();
 	/** @private {Map<string, object>} #definitions - A private Map to hold variable definitions. */
 	#definitions = new Map();
+	/** @private {LoginService} #loginService - Reference to the LoginService for remote persistence. */
+	#loginService;
 
 	/**
 	 * Initializes the EnvironmentService with an optional set of initial variables.
@@ -46,8 +48,8 @@ class EnvironmentService {
 	 * @param {Object.<string, string>} [initialEnv={}] - An object containing initial environment variables.
 	 *   Example: `{ USER: 'guest', PWD: '/' }`.
 	 */
-	constructor() {
-		// The constructor is now simpler. Initialization happens in `init()`.
+	constructor(services) {
+		// This service is special and is created first. Other services will be injected later.
 	}
 
 	/**
@@ -56,6 +58,14 @@ class EnvironmentService {
 	 */
 	init() {
 		this.#loadFromStorage();
+	}
+
+	/**
+	 * Injects the LoginService after it has been created to avoid circular dependencies.
+	 * @param {LoginService} loginService - The LoginService instance.
+	 */
+	setLoginService(loginService) {
+		this.#loginService = loginService;
 	}
 
 	/**
@@ -90,6 +100,16 @@ class EnvironmentService {
 	 */	getVariable(key) {
 		const upperKey = key.toUpperCase();
 		return this.#variables.get(upperKey);
+	}
+
+	/**
+	 * Retrieves the definition object for a variable.
+	 * @param {string} key - The name of the variable.
+	 * @returns {object | undefined} The definition object or undefined.
+	 */
+	getDefinition(key) {
+		const upperKey = key.toUpperCase();
+		return this.#definitions.get(upperKey);
 	}
 
 	/**
@@ -158,18 +178,13 @@ class EnvironmentService {
 	/** @private Saves a single REMOTE variable to the backend. */
 	async #saveRemoteVariable(key, value) {
 		const token = this.getVariable('TOKEN');
-		if (!token || this.getVariable('USER') === 'guest') {
-			return; // Don't save for guests
+		if (!token || !this.#loginService) {
+			return; // Don't save for guests or if loginService isn't ready
 		}
 
-		const formData = new FormData();
-		formData.append('token', token);
-		formData.append('var_name', key);
-		formData.append('var_value', value);
-		formData.append('var_category', this.#definitions.get(key)?.category || VAR_CATEGORIES.USERSPACE);
-
 		try {
-			await fetch('/server/accounting.py?action=set_env', { method: 'POST', body: formData });
+			const category = this.#definitions.get(key)?.category || VAR_CATEGORIES.USERSPACE;
+			await this.#loginService.post('set_env', { var_name: key, var_value: value, var_category: category });
 		} catch (error) {
 			log.error(`Failed to save remote variable ${key}:`, error);
 		}
@@ -260,16 +275,12 @@ class EnvironmentService {
 	/** Fetches remote variables and loads them into the environment. */
 	async fetchRemoteVariables() {
 		const token = this.getVariable('TOKEN');
-		if (!token || this.getVariable('USER') === 'guest') {
+		if (!token || !this.#loginService) {
 			return; // No user logged in
 		}
 
-		const formData = new FormData();
-		formData.append('token', token);
-
 		try {
-			const response = await fetch('/server/accounting.py?action=get_env', { method: 'POST', body: formData });
-			const result = await response.json();
+			const result = await this.#loginService.post('get_env');
 			if (result.status === 'success' && result.env) {
 				for (const [key, remoteVar] of Object.entries(result.env)) {
 					// If a fetched variable doesn't have a predefined definition,

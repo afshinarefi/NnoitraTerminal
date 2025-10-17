@@ -21,6 +21,7 @@
  * This service provides methods to navigate, list contents, and retrieve information about files and directories.
  */
 import { createLogger } from './LogService.js';
+import { VAR_CATEGORIES } from './EnvironmentService.js';
 const log = createLogger('FS');
 
 class FilesystemService {
@@ -50,13 +51,17 @@ class FilesystemService {
     #filesystemTree = {};
     /** @private {string} #currentPath - The current working directory in the virtual filesystem. */
     #currentPath = '/';
+    #environmentService;
 
     /**
      * Creates an instance of FilesystemService.
      * @param {string} initialPath - The initial path for the filesystem service. Defaults to '/'.
      */
-    constructor(initialPath = '/') {
-        this.#currentPath = initialPath;
+    constructor(services) {
+        this.#environmentService = services.environment;
+        // Register the PWD variable this service is responsible for.
+        this.#environmentService.registerVariable('PWD', { category: VAR_CATEGORIES.TEMP, defaultValue: '/' });
+        this.#currentPath = this.#environmentService.getVariable('PWD');
     }
 
     /**
@@ -104,8 +109,9 @@ class FilesystemService {
     setCurrentPath(path) {
         // Normalize path (e.g., remove double slashes, resolve '..', '.')
     const normalizedPath = this.normalizePath(path);
-        if (this.#resolvePath(normalizedPath)) {
+        if (this.#getNodeAtPath(normalizedPath)) {
             this.#currentPath = normalizedPath;
+            this.#environmentService.setVariable('PWD', normalizedPath);
             return true;
         }
         return false;

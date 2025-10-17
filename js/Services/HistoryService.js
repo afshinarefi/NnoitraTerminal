@@ -17,6 +17,7 @@
  */
 // CommandHistory.js
 import { createLogger } from './LogService.js';
+import { VAR_CATEGORIES } from './EnvironmentService.js';
 
 /**
  * @class HistoryService
@@ -24,7 +25,7 @@ import { createLogger } from './LogService.js';
  * through previously executed commands. It supports adding new commands, resetting the cursor,
  * and retrieving commands in chronological order.
  */
-class HistoryService {
+class HistoryService extends EventTarget {
     #log = createLogger('History');
 
     /** @private {string[]} #history - An array storing the command history, with the most recent command at the beginning. */
@@ -35,20 +36,39 @@ class HistoryService {
     #maxSize = 1000; 
     /** @private {EnvironmentService} #environmentService - Reference to the EnvironmentService for managing HISTSIZE. */
     #environmentService;
+    #loginService;
 
     /**
      * Creates an instance of HistoryService.
      * @param {object} services - The services object containing the EnvironmentService.
      */
     constructor(services) {
+        super();
         this.#environmentService = services.environment;
-        // Initialize maxSize from environment, or use default if not set.
+        this.#loginService = services.login;
+        // Register the HISTSIZE variable this service is responsible for and validate it.
+        this.#environmentService.registerVariable('HISTSIZE', { category: VAR_CATEGORIES.USERSPACE, defaultValue: '1000' });
+        this.#validateHistSize();
+    }
+
+    /**
+     * Validates the HISTSIZE environment variable. If it's invalid, it resets
+     * it to the default value and updates the internal maxSize.
+     * @private
+     */
+    #validateHistSize() {
         const histSizeEnv = this.#environmentService.getVariable('HISTSIZE');
-        if (histSizeEnv && !isNaN(parseInt(histSizeEnv))) {
-            this.#maxSize = parseInt(histSizeEnv);
+        const parsedSize = parseInt(histSizeEnv);
+
+        if (!isNaN(parsedSize) && parsedSize >= 0) {
+            this.#maxSize = parsedSize;
         } else {
-            // If HISTSIZE is not set or invalid, set it in the environment with the default.
-            this.#environmentService.setVariable('HISTSIZE', String(this.#maxSize));
+            // The value is invalid. Log a warning, reset to default, and update the environment.
+            const definition = this.#environmentService.getDefinition('HISTSIZE');
+            const defaultValue = definition ? definition.defaultValue : '1000';
+            this.#log.warn(`Invalid HISTSIZE value "${histSizeEnv}". Resetting to default: ${defaultValue}`);
+            this.#maxSize = parseInt(defaultValue);
+            this.#environmentService.setVariable('HISTSIZE', defaultValue);
         }
     }
 
@@ -69,25 +89,10 @@ class HistoryService {
         // Add the new command to the beginning of the history array.
         this.#history.unshift(trimmedCommand);
 
-        // If the user is logged in, save the command to the remote history.
-        const token = this.#environmentService.getVariable('TOKEN');
-        if (token && this.#environmentService.getVariable('USER') !== 'guest') {
-            try {
-                const formData = new FormData();
-                formData.append('token', token);
-                formData.append('command', trimmedCommand);
-                await fetch('/server/accounting.py?action=add_history', {
-                    method: 'POST',
-                    body: formData
-                });
-            } catch (error) {
-                this.#log.error('Failed to save command to remote history:', error);
-            }
-        }
+        this.#saveRemoteCommand(trimmedCommand);
 
-        // Update maxSize from environment in case it changed
-        const histSizeEnv = this.#environmentService.getVariable('HISTSIZE');
-        this.#maxSize = (histSizeEnv && !isNaN(parseInt(histSizeEnv))) ? parseInt(histSizeEnv) : 1000;
+        // Re-validate HISTSIZE in case it was changed by the user.
+        this.#validateHistSize();
 
         // Enforce maximum history size.
         if (this.#history.length > this.#maxSize) {
@@ -169,25 +174,27 @@ class HistoryService {
      * Fetches and loads the command history from the server for a logged-in user.
      */
     async loadRemoteHistory() {
-        const token = this.#environmentService.getVariable('TOKEN');
-        if (!token || this.#environmentService.getVariable('USER') === 'guest') {
-            return; // Not logged in, do nothing.
-        }
-
         try {
-            const formData = new FormData();
-            formData.append('token', token);
-            const response = await fetch('/server/accounting.py?action=get_history', {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
+            const result = await this.#loginService.post('get_history');
             if (result.status === 'success' && Array.isArray(result.history)) {
                 this.#history = result.history;
                 this.resetCursor();
             }
         } catch (error) {
             this.#log.error('Failed to load remote history:', error);
+        }
+    }
+
+    /**
+     * Saves a single command to the remote history.
+     * @private
+     * @param {string} command - The command to save.
+     */
+    async #saveRemoteCommand(command) {
+        try {
+            await this.#loginService.post('add_history', { command });
+        } catch (error) {
+            this.#log.error('Failed to save command to remote history:', error);
         }
     }
 
