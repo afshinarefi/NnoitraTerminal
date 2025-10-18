@@ -138,6 +138,14 @@ class EnvironmentService extends EventTarget {
 		} else if (targetCategory === VAR_CATEGORIES.REMOTE || targetCategory === VAR_CATEGORIES.USERSPACE) {
 			this.#saveRemoteVariable(upperKey, value);
 		}
+
+		// Announce that a variable was set so other components can react.
+		this.dispatchEvent(new CustomEvent('variable-set', {
+			detail: {
+				key: upperKey,
+				value: value
+			}
+		}));
 	}
 
 	/**

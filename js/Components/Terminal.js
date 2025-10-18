@@ -27,6 +27,7 @@ import { AutocompleteService } from '../Services/AutocompleteService.js';
 import { LoginService } from '../Services/LoginService.js';
 import { ApiService } from '../Services/ApiService.js';
 import { FilesystemService } from '../Services/FilesystemService.js';
+import { ThemeService } from '../Services/ThemeService.js';
 import { createLogger } from '../Services/LogService.js';
 
 const log = createLogger('Terminal');
@@ -194,21 +195,26 @@ class Terminal extends ArefiBaseComponent {
    * @private
    */
   #initializeServices() {
-    // EnvironmentService must be created and initialized first, as other services depend on it.
+    // Step 1: Create the EnvironmentService.
     this.#services.environment = new EnvironmentService(this.#services);
+    // Step 2: Initialize default variables so other services can use them.
     this.#initializeCoreState();
 
-    // Services now create their own internal ApiService instances.
+    // Step 3: Create all other services.
     this.#services.login = new LoginService(this.#services);
     this.#services.history = new HistoryService(this.#services);
     this.#services.filesystem = new FilesystemService(this.#services);
     this.#services.command = new CommandService(this.#services);
+    this.#services.theme = new ThemeService(this.#services);
     this.#services.prompt = this.refs.prompt;
     this.#services.autocomplete = new AutocompleteService(this.refs.prompt, this.#services);
+
+    // Step 4: Now that all services exist, perform actions that use them, like applying the theme.
+    this.#services.theme.applyTheme();
   }
 
   /**
-   * Initializes or resets the core state of the terminal (variables, commands, etc.).
+   * Initializes or resets the core state of the terminal's environment variables.
    * This is the "guest profile" that is loaded on startup and after logout.
    * @private
    */
@@ -217,6 +223,7 @@ class Terminal extends ArefiBaseComponent {
     if (!this.#services.environment.hasVariable('HOST')) this.#services.environment.setVariable('HOST', window.location.host, VAR_CATEGORIES.TEMP);
     if (!this.#services.environment.hasVariable('PS1')) this.#services.environment.setVariable('PS1', '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}', VAR_CATEGORIES.USERSPACE);
     if (!this.#services.environment.hasVariable('PWD')) this.#services.environment.setVariable('PWD', '/', VAR_CATEGORIES.TEMP);
+    if (!this.#services.environment.hasVariable('THEME')) this.#services.environment.setVariable('THEME', 'green', VAR_CATEGORIES.USERSPACE);
 
     // Now that variables are registered, initialize the service to load from storage.
     this.#services.environment.init();
@@ -239,6 +246,13 @@ class Terminal extends ArefiBaseComponent {
       this.#initializeCoreState();
       // Return the promise so the login command can wait for it.
       return this.#handleSuccessfulLogin();
+    });
+
+    // Listen for changes to the THEME variable to apply them dynamically.
+    this.#services.environment.addEventListener('variable-set', (event) => {
+      if (event.detail.key === 'THEME') {
+        this.#services.theme.applyTheme();
+      }
     });
 
     // Listen for successful logout to clear local state.
