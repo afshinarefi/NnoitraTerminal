@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Services/LogService.js';
+import { parseAssignment } from '../utils/parseUtil.js';
 const log = createLogger('export');
 
 /**
@@ -76,26 +77,6 @@ class Export {
         return [];
     }
 
-    /**
-     * Parses an export string (e.g., 'PS1="{user}$ "') into a key-value pair.
-     * @param {string} arg - The argument string.
-     * @returns {{name: string, value: string}|null} The parsed variable or null.
-     */
-    #parseExport(arg) {
-        const match = arg.match(/^([^=]+)=(.*)$/);
-        if (!match) return null;
-
-        let name = match[1].trim();
-        let value = match[2].trim();
-
-        // Strip quotes from the value if present
-        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-            value = value.substring(1, value.length - 1);
-        }
-
-        return { name, value };
-    }
-
     async execute(args) {
         log.log('Executing with args:', args);
         const output = document.createElement('pre');
@@ -115,7 +96,7 @@ class Export {
         }
 
         // If arguments are provided, define a new variable
-        const newVar = this.#parseExport(exportString);
+        const newVar = parseAssignment(exportString);
 
         if (newVar) {
             const success = this.#environmentService.exportVariable(newVar.name.toUpperCase(), newVar.value);

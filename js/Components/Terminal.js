@@ -168,7 +168,10 @@ class Terminal extends ArefiBaseComponent {
         this.#services.environment.loadRemoteVariables(envResult.data);
       }
       // HistoryService still manages its own fetching for now.
-      await this.#services.history.loadRemoteHistory();
+      const historyResult = await this.#services.login.post('get_data', { category: 'HISTORY', sort_order: 'DESC' });
+      if (historyResult && historyResult.status === 'success') {
+        this.#services.history.loadHistory(historyResult.data);
+      }
     } catch (error) {
       log.error('Failed to fetch remote data after login:', error);
     }
@@ -253,6 +256,16 @@ class Terminal extends ArefiBaseComponent {
       if (event.detail.key === 'THEME') {
         this.#services.theme.applyTheme();
       }
+    });
+
+    // Listen for requests from HistoryService to save a command remotely.
+    this.#services.history.addEventListener('save-history-command', async (event) => {
+        const { command } = event.detail;
+        await this.#services.login.post('set_data', {
+            category: 'HISTORY',
+            key: Date.now(), // Use timestamp as the unique index
+            value: command
+        });
     });
 
     // Listen for successful logout to clear local state.

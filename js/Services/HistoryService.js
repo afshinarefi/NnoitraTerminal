@@ -36,7 +36,6 @@ class HistoryService extends EventTarget {
     #maxSize = 1000; 
     /** @private {EnvironmentService} #environmentService - Reference to the EnvironmentService for managing HISTSIZE. */
     #environmentService;
-    #loginService;
 
     /**
      * Creates an instance of HistoryService.
@@ -45,7 +44,6 @@ class HistoryService extends EventTarget {
     constructor(services) {
         super();
         this.#environmentService = services.environment;
-        this.#loginService = services.login;
         // Set the default HISTSIZE if it's not already set.
         if (!this.#environmentService.hasVariable('HISTSIZE')) {
             this.#environmentService.setVariable('HISTSIZE', '1000', VAR_CATEGORIES.USERSPACE);
@@ -90,7 +88,13 @@ class HistoryService extends EventTarget {
         // Add the new command to the beginning of the history array.
         this.#history.unshift(trimmedCommand);
 
-        this.#saveRemoteCommand(trimmedCommand);
+        // Dispatch an event to request saving the command.
+        // The Terminal component will listen for this and orchestrate the save.
+        this.dispatchEvent(new CustomEvent('save-history-command', {
+            detail: {
+                command: trimmedCommand
+            }
+        }));
 
         // Re-validate HISTSIZE in case it was changed by the user.
         this.#validateHistSize();
@@ -172,34 +176,15 @@ class HistoryService extends EventTarget {
     }
 
     /**
-     * Fetches and loads the command history from the server for a logged-in user.
+     * Loads history from a data object.
+     * @param {object} data - The key-value object of history items.
      */
-    async loadRemoteHistory() {
-        try {
-            const result = await this.#loginService.post('get_data', { category: 'HISTORY', sort_order: 'DESC' });
-            if (result && result.status === 'success' && result.data) {
-                this.#history = Object.values(result.data);
-                this.resetCursor();
-            }
-        } catch (error) {
-            this.#log.error('Failed to load remote history:', error);
-        }
-    }
-
-    /**
-     * Saves a single command to the remote history.
-     * @private
-     * @param {string} command - The command to save.
-     */
-    async #saveRemoteCommand(command) {
-        try {
-            await this.#loginService.post('set_data', {
-                category: 'HISTORY',
-                key: Date.now(), // Use timestamp as the unique index
-                value: command
-            });
-        } catch (error) {
-            this.#log.error('Failed to save command to remote history:', error);
+    loadHistory(data) {
+        if (data) {
+            // Assuming the data is an object of {timestamp: command}, we just need the commands.
+            this.#history = Object.values(data);
+            this.resetCursor();
+            this.#log.log(`Loaded ${this.#history.length} commands into history.`);
         }
     }
 
