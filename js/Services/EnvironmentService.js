@@ -35,10 +35,13 @@ export const VAR_CATEGORIES = {
 };
 
 class EnvironmentService extends EventTarget {
-	/** @private {Map<string, string>} #variables - A private Map to hold all environment variables. */
-	#variables = new Map();
-	/** @private {Map<string, object>} #definitions - A private Map to hold variable definitions. */
-	#definitions = new Map();
+	/** @private {Map<string, Map<string, string>>} #categorizedVariables - A nested map storing variables by category. */
+	#categorizedVariables = new Map([
+		[VAR_CATEGORIES.TEMP, new Map()],
+		[VAR_CATEGORIES.LOCAL, new Map()],
+		[VAR_CATEGORIES.REMOTE, new Map()],
+		[VAR_CATEGORIES.USERSPACE, new Map()]
+	]);
 
 	/**
 	 * Initializes the EnvironmentService with an optional set of initial variables.
@@ -60,28 +63,31 @@ class EnvironmentService extends EventTarget {
 	}
 
 	/**
-	 * Registers a variable's definition (category and default value).
-	 * @param {string} key - The variable name.
-	 * @param {{category: string, defaultValue?: string}} definition - The definition object.
+	 * @private Loads LOCAL variables from localStorage into the service's state.
 	 */
-	registerVariable(key, { category, defaultValue }) {
-		const upperKey = key.toUpperCase();
-		this.#definitions.set(upperKey, { category, defaultValue });
-		// Set the default value if the variable isn't already set from a higher priority source (like remote).
-		if (defaultValue !== undefined && !this.#variables.has(upperKey)) {
-			this.#variables.set(upperKey, defaultValue);
+	#loadFromStorage() {
+		const storedLocalVars = localStorage.getItem('AREFI_LOCAL_ENV');
+		if (storedLocalVars) {
+			try {
+				const localObj = JSON.parse(storedLocalVars);
+				// Overwrite the in-memory local map with the one from storage.
+				for (const [key, value] of Object.entries(localObj)) {
+					this.#categorizedVariables.get(VAR_CATEGORIES.LOCAL).set(key, value);
+				}
+			} catch (e) {
+				log.error("Failed to parse local environment variables from localStorage:", e);
+			}
 		}
 	}
 
-	/** @private Loads LOCAL variables from localStorage. */
-	#loadFromStorage() {
-		for (const [key, def] of this.#definitions.entries()) {
-			if (def.category === VAR_CATEGORIES.LOCAL) {
-				const value = localStorage.getItem(key);
-				// Only load from storage if it's not already set (e.g., by a default)
-				if (value) this.#variables.set(key, value);
-			}
-		}
+	/**
+	 * @private Serializes the entire LOCAL variables map and saves it to localStorage.
+	 */
+	#persistLocalVariables() {
+		const localMap = this.#categorizedVariables.get(VAR_CATEGORIES.LOCAL);
+		const localObj = Object.fromEntries(localMap);
+		log.log('Persisting local variables to localStorage:', localObj);
+		localStorage.setItem('AREFI_LOCAL_ENV', JSON.stringify(localObj));
 	}
 
 	/**
@@ -90,22 +96,17 @@ class EnvironmentService extends EventTarget {
 	 * @returns {string | undefined} The variable's value, or `undefined` if the variable is not set.
 	 */	getVariable(key) {
 		const upperKey = key.toUpperCase();
-		return this.#variables.get(upperKey);
-	}
-
-	/**
-	 * Retrieves the definition object for a variable.
-	 * @param {string} key - The name of the variable.
-	 * @returns {object | undefined} The definition object or undefined.
-	 */
-	getDefinition(key) {
-		const upperKey = key.toUpperCase();
-		return this.#definitions.get(upperKey);
+		// Search through all categories to find the variable.
+		for (const categoryMap of this.#categorizedVariables.values()) {
+			if (categoryMap.has(upperKey)) {
+				return categoryMap.get(upperKey);
+			}
+		}
+		return undefined;
 	}
 
 	/**
 	 * Sets or updates the value of an environment variable.
-	 * Keys are stored as provided (case-sensitive), but lookup can be case-insensitive depending on usage.
 	 * @param {string} key - The name of the variable.
 	 * @param {string} value - The new string value for the variable.
 	 * @param {string} [category=null] - The category to assign to a new variable.
@@ -122,18 +123,19 @@ class EnvironmentService extends EventTarget {
 			return;
 		}
 
-		this.#variables.set(upperKey, value);
+		// Ensure the category exists. Default to TEMP for ad-hoc variables.
+		const targetCategory = category && this.#categorizedVariables.has(category) ? category : VAR_CATEGORIES.TEMP;
 
-		let def = this.#definitions.get(upperKey);
-		if (!def) {
-			// If it's a new, ad-hoc variable, assign it a definition so it can be categorized.
-			def = { category: category || VAR_CATEGORIES.TEMP };
-			this.#definitions.set(upperKey, def);
+		// Remove the key from any other category to prevent duplicates.
+		for (const [cat, catMap] of this.#categorizedVariables.entries()) {
+			if (cat !== targetCategory) catMap.delete(upperKey);
 		}
 
-		if (def.category === VAR_CATEGORIES.LOCAL) {
-			localStorage.setItem(upperKey, value);
-		} else if (def.category === VAR_CATEGORIES.REMOTE || def.category === VAR_CATEGORIES.USERSPACE) {
+		this.#categorizedVariables.get(targetCategory).set(upperKey, value);
+
+		if (targetCategory === VAR_CATEGORIES.LOCAL) {
+			this.#persistLocalVariables();
+		} else if (targetCategory === VAR_CATEGORIES.REMOTE || targetCategory === VAR_CATEGORIES.USERSPACE) {
 			this.#saveRemoteVariable(upperKey, value);
 		}
 	}
@@ -145,8 +147,13 @@ class EnvironmentService extends EventTarget {
 	 */
 	isReadOnly(key) {
 		const upperKey = key.toUpperCase();
-		const def = this.#definitions.get(upperKey);
-		return def && def.category !== VAR_CATEGORIES.USERSPACE;
+		// A variable is read-only if it exists in any category other than USERSPACE.
+		for (const [category, catMap] of this.#categorizedVariables.entries()) {
+			if (category !== VAR_CATEGORIES.USERSPACE && catMap.has(upperKey)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -184,10 +191,15 @@ class EnvironmentService extends EventTarget {
 	 * @param {string} key - The name of the variable to remove.
 	 */
 	removeVariable(key) {		const upperKey = key.toUpperCase();
-		this.#variables.delete(upperKey);
-		const def = this.#definitions.get(upperKey);
-		if (def && def.category === VAR_CATEGORIES.LOCAL) {
-			localStorage.removeItem(upperKey);
+		for (const [category, catMap] of this.#categorizedVariables.entries()) {
+			if (catMap.has(upperKey)) {
+				catMap.delete(upperKey);
+				if (category === VAR_CATEGORIES.LOCAL) {
+					// Re-persist the entire local map after removing an item.
+					this.#persistLocalVariables();
+				}
+				break; // Assume variable names are unique across categories
+			}
 		}
 	}
 
@@ -197,7 +209,12 @@ class EnvironmentService extends EventTarget {
 	 * @returns {boolean} `true` if the variable is set, `false` otherwise.
 	 */	hasVariable(key) {
 		const upperKey = key.toUpperCase();
-		return this.#variables.has(upperKey);
+		for (const catMap of this.#categorizedVariables.values()) {
+			if (catMap.has(upperKey)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -205,7 +222,11 @@ class EnvironmentService extends EventTarget {
 	 * This is useful for debugging or for scenarios where a plain object representation is needed.
 	 * @returns {Object.<string, string>} A copy of all environment variables as a plain object.
 	 */	getAllVariables() {
-		return Object.fromEntries(this.#variables);
+		const allVars = {};
+		for (const catMap of this.#categorizedVariables.values()) {
+			Object.assign(allVars, Object.fromEntries(catMap));
+		}
+		return allVars;
 	}
 
 	/**
@@ -214,25 +235,11 @@ class EnvironmentService extends EventTarget {
 	 * @returns {{TEMP: Object.<string, string>, LOCAL: Object.<string, string>, REMOTE: Object.<string, string>}}
 	 */
 	getAllVariablesCategorized() {
-		const categorized = {
-			[VAR_CATEGORIES.TEMP]: {},
-			[VAR_CATEGORIES.LOCAL]: {},
-			[VAR_CATEGORIES.REMOTE]: {},
-			[VAR_CATEGORIES.USERSPACE]: {}
-		};
-		// Ensure all defined USERSPACE vars have a home, even if not set.
-		for (const [key, def] of this.#definitions.entries()) {
-			if (def.category === VAR_CATEGORIES.USERSPACE && !this.#variables.has(key)) {
-				categorized.USERSPACE[key] = def.defaultValue || '';
-			}
+		const categorized = {};
+		for (const [category, catMap] of this.#categorizedVariables.entries()) {
+			// Return a plain object copy for each category
+			categorized[category] = Object.fromEntries(catMap);
 		}
-
-		for (const [key, value] of this.#variables.entries()) {
-			const def = this.#definitions.get(key);
-			const category = def ? def.category : VAR_CATEGORIES.TEMP; // Default ad-hoc vars to TEMP
-			categorized[category][key] = value;
-		}
-
 		return categorized;
 	}
 
@@ -241,26 +248,39 @@ class EnvironmentService extends EventTarget {
 	 * @param {object} data - The key-value object of remote variables.
 	 */
 	loadRemoteVariables(data) {
+		// First, clear any existing remote or user-space variables.
+		this.#categorizedVariables.get(VAR_CATEGORIES.REMOTE).clear();
+		this.#categorizedVariables.get(VAR_CATEGORIES.USERSPACE).clear();
+
 		if (data) {
 			for (const [key, value] of Object.entries(data)) {
-				// If a fetched variable doesn't have a predefined definition,
-				// it must be a user-created one, so we register its definition.
-				if (!this.#definitions.has(key)) {
-					this.registerVariable(key, { category: VAR_CATEGORIES.USERSPACE });
-				}
-				this.#variables.set(key, value); // Set the variable's value.
+				// All fetched variables are either REMOTE or USERSPACE.
+				// We can infer the category based on a predefined list or default to USERSPACE.
+				const category = (key === 'ALIAS') ? VAR_CATEGORIES.REMOTE : VAR_CATEGORIES.USERSPACE;
+				this.setVariable(key, value, category);
 			}
 		}
 	}
 
-	/** Clears remote variables from memory, typically on logout. */
-	clearRemoteVariables() {
-		for (const [key, def] of this.#definitions.entries()) {
-			if (def.category === VAR_CATEGORIES.REMOTE || def.category === VAR_CATEGORIES.USERSPACE) {
-				this.#variables.set(key, def.defaultValue);
-			}
-		}
+	/**
+	 * Resets the entire service to a pristine state.
+	 * - Clears all in-memory variables from all categories.
+	 * - Clears all associated 'LOCAL' variables from localStorage.
+	 * This is a destructive operation used for login/logout transitions.
+	 */
+	reset() {
+		log.log('Resetting environment service completely...');
+
+		// Clear associated localStorage items
+		localStorage.removeItem('AREFI_LOCAL_ENV');
+
+		// Clear all in-memory maps
+		this.#categorizedVariables.get(VAR_CATEGORIES.TEMP).clear();
+		this.#categorizedVariables.get(VAR_CATEGORIES.LOCAL).clear();
+		this.#categorizedVariables.get(VAR_CATEGORIES.REMOTE).clear();
+		this.#categorizedVariables.get(VAR_CATEGORIES.USERSPACE).clear();
 	}
+
 }
 
 export { EnvironmentService };

@@ -46,8 +46,10 @@ class HistoryService extends EventTarget {
         super();
         this.#environmentService = services.environment;
         this.#loginService = services.login;
-        // Register the HISTSIZE variable this service is responsible for and validate it.
-        this.#environmentService.registerVariable('HISTSIZE', { category: VAR_CATEGORIES.USERSPACE, defaultValue: '1000' });
+        // Set the default HISTSIZE if it's not already set.
+        if (!this.#environmentService.hasVariable('HISTSIZE')) {
+            this.#environmentService.setVariable('HISTSIZE', '1000', VAR_CATEGORIES.USERSPACE);
+        }
         this.#validateHistSize();
     }
 
@@ -63,12 +65,11 @@ class HistoryService extends EventTarget {
         if (!isNaN(parsedSize) && parsedSize >= 0) {
             this.#maxSize = parsedSize;
         } else {
+            const defaultValue = '1000';
             // The value is invalid. Log a warning, reset to default, and update the environment.
-            const definition = this.#environmentService.getDefinition('HISTSIZE');
-            const defaultValue = definition ? definition.defaultValue : '1000';
             this.#log.warn(`Invalid HISTSIZE value "${histSizeEnv}". Resetting to default: ${defaultValue}`);
-            this.#maxSize = parseInt(defaultValue);
-            this.#environmentService.setVariable('HISTSIZE', defaultValue);
+            this.#maxSize = parseInt(defaultValue, 10);
+            this.#environmentService.setVariable('HISTSIZE', defaultValue, VAR_CATEGORIES.USERSPACE);
         }
     }
 

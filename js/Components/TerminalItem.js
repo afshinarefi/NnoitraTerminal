@@ -1,3 +1,4 @@
+import { VAR_CATEGORIES } from '../Services/EnvironmentService.js';
 /**
  * Arefi Terminal
  * Copyright (C) 2025 Arefi
@@ -103,6 +104,9 @@ class TerminalItem extends ArefiBaseComponent {
   #id;
   /** @private {Date} #timestamp - The timestamp when the item was created. */
   #timestamp;
+  /** @private {string} #DEFAULT_PS1 - The default prompt format. */
+  static #DEFAULT_PS1 = '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}';
+
 
   /**
    * Resets the static ID counter back to 1.
@@ -135,7 +139,7 @@ class TerminalItem extends ArefiBaseComponent {
    * @param {EnvironmentService} environmentService - The environment service to get variables from.
    */
   #setHeader(environmentService) {
-    let format = environmentService.getVariable('PS1');
+    const format = environmentService.getVariable('PS1');
 
     const replacements = {
       user: environmentService.getVariable('USER'),

@@ -377,6 +377,15 @@ class CommandLine extends ArefiBaseComponent {
     this.refs.prompt.disabled = false; // Enable the input field.
     this.focus(); // Set focus back to the prompt.
   }
+
+  /**
+   * Forces an update of the prompt display, typically after a state change like logout.
+   */
+  updatePrompt() {
+    // The prompt state (icon, placeholder) is managed by enable/disable.
+    // Calling enable ensures it's in the correct 'ready' state for a new guest session.
+    this.enable();
+  }
 }
 
 // Define the custom element 'arefi-cmd'

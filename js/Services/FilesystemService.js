@@ -62,8 +62,7 @@ class FilesystemService {
     constructor(services) {
         this.#environmentService = services.environment;
         this.#apiService = new ApiService(services, '/server/filesystem.py');
-        // Register the PWD variable this service is responsible for.
-        this.#environmentService.registerVariable('PWD', { category: VAR_CATEGORIES.TEMP, defaultValue: '/' });
+        // The initial PWD is now set by the Terminal component.
         this.#currentPath = this.#environmentService.getVariable('PWD');
     }
 

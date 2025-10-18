@@ -28,14 +28,23 @@ const log = createLogger('LoginService');
 export class LoginService extends EventTarget {
     #environmentService;
     #apiService;
+    #listeners = {};
 
     constructor(services) {
         super();
         this.#environmentService = services.environment;
         this.#apiService = new ApiService(services, '/server/accounting.py');
-        this.#environmentService.registerVariable('USER', { category: VAR_CATEGORIES.LOCAL, defaultValue: 'guest' });
-        this.#environmentService.registerVariable('TOKEN', { category: VAR_CATEGORIES.LOCAL });
-        this.#environmentService.registerVariable('TOKEN_EXPIRY', { category: VAR_CATEGORIES.LOCAL });
+
+        // On initial load, if no user is set (from a restored session), default to guest.
+        if (!this.#environmentService.hasVariable('USER')) {
+            this.#environmentService.setVariable('USER', 'guest', VAR_CATEGORIES.LOCAL);
+        }
+    }
+
+    // Override addEventListener to store listeners locally
+    addEventListener(type, listener) {
+        if (!this.#listeners[type]) this.#listeners[type] = [];
+        this.#listeners[type].push(listener);
     }
 
     /**
@@ -43,7 +52,8 @@ export class LoginService extends EventTarget {
      * @returns {boolean} True if a session token exists.
      */
     isLoggedIn() {
-        return this.#environmentService.hasVariable('TOKEN');
+        const token = this.#environmentService.getVariable('TOKEN');
+        return !!token; // Ensure it's a boolean and handles empty string case
     }
 
     /**
@@ -58,18 +68,37 @@ export class LoginService extends EventTarget {
             const result = await this.#apiService.post('login', { username, password });
 
             if (result.status === 'success') {
+                // First, completely reset the current environment (e.g., clear guest state).
+                this.#environmentService.reset();
+
                 log.log('Login successful. Setting session variables.');
-                this.#environmentService.setVariable('TOKEN', result.token);
-                this.#environmentService.setVariable('USER', result.user);
-                this.#environmentService.setVariable('TOKEN_EXPIRY', result.expires_at);
+                this.#environmentService.setVariable('TOKEN', result.token, VAR_CATEGORIES.LOCAL);
+                this.#environmentService.setVariable('USER', result.user, VAR_CATEGORIES.LOCAL);
+                this.#environmentService.setVariable('TOKEN_EXPIRY', result.expires_at, VAR_CATEGORIES.LOCAL);
                 // Announce that login was successful so other services can react.
-                this.dispatchEvent(new CustomEvent('login-success'));
+                // Wait for the event listeners (like the one in Terminal.js that loads remote data) to complete.
+                await this.dispatchEvent('login-success');
             }
             return result;
         } catch (error) {
             log.error('Network or parsing error during login:', error);
             return { status: 'error', message: `Error: ${error.message}` };
         }
+    }
+
+    /**
+     * Validates the current session token with the backend.
+     * This also extends the session's lifetime on the server.
+     * @returns {Promise<object>} The result from the server.
+     */
+    async validateSession() {
+        if (!this.isLoggedIn()) {
+            log.log('No session to validate.');
+            // Return a consistent error format.
+            return { status: 'error', message: 'No token found locally.' };
+        }
+        log.log('Validating session with backend.');
+        return this.#apiService.post('validate');
     }
 
     /**
@@ -101,13 +130,12 @@ export class LoginService extends EventTarget {
      * Clears all local session data (token, user, etc.) and resets to guest state.
      */
     clearLocalSession() {
-        log.log('Clearing local session data.');
-        this.#environmentService.removeVariable('TOKEN');
-        this.#environmentService.removeVariable('TOKEN_EXPIRY');
-        this.#environmentService.setVariable('USER', 'guest'); // Reset to default user
-        this.#environmentService.clearRemoteVariables(); // Reset remote vars to defaults
-        // Announce that the session is cleared so other services can reset.
-        this.dispatchEvent(new CustomEvent('logout-success'));
+        log.log('Clearing local session and resetting environment.');
+        // Resetting the environment service will clear all variables and their localStorage entries.
+        this.#environmentService.reset();
+        // After resetting, explicitly set the user to guest for the new session.
+        this.#environmentService.setVariable('USER', 'guest', VAR_CATEGORIES.LOCAL);
+        this.dispatchEvent('logout-success');
     }
 
     /**
@@ -146,10 +174,27 @@ export class LoginService extends EventTarget {
      * @returns {Promise<object|null>} The JSON response from the server, or null if not logged in.
      */
     async post(action, data = {}) {
-        if (!this.isLoggedIn()) {
-            log.warn(`API call "${action}" blocked: User not logged in.`);
+        // Explicitly block any persistence/authenticated requests for the guest user.
+        // This is the authoritative check, reinforcing that LoginService owns this logic.
+        if (!this.isLoggedIn() || this.#environmentService.getVariable('USER') === 'guest') {
+            log.warn(`API call "${action}" blocked: User is guest or not logged in.`);
             return null;
         }
         return this.#apiService.post(action, data);
+    }
+
+    /**
+     * Custom dispatchEvent that can await async listeners.
+     * @param {string} type - The event type.
+     * @returns {Promise<void>}
+     */
+    async dispatchEvent(type) {
+        const eventListeners = this.#listeners[type] || [];
+        const promises = [];
+        for (const listener of eventListeners) {
+            const result = listener(); // Assuming listener returns a promise
+            if (result instanceof Promise) promises.push(result);
+        }
+        await Promise.all(promises);
     }
 }

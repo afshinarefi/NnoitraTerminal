@@ -141,16 +141,9 @@ class Terminal extends ArefiBaseComponent {
       return; // No session to restore.
     }
 
-    const formData = new FormData();
-    formData.append('token', token);
-
     try {
-      const response = await fetch('/server/accounting.py?action=validate', {
-        method: 'POST',
-        body: formData
-      });
-      const result = await response.json();
-
+      // Use the LoginService to handle the API call, removing endpoint knowledge from the component.
+      const result = await this.#services.login.validateSession();
       if (result.status === 'success') {
         log.log('Session validated successfully. Restoring remote state.');
         await this.#handleSuccessfulLogin();
@@ -201,35 +194,32 @@ class Terminal extends ArefiBaseComponent {
    * @private
    */
   #initializeServices() {
-    // EnvironmentService is special as it's a dependency for ApiService.
+    // EnvironmentService must be created and initialized first, as other services depend on it.
     this.#services.environment = new EnvironmentService(this.#services);
+    this.#initializeCoreState();
 
     // Services now create their own internal ApiService instances.
     this.#services.login = new LoginService(this.#services);
     this.#services.history = new HistoryService(this.#services);
     this.#services.filesystem = new FilesystemService(this.#services);
+    this.#services.command = new CommandService(this.#services);
+    this.#services.prompt = this.refs.prompt;
+    this.#services.autocomplete = new AutocompleteService(this.refs.prompt, this.#services);
+  }
 
-    // Register variables that are core to the terminal's own operation.
-    this.#services.environment.registerVariable('HOST', { category: VAR_CATEGORIES.TEMP, defaultValue: window.location.host });
-    this.#services.environment.registerVariable('ALIAS', { category: VAR_CATEGORIES.REMOTE, defaultValue: '{}' });
-    this.#services.environment.registerVariable('PS1', { category: VAR_CATEGORIES.USERSPACE, defaultValue: '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}' });
+  /**
+   * Initializes or resets the core state of the terminal (variables, commands, etc.).
+   * This is the "guest profile" that is loaded on startup and after logout.
+   * @private
+   */
+  #initializeCoreState() {
+    // Set default values for core variables if they don't already exist.
+    if (!this.#services.environment.hasVariable('HOST')) this.#services.environment.setVariable('HOST', window.location.host, VAR_CATEGORIES.TEMP);
+    if (!this.#services.environment.hasVariable('PS1')) this.#services.environment.setVariable('PS1', '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}', VAR_CATEGORIES.USERSPACE);
+    if (!this.#services.environment.hasVariable('PWD')) this.#services.environment.setVariable('PWD', '/', VAR_CATEGORIES.TEMP);
 
     // Now that variables are registered, initialize the service to load from storage.
     this.#services.environment.init();
-
-    this.#services.command = new CommandService(this.#services);
-
-    // Add the command line prompt component to services so commands can interact with it.
-    this.#services.prompt = this.refs.prompt;
-
-    // Initialize the filesystem service asynchronously
-    this.#services.filesystem.init().then(() => {
-    }).catch(error => {
-        log.error('Failed to initialize filesystem service:', error);
-    });
-
-    // Pass the full services object for consistency
-    this.#services.autocomplete = new AutocompleteService(this.refs.prompt, this.#services);
   }
 
   /**
@@ -245,12 +235,23 @@ class Terminal extends ArefiBaseComponent {
     // Listen for successful login to fetch remote data.
     this.#services.login.addEventListener('login-success', async () => {
       log.log('Login successful, handling post-login tasks.');
-      await this.#handleSuccessfulLogin();
+      // The environment was reset during login, so we must re-initialize core state.
+      this.#initializeCoreState();
+      // Return the promise so the login command can wait for it.
+      return this.#handleSuccessfulLogin();
     });
 
     // Listen for successful logout to clear local state.
     this.#services.login.addEventListener('logout-success', () => {
+      log.log('Logout successful, resetting to guest profile.');
+      // Reset services to their default guest state.
       this.#services.history.clearHistory();
+      // The environment has been completely reset by LoginService.
+      // Now, re-initialize the core state to establish the new guest session.
+      // Re-initialize the core state to restore default variables like PS1.
+      this.#initializeCoreState();
+      // Update the prompt to reflect the new state (e.g., show 'guest' user).
+      this.refs.prompt.updatePrompt(); // Update the prompt to reflect the new 'guest' user.
     });
 
     // Listen for requests from EnvironmentService to save a variable remotely.
