@@ -168,8 +168,16 @@ class Terminal extends ArefiBaseComponent {
    * @private
    */
   async #handleSuccessfulLogin() {
-    await this.#services.environment.fetchRemoteVariables();
-    await this.#services.history.loadRemoteHistory();
+    try {
+      const envResult = await this.#services.login.post('get_data', { category: 'ENV' });
+      if (envResult && envResult.status === 'success') {
+        this.#services.environment.loadRemoteVariables(envResult.data);
+      }
+      // HistoryService still manages its own fetching for now.
+      await this.#services.history.loadRemoteHistory();
+    } catch (error) {
+      log.error('Failed to fetch remote data after login:', error);
+    }
   }
 
   /**
@@ -200,9 +208,6 @@ class Terminal extends ArefiBaseComponent {
     this.#services.login = new LoginService(this.#services);
     this.#services.history = new HistoryService(this.#services);
     this.#services.filesystem = new FilesystemService(this.#services);
-
-    // Inject LoginService into EnvironmentService to break the circular dependency.
-    this.#services.environment.setLoginService(this.#services.login);
 
     // Register variables that are core to the terminal's own operation.
     this.#services.environment.registerVariable('HOST', { category: VAR_CATEGORIES.TEMP, defaultValue: window.location.host });
@@ -246,6 +251,15 @@ class Terminal extends ArefiBaseComponent {
     // Listen for successful logout to clear local state.
     this.#services.login.addEventListener('logout-success', () => {
       this.#services.history.clearHistory();
+    });
+
+    // Listen for requests from EnvironmentService to save a variable remotely.
+    this.#services.environment.addEventListener('save-remote-variable', async (event) => {
+      const { key, value } = event.detail;
+      await this.#services.login.post('set_data', {
+        category: 'ENV',
+        key, value
+      });
     });
 
     // Add event listeners for command submission and autocomplete suggestions

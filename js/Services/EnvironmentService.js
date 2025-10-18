@@ -34,22 +34,21 @@ export const VAR_CATEGORIES = {
     USERSPACE: 'USERSPACE' // Persisted on the server, user-modifiable via `export`
 };
 
-class EnvironmentService {
+class EnvironmentService extends EventTarget {
 	/** @private {Map<string, string>} #variables - A private Map to hold all environment variables. */
 	#variables = new Map();
 	/** @private {Map<string, object>} #definitions - A private Map to hold variable definitions. */
 	#definitions = new Map();
-	/** @private {LoginService} #loginService - Reference to the LoginService for remote persistence. */
-	#loginService;
 
 	/**
 	 * Initializes the EnvironmentService with an optional set of initial variables.
 	 * Variable keys are automatically converted to uppercase for consistency.
-	 * @param {Object.<string, string>} [initialEnv={}] - An object containing initial environment variables.
-	 *   Example: `{ USER: 'guest', PWD: '/' }`.
+	 * @param {object} services - An object containing service dependencies.
 	 */
 	constructor(services) {
+		super();
 		// This service is special and is created first. Other services will be injected later.
+		// No direct dependencies needed in constructor.
 	}
 
 	/**
@@ -58,14 +57,6 @@ class EnvironmentService {
 	 */
 	init() {
 		this.#loadFromStorage();
-	}
-
-	/**
-	 * Injects the LoginService after it has been created to avoid circular dependencies.
-	 * @param {LoginService} loginService - The LoginService instance.
-	 */
-	setLoginService(loginService) {
-		this.#loginService = loginService;
 	}
 
 	/**
@@ -177,20 +168,15 @@ class EnvironmentService {
 
 	/** @private Saves a single REMOTE variable to the backend. */
 	async #saveRemoteVariable(key, value) {
-		const token = this.getVariable('TOKEN');
-		if (!token || !this.#loginService) {
-			return; // Don't save for guests or if loginService isn't ready
-		}
-
-		try {
-			await this.#loginService.post('set_data', {
-				category: 'ENV',
+		// Dispatch an event to request saving the variable.
+		// The Terminal component will listen for this and orchestrate the save.
+		log.log(`Dispatching 'save-remote-variable' for key: ${key}`);
+		this.dispatchEvent(new CustomEvent('save-remote-variable', {
+			detail: {
 				key: key,
-				value: value
-			});
-		} catch (error) {
-			log.error(`Failed to save remote variable ${key}:`, error);
-		}
+				value: value,
+			}
+		}));
 	}
 
 	/**
@@ -250,27 +236,20 @@ class EnvironmentService {
 		return categorized;
 	}
 
-	/** Fetches remote variables and loads them into the environment. */
-	async fetchRemoteVariables() {
-		const token = this.getVariable('TOKEN');
-		if (!token || !this.#loginService) {
-			return; // No user logged in
-		}
-
-		try {
-			const result = await this.#loginService.post('get_data', { category: 'ENV' });
-			if (result && result.status === 'success' && result.data) {
-				for (const [key, value] of Object.entries(result.data)) {
-					// If a fetched variable doesn't have a predefined definition,
-					// it must be a user-created one, so we register its definition.
-					if (!this.#definitions.has(key)) {
-						this.registerVariable(key, { category: VAR_CATEGORIES.USERSPACE });
-					}
-					this.#variables.set(key, value); // Set the variable's value.
+	/**
+	 * Loads remote variables from a data object.
+	 * @param {object} data - The key-value object of remote variables.
+	 */
+	loadRemoteVariables(data) {
+		if (data) {
+			for (const [key, value] of Object.entries(data)) {
+				// If a fetched variable doesn't have a predefined definition,
+				// it must be a user-created one, so we register its definition.
+				if (!this.#definitions.has(key)) {
+					this.registerVariable(key, { category: VAR_CATEGORIES.USERSPACE });
 				}
+				this.#variables.set(key, value); // Set the variable's value.
 			}
-		} catch (error) {
-			log.error('Failed to fetch remote environment variables:', error);
 		}
 	}
 
