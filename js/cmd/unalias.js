@@ -25,9 +25,11 @@ class Unalias {
     static DESCRIPTION = 'Remove an alias.';
 
     #environmentService;
+    #commandService;
 
     constructor(services) {
         this.#environmentService = services.environment;
+        this.#commandService = services.command;
         log.log('Initializing...');
     }
 
@@ -39,7 +41,7 @@ class Unalias {
         if (currentArgs.length > 1) {
             return [];
         }
-        const aliases = services.environment.getAliases();
+        const aliases = services.command.getAliases();
         const aliasNames = Object.keys(aliases);
         const input = currentArgs[0] || '';
 
@@ -57,12 +59,12 @@ class Unalias {
             return output;
         }
 
-        const aliases = this.#environmentService.getAliases();
+        const aliases = this.#commandService.getAliases();
 
         if (aliasName in aliases) {
             log.log(`Removing alias: "${aliasName}"`);
             delete aliases[aliasName];
-            this.#environmentService.setAliases(aliases);
+            this.#commandService.setAliases(aliases);
             output.textContent = `Alias '${aliasName}' removed.`;
         } else {
             log.warn(`Alias not found: "${aliasName}"`);

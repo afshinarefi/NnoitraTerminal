@@ -250,31 +250,6 @@ class EnvironmentService {
 		return categorized;
 	}
 
-	/**
-	 * Retrieves all defined aliases as an object.
-	 * @returns {Object.<string, string>} An object of aliases.
-	 */
-	getAliases() {
-		const aliasString = this.getVariable('ALIAS');
-		if (aliasString) {
-			try {
-				return JSON.parse(aliasString);
-			} catch (e) {
-				log.error("Error parsing ALIAS environment variable:", e);
-				return {};
-			}
-		}
-		return {};
-	}
-
-	/**
-	 * Sets the aliases object in the environment.
-	 * @param {Object.<string, string>} aliases - The object of aliases to store.
-	 */
-	setAliases(aliases) {
-		this.setVariable('ALIAS', JSON.stringify(aliases));
-	}
-
 	/** Fetches remote variables and loads them into the environment. */
 	async fetchRemoteVariables() {
 		const token = this.getVariable('TOKEN');

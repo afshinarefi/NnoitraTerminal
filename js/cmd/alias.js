@@ -25,9 +25,11 @@ class Alias {
     static DESCRIPTION = 'Define or display aliases.';
 
     #environmentService;
+    #commandService;
 
     constructor(services) {
         this.#environmentService = services.environment;
+        this.#commandService = services.command;
         log.log('Initializing...');
     }
 
@@ -65,7 +67,7 @@ class Alias {
         const output = document.createElement('pre');
         const aliasString = args.slice(1).join(' ');
 
-        const aliases = this.#environmentService.getAliases();
+        const aliases = this.#commandService.getAliases();
 
         // If no arguments, display all aliases
         if (!aliasString) {
@@ -88,7 +90,7 @@ class Alias {
 
         if (newAlias) {
             aliases[newAlias.name] = newAlias.value;
-            this.#environmentService.setAliases(aliases);
+            this.#commandService.setAliases(aliases);
             log.log(`Created alias: ${newAlias.name}='${newAlias.value}'`);
             output.textContent = `Alias '${newAlias.name}' created.`;
         } else {

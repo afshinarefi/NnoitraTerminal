@@ -131,7 +131,7 @@ class CommandService {
      */
     getAvailableCommandNames() {
         const availableRegistered = this.getHelpCommandNames();
-        const aliases = this.#services.environment.getAliases();
+        const aliases = this.getAliases();
         const aliasNames = Object.keys(aliases);
 
         // Combine registered commands and aliases, ensuring no duplicates, and sort them.
@@ -181,7 +181,7 @@ class CommandService {
             log.log(`Initial command: "${commandName}", args:`, argsForCompletion);
     
             // Check for alias and substitute if found
-            const aliases = this.#services.environment.getAliases();
+            const aliases = this.getAliases();
             if (aliases[commandName]) {
                 log.log(`Found alias for "${commandName}"`);
                 const aliasValue = aliases[commandName];
@@ -231,7 +231,7 @@ class CommandService {
       let commandName = args[0];
 
       // Check for alias and substitute if found
-      const aliases = this.#services.environment.getAliases();
+      const aliases = this.getAliases();
       if (aliases[commandName]) {
           const aliasValue = aliases[commandName];
           const aliasArgs = aliasValue.split(/\s+/);
@@ -258,6 +258,31 @@ class CommandService {
           output.textContent = commandName + ": command not found";
       }
   }
+
+    /**
+     * Retrieves all defined aliases as an object by parsing the ALIAS environment variable.
+     * @returns {Object.<string, string>} An object of aliases.
+     */
+    getAliases() {
+        const aliasString = this.#services.environment.getVariable('ALIAS');
+        if (aliasString) {
+            try {
+                return JSON.parse(aliasString);
+            } catch (e) {
+                log.error("Error parsing ALIAS environment variable:", e);
+                return {};
+            }
+        }
+        return {};
+    }
+
+    /**
+     * Sets the aliases object in the environment by converting it to a JSON string.
+     * @param {Object.<string, string>} aliases - The object of aliases to store.
+     */
+    setAliases(aliases) {
+        this.#services.environment.setVariable('ALIAS', JSON.stringify(aliases));
+    }
 }
 
 export { CommandService };
