@@ -15,186 +15,143 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-// CommandHistory.js
-import { createLogger } from './LogService.js';
-import { VAR_CATEGORIES } from './EnvironmentService.js';
+import { createLogger } from '../Managers/LogManager.js';
+import { VAR_CATEGORIES } from './Constants.js';
+import { EVENTS } from './Events.js';
+
+const log = createLogger('HistoryBusService');
+
+// Define constants for hardcoded strings
+const VAR_HISTSIZE = 'HISTSIZE';
+const DEFAULT_HISTSIZE = '1000';
 
 /**
- * @class HistoryService
- * @description Manages the command history for the terminal, allowing users to navigate
- * through previously executed commands. It supports adding new commands, resetting the cursor,
- * and retrieving commands in chronological order.
+ * @class HistoryBusService
+ * @description Manages command history, communicating exclusively via the event bus.
+ *
+ * @listens for `HISTORY_PREVIOUS_REQUEST` - Responds with the previous command in history.
+ * @listens for `HISTORY_NEXT_REQUEST` - Responds with the next command in history.
+ * @listens for `COMMAND_EXECUTE_BROADCAST` - Adds the executed command to its internal history.
+ * @listens for `VAR_GET_RESPONSE` - For the HISTSIZE value.
+ *
+ * @dispatches `COMMAND_PERSIST_REQUEST` - When a new command needs to be saved remotely.
+ * @dispatches `HISTORY_LOAD_REQUEST` - To request the loading of remote history.
+ * @dispatches `HISTORY_INDEXED_RESPONSE` - The requested history item.
+ * @dispatches `VAR_GET_REQUEST` - To get the HISTSIZE variable.
+ * @dispatches `VAR_SET_REQUEST` - To set the HISTSIZE variable.
  */
-class HistoryService extends EventTarget {
-    #log = createLogger('History');
-
-    /** @private {string[]} #history - An array storing the command history, with the most recent command at the beginning. */
+class HistoryBusService {
+    #eventBus;
     #history = [];
-    /** @private {number} #cursorIndex - The current position in the history array (0-based), where 0 means the newest command. */
     #cursorIndex = 0;
-    /** @private {number} #maxSize - The maximum number of commands to store in the history. */
-    #maxSize = 1000; 
-    /** @private {EnvironmentService} #environmentService - Reference to the EnvironmentService for managing HISTSIZE. */
-    #environmentService;
+    #maxSize = parseInt(DEFAULT_HISTSIZE, 10);
 
-    /**
-     * Creates an instance of HistoryService.
-     * @param {object} services - The services object containing the EnvironmentService.
-     */
-    constructor(services) {
-        super();
-        this.#environmentService = services.environment;
-        // Set the default HISTSIZE if it's not already set.
-        if (!this.#environmentService.hasVariable('HISTSIZE')) {
-            this.#environmentService.setVariable('HISTSIZE', '1000', VAR_CATEGORIES.USERSPACE);
-        }
-        this.#validateHistSize();
+    constructor(eventBus) {
+        this.#eventBus = eventBus;
+        this.#registerListeners();
+        log.log('Initializing...');
     }
 
-    /**
-     * Validates the HISTSIZE environment variable. If it's invalid, it resets
-     * it to the default value and updates the internal maxSize.
-     * @private
-     */
-    #validateHistSize() {
-        const histSizeEnv = this.#environmentService.getVariable('HISTSIZE');
-        const parsedSize = parseInt(histSizeEnv);
+    #registerListeners() {
+        this.#eventBus.listen(EVENTS.HISTORY_PREVIOUS_REQUEST, () => this.#handleGetPrevious());
+        this.#eventBus.listen(EVENTS.HISTORY_NEXT_REQUEST, () => this.#handleGetNext());
+        this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, (payload) => this.addCommand(payload.commandString));
+        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, (payload) => this.#handleHistSizeResponse(payload));
+    }
 
+    start() {
+        // Now that all services are listening, check for HISTSIZE.
+        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { key: VAR_HISTSIZE });
+    }
+
+    #handleHistSizeResponse(payload) {
+        if (payload.key !== VAR_HISTSIZE) return;
+
+        if (payload.value === undefined) {
+            // If HISTSIZE is not set at all, set it to the default.
+            this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
+                key: VAR_HISTSIZE,
+                value: DEFAULT_HISTSIZE,
+                category: VAR_CATEGORIES.USERSPACE
+            });
+            this.#maxSize = parseInt(DEFAULT_HISTSIZE, 10);
+        } else {
+            // If it is set, validate it.
+            this.#validateHistSize(payload.value);
+        }
+    }
+
+    #validateHistSize(histSizeValue) {
+        const parsedSize = parseInt(histSizeValue, 10);
         if (!isNaN(parsedSize) && parsedSize >= 0) {
             this.#maxSize = parsedSize;
         } else {
-            const defaultValue = '1000';
-            // The value is invalid. Log a warning, reset to default, and update the environment.
-            this.#log.warn(`Invalid HISTSIZE value "${histSizeEnv}". Resetting to default: ${defaultValue}`);
-            this.#maxSize = parseInt(defaultValue, 10);
-            this.#environmentService.setVariable('HISTSIZE', defaultValue, VAR_CATEGORIES.USERSPACE);
+            log.warn(`Invalid HISTSIZE value "${histSizeValue}". Resetting to default: ${DEFAULT_HISTSIZE}`);
+            this.#maxSize = parseInt(DEFAULT_HISTSIZE, 10);
+            this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
+                key: VAR_HISTSIZE,
+                value: DEFAULT_HISTSIZE,
+                category: VAR_CATEGORIES.USERSPACE
+            });
         }
     }
 
-    /**
-     * Adds a command to the history list and persists it if the user is logged in.
-     * Empty or sequentially repeated commands are ignored.
-     * @param {string} command - The command string to add.
-     */
-    async addCommand(command) {
+    addCommand(command) {
         const trimmedCommand = command.trim();
-        if (!trimmedCommand) return;
-
-        // Prevent adding repeated commands sequentially.
-        if (this.#history.length > 0 && this.#history[0] === trimmedCommand) {
+        if (!trimmedCommand || (this.#history.length > 0 && this.#history[0] === trimmedCommand)) {
             return;
         }
 
-        // Add the new command to the beginning of the history array.
         this.#history.unshift(trimmedCommand);
-
-        // Dispatch an event to request saving the command.
-        // The Terminal component will listen for this and orchestrate the save.
-        this.dispatchEvent(new CustomEvent('save-history-command', {
-            detail: {
-                command: trimmedCommand
-            }
-        }));
+        this.#eventBus.dispatch(EVENTS.COMMAND_PERSIST_REQUEST, { command: trimmedCommand });
 
         // Re-validate HISTSIZE in case it was changed by the user.
-        this.#validateHistSize();
+        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { key: VAR_HISTSIZE });
 
-        // Enforce maximum history size.
         if (this.#history.length > this.#maxSize) {
-            this.#history.pop(); // Remove the oldest command.
+            this.#history.pop();
         }
-
-        this.resetCursor(); // Reset cursor to the newest position after adding a command.
+        this.resetCursor();
     }
-    
-    /**
-     * Resets the history cursor index to the "new command" position (i.e., beyond the last history item).
-     */
+
     resetCursor() {
         this.#cursorIndex = 0;
     }
 
-    /**
-     * Returns the current 0-based cursor index in the history.
-     * @returns {number} The current cursor index.
-     */
-    getCursorIndex() {
-        return this.#cursorIndex;
-    }
-
-    /**
-     * Moves the cursor up (backwards in time) through the history.
-     * @returns {{command: string, index: number}} An object containing the command string and its 1-based index.
-     *   Returns the oldest command if at the beginning of history.
-     */
-    getPrevious() {
+    #handleGetPrevious() {
         if (this.#cursorIndex < this.#history.length) {
             this.#cursorIndex++;
         }
-        
-        return {
-            command: this.#history[this.#cursorIndex - 1],
-            index: this.#cursorIndex // 1-based index for display.
+        const response = {
+            command: this.#history[this.#cursorIndex - 1] || '',
+            index: this.#cursorIndex
         };
+        this.#eventBus.dispatch(EVENTS.HISTORY_INDEXED_RESPONSE, response);
     }
 
-    /**
-     * Moves the cursor down (forwards in time) through the history.
-     * @returns {{command: string, index: number}} An object containing the command string and its 1-based index.
-     *   Returns an empty string and index 0 if at the end of history (ready for a new command).
-     */
-    getNext() {
-        // Only decrement if we are NOT already at the end (this.#history.length).
+    #handleGetNext() {
         if (this.#cursorIndex > 0) {
             this.#cursorIndex--;
         }
-        
-        if (this.#cursorIndex > 0) {
-            // Return the next command.
-            return {
-                command: this.#history[this.#cursorIndex - 1],
-                index: this.#cursorIndex // 1-based index for display.
-            };
-        }
-        
-        // If the cursor is at the end (ready for a new command).
-        return {
-            command: '', // Empty string for a new prompt.
-            index: this.#cursorIndex // Next expected command index (0 for new command).
+        const response = {
+            command: this.#history[this.#cursorIndex - 1] || '',
+            index: this.#cursorIndex
         };
+        this.#eventBus.dispatch(EVENTS.HISTORY_INDEXED_RESPONSE, response);
     }
 
-    /**
-     * Retrieves the complete history list with 1-based indices.
-     * @returns {{command: string, index: number}[]} An array of history objects, each with a command string and its 1-based index.
-     */
-    getFullHistory() {
-        return this.#history.map((command, index) => ({
-            command: command,
-            index: index + 1
-        }));
-    }
-
-    /**
-     * Loads history from a data object.
-     * @param {object} data - The key-value object of history items.
-     */
     loadHistory(data) {
         if (data) {
-            // Assuming the data is an object of {timestamp: command}, we just need the commands.
             this.#history = Object.values(data);
             this.resetCursor();
-            this.#log.log(`Loaded ${this.#history.length} commands into history.`);
+            log.log(`Loaded ${this.#history.length} commands into history.`);
         }
     }
 
-    /**
-     * Clears the current history array and resets the cursor. Used on logout.
-     */
     clearHistory() {
         this.#history = [];
         this.resetCursor();
     }
 }
 
-export { HistoryService };
+export { HistoryBusService };

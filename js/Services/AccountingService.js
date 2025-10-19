@@ -15,11 +15,12 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from './LogManager.js';
-import { VAR_CATEGORIES } from './constants.js';
-import { ApiManager } from './ApiManager.js';
+import { createLogger } from '../Managers/LogManager.js';
+import { VAR_CATEGORIES } from './Constants.js';
+import { ApiManager } from '../Managers/ApiManager.js';
+import { EVENTS } from './Events.js';
 
-const log = createLogger('LoginBusService');
+const log = createLogger('AccountingBusService');
 
 // Define constants for hardcoded strings to improve maintainability.
 const API_ENDPOINT = '/server/accounting.py';
@@ -29,7 +30,7 @@ const VAR_TOKEN_EXPIRY = 'TOKEN_EXPIRY';
 const GUEST_USER = 'guest';
 
 /**
- * @class LoginBusService
+ * @class AccountingBusService
  * @description Handles user authentication and session management via the event bus.
  *
  * @listens for `variable-persist-request` - Handles requests to save environment variables.
@@ -41,7 +42,7 @@ const GUEST_USER = 'guest';
  * @dispatches `variable-get-request` - To get session-related environment variables.
  * @dispatches `environment-reset-request` - To reset the environment service.
  */
-class LoginBusService {
+class AccountingBusService {
     #eventBus;
     #eventNames;
     #apiManager;
@@ -59,27 +60,27 @@ class LoginBusService {
         LISTEN_VAR_GET_RESPONSE: 'listenVarGetResponse'
     };
 
-    constructor(eventBus, eventNameConfig, services) {
+    constructor(eventBus, eventNameConfig) {
         this.#eventBus = eventBus;
         this.#eventNames = eventNameConfig;
-        this.#apiManager = new ApiManager(services, API_ENDPOINT);
+        this.#apiManager = new ApiManager(API_ENDPOINT);
         this.#registerListeners();
         log.log('Initializing...');
 
+        // Request initial state
+        this.#eventBus.dispatch(this.#eventNames[AccountingBusService.EVENTS.USE_VAR_GET], { key: VAR_USER });
+        this.#eventBus.dispatch(this.#eventNames[AccountingBusService.EVENTS.USE_VAR_GET], { key: VAR_TOKEN });
+    }
+
+    #registerListeners() {
         // Listen for responses to the initial variable check
-        this.#eventBus.listen(this.#eventNames[LoginBusService.EVENTS.LISTEN_VAR_GET_RESPONSE], (payload) => {
+        this.#eventBus.listen(this.#eventNames[AccountingBusService.EVENTS.LISTEN_VAR_GET_RESPONSE], (payload) => {
             if (payload.key === VAR_USER) this.#user = payload.value || GUEST_USER;
             if (payload.key === VAR_TOKEN) this.#token = payload.value;
         });
 
-        // Request initial state
-        this.#eventBus.dispatch(this.#eventNames[LoginBusService.EVENTS.USE_VAR_GET], { key: VAR_USER });
-        this.#eventBus.dispatch(this.#eventNames[LoginBusService.EVENTS.USE_VAR_GET], { key: VAR_TOKEN });
-    }
-
-    #registerListeners() {
-        this.#eventBus.listen(this.#eventNames[LoginBusService.EVENTS.PROVIDE_PERSIST_VAR], (payload) => this.#handlePersistVariable(payload));
-        this.#eventBus.listen(this.#eventNames[LoginBusService.EVENTS.PROVIDE_PERSIST_CMD], (payload) => this.#handlePersistCommand(payload));
+        this.#eventBus.listen(this.#eventNames[AccountingBusService.EVENTS.PROVIDE_PERSIST_VAR], (payload) => this.#handlePersistVariable(payload));
+        this.#eventBus.listen(this.#eventNames[AccountingBusService.EVENTS.PROVIDE_PERSIST_CMD], (payload) => this.#handlePersistCommand(payload));
         // PROVIDE_HISTORY_LOAD listener will be added when that service is refactored.
     }
 
@@ -87,20 +88,29 @@ class LoginBusService {
         return !!this.#token;
     }
 
+    start() {
+        // Request initial state now that all services are listening.
+        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { key: VAR_USER });
+        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { key: VAR_TOKEN });
+    }
+
     async login(username, password) {
         try {
             log.log(`Attempting login for user: "${username}"`);
-            const result = await this.#apiManager.post('login', { username, password });
+            const result = await this.#apiManager.post('login', { username, password }, null);
 
             if (result.status === 'success') {
-                this.#eventBus.dispatch(this.#eventNames[LoginBusService.EVENTS.USE_ENV_RESET], {});
+                this.#eventBus.dispatch(EVENTS.ENV_RESET_REQUEST, {});
 
                 log.log('Login successful. Setting session variables.');
                 this.#dispatchSetVariable(VAR_TOKEN, result.token, VAR_CATEGORIES.LOCAL);
                 this.#dispatchSetVariable(VAR_USER, result.user, VAR_CATEGORIES.LOCAL);
                 this.#dispatchSetVariable(VAR_TOKEN_EXPIRY, result.expires_at, VAR_CATEGORIES.LOCAL);
 
-                this.#eventBus.dispatch(this.#eventNames[LoginBusService.EVENTS.USE_USER_CHANGED], { user: result.user, isLoggedIn: true });
+                // Internally store the token for future API calls
+                this.#token = result.token;
+
+                this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: result.user, isLoggedIn: true });
             }
             return result;
         } catch (error) {
@@ -116,7 +126,7 @@ class LoginBusService {
         }
 
         try {
-            const result = await this.#apiManager.post('logout');
+            const result = await this.#apiManager.post('logout', {}, this.#token);
             if (result.status === 'success' || (result.status === 'error' && result.message.includes('expired'))) {
                 this.clearLocalSession();
             }
@@ -129,13 +139,14 @@ class LoginBusService {
 
     clearLocalSession() {
         log.log('Clearing local session and resetting environment.');
-        this.#eventBus.dispatch(this.#eventNames[LoginBusService.EVENTS.USE_ENV_RESET], {});
+        this.#eventBus.dispatch(EVENTS.ENV_RESET_REQUEST, {});
+        this.#token = null;
         this.#dispatchSetVariable(VAR_USER, GUEST_USER, VAR_CATEGORIES.LOCAL);
-        this.#eventBus.dispatch(this.#eventNames[LoginBusService.EVENTS.USE_USER_CHANGED], { user: GUEST_USER, isLoggedIn: false });
+        this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: GUEST_USER, isLoggedIn: false });
     }
 
     #dispatchSetVariable(key, value, category) {
-        this.#eventBus.dispatch(this.#eventNames[LoginBusService.EVENTS.USE_VAR_SET], { key, value, category });
+        this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, { key, value, category });
     }
 
     #handlePersistVariable(payload) {
@@ -147,7 +158,7 @@ class LoginBusService {
             category: 'ENV',
             key: payload.key,
             value: payload.value
-        });
+        }, this.#token);
     }
 
     #handlePersistCommand(payload) {
@@ -159,8 +170,8 @@ class LoginBusService {
             category: 'HISTORY',
             key: Date.now(),
             value: payload.command
-        });
+        }, this.#token);
     }
 }
 
-export { LoginBusService };
+export { AccountingBusService };

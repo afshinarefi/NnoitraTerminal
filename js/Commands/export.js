@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Services/LogService.js';
+import { createLogger } from '../Managers/LogManager.js';
 import { parseAssignment } from '../utils/parseUtil.js';
 const log = createLogger('export');
 

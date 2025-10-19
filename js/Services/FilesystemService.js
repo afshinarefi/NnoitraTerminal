@@ -15,71 +15,69 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Managers/LogManager.js';
+import { ApiManager } from '../Managers/ApiManager.js';
+
+const log = createLogger('FSBusService');
+
+// Constants
+const API_ENDPOINT = '/server/filesystem.py';
+const VAR_PWD = 'PWD';
+
 /**
- * @class FilesystemService
- * @description Manages a virtual filesystem based on a JSON structure fetched from the server.
- * This service provides methods to navigate, list contents, and retrieve information about files and directories.
+ * @class FilesystemBusService
+ * @description Manages the virtual filesystem, communicating exclusively via the event bus.
+ *
+ * @listens for `fs-list-contents-request` - Responds with the contents of a directory.
+ * @listens for `fs-is-file-request` - Responds with a boolean indicating if a path is a file.
+ * @listens for `fs-is-directory-request` - Responds with a boolean indicating if a path is a directory.
+ * @listens for `fs-autocomplete-path-request` - Responds with path completion suggestions.
+ * @listens for `variable-changed-broadcast` - To update its internal current path when PWD changes.
+ *
+ * @dispatches `fs-list-contents-response`
+ * @dispatches `fs-is-file-response`
+ * @dispatches `fs-is-directory-response`
+ * @dispatches `fs-autocomplete-path-response`
+ * @dispatches `variable-get-request` - To get the initial PWD.
  */
-import { createLogger } from './LogService.js';
-import { VAR_CATEGORIES } from './EnvironmentService.js';
-import { ApiService } from './ApiService.js';
-const log = createLogger('FS');
-
-class FilesystemService {
-    /**
-     * Normalizes a path, removing redundant slashes and resolving '.' and '..'.
-     * @param {string} path - The path to normalize.
-     * @returns {string} The normalized path.
-     */
-    normalizePath(path) {
-        const parts = [];
-        const pathSegments = path.split('/').filter(p => p);
-
-        for (const segment of pathSegments) {
-            if (segment === '.' || segment === '') {
-                continue;
-            } else if (segment === '..') {
-                if (parts.length > 0) {
-                    parts.pop();
-                }
-            } else {
-                parts.push(segment);
-            }
-        }
-        return '/' + parts.join('/');
-    }
-    /** @private {Object} #filesystemTree - The in-memory representation of the filesystem. */
+class FilesystemBusService {
+    #eventBus;
+    #eventNames;
+    #apiManager;
     #filesystemTree = {};
-    /** @private {string} #currentPath - The current working directory in the virtual filesystem. */
     #currentPath = '/';
-    #environmentService;
-    #apiService;
 
-    /**
-     * Creates an instance of FilesystemService.
-     * @param {string} initialPath - The initial path for the filesystem service. Defaults to '/'.
-     */
-    constructor(services) {
-        this.#environmentService = services.environment;
-        this.#apiService = new ApiService(services, '/server/filesystem.py');
-        // The initial PWD is now set by the Terminal component.
-        this.#currentPath = this.#environmentService.getVariable('PWD');
+    static EVENTS = {
+        PROVIDE_LIST_CONTENTS: 'provideListContents',
+        PROVIDE_IS_FILE: 'provideIsFile',
+        PROVIDE_IS_DIRECTORY: 'provideIsDirectory',
+        PROVIDE_AUTOCOMPLETE: 'provideAutocomplete',
+        LISTEN_VAR_CHANGED: 'listenVarChanged',
+        USE_LIST_CONTENTS_RESPONSE: 'useListContentsResponse',
+        USE_IS_FILE_RESPONSE: 'useIsFileResponse',
+        USE_IS_DIRECTORY_RESPONSE: 'useIsDirectoryResponse',
+        USE_AUTOCOMPLETE_RESPONSE: 'useAutocompleteResponse',
+        USE_VAR_GET: 'useVarGet'
+    };
+
+    constructor(eventBus, eventNameConfig) {
+        this.#eventBus = eventBus;
+        this.#eventNames = eventNameConfig;
+        this.#apiManager = new ApiManager(API_ENDPOINT);
+        this.#registerListeners();
+        log.log('Initializing...');
     }
 
-    /**
-     * Initializes the filesystem service by fetching the directory tree from the server.
-     * @returns {Promise<void>} A promise that resolves when the filesystem tree is loaded.
-     */
-    async init() {
+    async start() {
+        // Request initial PWD and load the root of the filesystem.
+        this.#eventBus.dispatch(this.#eventNames[FilesystemBusService.EVENTS.USE_VAR_GET], { key: VAR_PWD });
         try {
-            const data = await this.#apiService.get();
-            // If backend returns {directories: [...], files: [...]}, map to expected tree
+            const data = await this.#apiManager.get();
             if (Array.isArray(data.directories) && Array.isArray(data.files)) {
-                // Root node only, build tree with metadata objects
-                const tree = {};
-                tree._directories = data.directories;
-                tree._files = data.files;
-                this.#filesystemTree = tree;
+                this.#filesystemTree = {
+                    _directories: data.directories,
+                    _files: data.files
+                };
             } else {
                 this.#filesystemTree = data;
             }
@@ -90,239 +88,87 @@ class FilesystemService {
         }
     }
 
-    /**
-     * Gets the current working directory.
-     * @returns {string} The current path.
-     */
-    getCurrentPath() {
-        return this.#currentPath;
+    #registerListeners() {
+        this.#eventBus.listen(this.#eventNames[FilesystemBusService.EVENTS.LISTEN_VAR_CHANGED], (payload) => {
+            if (payload.key === VAR_PWD) {
+                this.#currentPath = payload.value;
+            }
+        });
+
+        this.#eventBus.listen(this.#eventNames[FilesystemBusService.EVENTS.PROVIDE_LIST_CONTENTS], async (payload) => {
+            const contents = await this.listContents(payload.path);
+            this.#eventBus.dispatch(this.#eventNames[FilesystemBusService.EVENTS.USE_LIST_CONTENTS_RESPONSE], { ...payload, contents });
+        });
+
+        this.#eventBus.listen(this.#eventNames[FilesystemBusService.EVENTS.PROVIDE_IS_FILE], async (payload) => {
+            const isFile = await this.isFile(payload.path);
+            this.#eventBus.dispatch(this.#eventNames[FilesystemBusService.EVENTS.USE_IS_FILE_RESPONSE], { ...payload, isFile });
+        });
+
+        this.#eventBus.listen(this.#eventNames[FilesystemBusService.EVENTS.PROVIDE_IS_DIRECTORY], async (payload) => {
+            const isDirectory = await this.isDirectory(payload.path);
+            this.#eventBus.dispatch(this.#eventNames[FilesystemBusService.EVENTS.USE_IS_DIRECTORY_RESPONSE], { ...payload, isDirectory });
+        });
+
+        this.#eventBus.listen(this.#eventNames[FilesystemBusService.EVENTS.PROVIDE_AUTOCOMPLETE], async (payload) => {
+            const suggestions = await this.autocompletePath(payload.input, payload.includeFiles);
+            this.#eventBus.dispatch(this.#eventNames[FilesystemBusService.EVENTS.USE_AUTOCOMPLETE_RESPONSE], { ...payload, suggestions });
+        });
     }
 
-    /**
-     * Sets the current working directory.
-     * @param {string} path - The new path to set as the current working directory.
-     * @returns {boolean} True if the path was successfully set, false otherwise.
-     */
-    setCurrentPath(path) {
-        // Normalize path (e.g., remove double slashes, resolve '..', '.')
-    const normalizedPath = this.normalizePath(path);
-        if (this.#getNodeAtPath(normalizedPath)) {
-            this.#currentPath = normalizedPath;
-            this.#environmentService.setVariable('PWD', normalizedPath);
-            return true;
+    normalizePath(path) {
+        const parts = [];
+        const pathSegments = path.split('/').filter(p => p);
+
+        for (const segment of pathSegments) {
+            if (segment === '.' || segment === '') continue;
+            if (segment === '..') {
+                if (parts.length > 0) parts.pop();
+            } else {
+                parts.push(segment);
+            }
         }
-        return false;
+        return '/' + parts.join('/');
     }
 
-    /**
-     * Lists the contents of a given directory, fetching and caching on demand.
-     * @param {string} path - The path to the directory to list. Defaults to the current path.
-     * @returns {Promise<{files: string[], directories: string[]}|null>} Promise resolving to contents or null if not a directory.
-     */
     async listContents(path = this.#currentPath) {
         const normalizedPath = this.normalizePath(path);
         let node = this.#getNodeAtPath(normalizedPath);
-        let shouldFetch = false;
-        if (node && typeof node === 'object' && !Array.isArray(node)) {
-            const files = node._files || [];
-            const directories = node._directories || [];
-            // If both are empty, treat as not loaded and fetch from backend
-            if (files.length === 0 && directories.length === 0) {
-                shouldFetch = true;
-            } else {
-                log.log(`listContents cache hit for ${normalizedPath}:`, { files, directories });
-                return { files, directories };
-            }
-        } else {
-            shouldFetch = true;
+
+        if (node && typeof node === 'object' && !Array.isArray(node) && (node._files || node._directories)) {
+            return { files: node._files || [], directories: node._directories || [] };
         }
-        if (shouldFetch) {
-            try {
-                const pathForApi = normalizedPath.replace(/^\//, '');
-                const data = await this.#apiService.get({ path: pathForApi });
-                log.log(`Backend response for ${normalizedPath}:`, data);
-                if (Array.isArray(data.directories) && Array.isArray(data.files)) {
-                    // Build node and cache it
-                    node = {};
-                    node._directories = data.directories;
-                    node._files = data.files;
-                    // Insert into tree
-                    this.#setNodeAtPath(normalizedPath, node);
-                    log.log(`Cached node for ${normalizedPath}:`, { files: data.files, directories: data.directories });
-                    return { files: data.files, directories: data.directories };
-                }
-            } catch (error) {
-                log.error('Failed to fetch directory contents:', error);
+
+        try {
+            const pathForApi = normalizedPath.replace(/^\//, '');
+            const data = await this.#apiManager.get({ path: pathForApi });
+            if (Array.isArray(data.directories) && Array.isArray(data.files)) {
+                node = { _directories: data.directories, _files: data.files };
+                this.#setNodeAtPath(normalizedPath, node);
+                return { files: data.files, directories: data.directories };
             }
+        } catch (error) {
+            log.error('Failed to fetch directory contents:', error);
         }
         return null;
     }
-    /**
-     * Sets a node at a given path in the tree (for caching fetched directories).
-     * @private
-     * @param {string} path - The absolute path.
-     * @param {Object} node - The node to set.
-     */
-    #setNodeAtPath(path, node) {
-        const parts = this.normalizePath(path).split('/').filter(p => p);
-        let currentNode = this.#filesystemTree;
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            if (i === parts.length - 1) {
-                currentNode[part] = node;
-            } else {
-                if (!currentNode[part] || typeof currentNode[part] !== 'object') {
-                    currentNode[part] = { _directories: [], _files: [] };
-                }
-                currentNode = currentNode[part];
-            }
-        }
-    }
 
-    /**
-     * Checks if a given path exists in the filesystem.
-     * This method is now async to ensure it can fetch parent directories if they are not cached.
-     * @param {string} path - The path to check.
-     * @returns {Promise<boolean>} A promise that resolves to true if the path exists, false otherwise.
-     */
-    async pathExists(path) {
-        const parentPath = this.#getParentPath(path);
-        // Ensure the parent directory's contents are loaded into the cache.
-        await this.listContents(parentPath);
-        return !!this.#getNodeAtPath(path);
-    }
-
-    /**
-     * Checks if a given path is a directory.
-     * This method is now async to ensure it can fetch parent directories if they are not cached.
-     * @param {string} path - The path to check.
-     * @returns {Promise<boolean>} A promise that resolves to true if the path is a directory, false otherwise.
-     */
-    async isDirectory(path) {
-        // For directories, we check the path itself, not its parent.
-        // listContents will return null if the path is not a directory.
-        const contents = await this.listContents(path);
-        if (contents) return true;
-
-        // Fallback check for the root directory, which might not be fetched in the same way.
-        const node = this.#getNodeAtPath(path);
-        return node && typeof node === 'object' && !Array.isArray(node);
-    }
-
-    /**
-     * Checks if a given path is a file.
-     * @param {string} path - The path to check.
-     * @returns {Promise<boolean>} A promise that resolves to true if the path is a file, false otherwise.
-     */
     async isFile(path) {
         const parentPath = this.#getParentPath(path);
         const fileName = this.#getFileName(path);
-
-        // Ensure the parent directory's contents are loaded into the cache.
-        await this.listContents(parentPath);
-
-        // Now that the cache is populated, check for the file.
+        await this.listContents(parentPath); // Ensure parent is cached
         const parentNode = this.#getNodeAtPath(parentPath);
         return !!(parentNode && Array.isArray(parentNode._files) && parentNode._files.some(f => f.name === fileName));
     }
 
-    /**
-     * Resolves a relative path against the current working directory.
-     * @private
-     * @param {string} path - The path to resolve.
-     * @returns {string} The absolute resolved path.
-     */
-    #resolvePath(path) {
-        const parts = this.#currentPath.split('/').filter(p => p);
-        const targetParts = path.split('/').filter(p => p);
-
-        if (path.startsWith('/')) {
-            parts.length = 0; // Absolute path, clear current parts
-        }
-
-        for (const part of targetParts) {
-            if (part === '..') {
-                if (parts.length > 0) {
-                    parts.pop();
-                }
-            } else if (part !== '.') {
-                parts.push(part);
-            }
-        }
-        return '/' + parts.join('/');
+    async isDirectory(path) {
+        const contents = await this.listContents(path);
+        return contents !== null;
     }
 
-    /**
-     * Normalizes a path, removing redundant slashes and resolving '.' and '..'.
-     * @private
-     * @param {string} path - The path to normalize.
-     * @returns {string} The normalized path.
-     */
-    // REMOVED: #normalizePath private method
-
-    /**
-     * Retrieves the node (directory or file) at a given path.
-     * @private
-     * @param {string} path - The absolute path to the node.
-     * @returns {Object|string[]|null} The node at the path, or null if not found.
-     */
-    #getNodeAtPath(path) {
-    const resolvedPath = this.normalizePath(path);
-        const parts = resolvedPath.split('/').filter(p => p);
-        let currentNode = this.#filesystemTree;
-
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            if (currentNode && typeof currentNode === 'object' && !Array.isArray(currentNode)) {
-                if (i === parts.length - 1 && currentNode._files && currentNode._files.includes(part)) {
-                    // It's a file
-                    return part; // Return the file name itself as a marker
-                }
-                currentNode = currentNode[part];
-            } else {
-                return null; // Path segment not found or not a directory
-            }
-        }
-        return currentNode;
-    }
-
-    /**
-     * Gets the parent path of a given path.
-     * @private
-     * @param {string} path - The path.
-     * @returns {string} The parent path.
-     */
-    #getParentPath(path) {
-    const normalizedPath = this.normalizePath(path);
-        const parts = normalizedPath.split('/').filter(p => p);
-        if (parts.length === 0) {
-            return '/';
-        }
-        parts.pop();
-        return '/' + parts.join('/');
-    }
-
-    /**
-     * Gets the file name from a given path.
-     * @private
-     * @param {string} path - The path.
-     * @returns {string} The file name.
-     */
-    #getFileName(path) {
-    const normalizedPath = this.normalizePath(path);
-        const parts = normalizedPath.split('/').filter(p => p);
-        return parts.length > 0 ? parts[parts.length - 1] : '';
-    }
-
-    /**
-     * Provides path autocompletion suggestions.
-     * @param {string} input - The partial path input by the user.
-     * @param {boolean} includeFiles - Whether to include files in suggestions.
-     * @returns {Promise<string[]>} A promise that resolves to an array of completion suggestions.
-     */
     async autocompletePath(input, includeFiles = true) {
         const isAbsolute = input.startsWith('/');
-        const fullPath = isAbsolute ? input : this.getCurrentPath().replace(/\/$/, '') + '/' + input;
+        const fullPath = isAbsolute ? input : this.#currentPath.replace(/\/$/, '') + '/' + input;
 
         let parentPath, partial;
         if (input.endsWith('/') || input === '') {
@@ -330,7 +176,6 @@ class FilesystemService {
             partial = '';
         } else {
             const lastSlashIndex = fullPath.lastIndexOf('/');
-            // If there's no slash, parent is root, otherwise it's the path up to the last slash.
             parentPath = this.normalizePath(lastSlashIndex > 0 ? fullPath.substring(0, lastSlashIndex) : '/');
             partial = fullPath.substring(lastSlashIndex + 1);
         }
@@ -349,6 +194,55 @@ class FilesystemService {
 
         return [...directorySuggestions, ...fileSuggestions];
     }
+
+    #getNodeAtPath(path) {
+        const resolvedPath = this.normalizePath(path);
+        const parts = resolvedPath.split('/').filter(p => p);
+        let currentNode = this.#filesystemTree;
+
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (currentNode && typeof currentNode === 'object' && !Array.isArray(currentNode)) {
+                if (i === parts.length - 1 && currentNode._files && currentNode._files.some(f => f.name === part)) {
+                    return part;
+                }
+                currentNode = currentNode[part];
+            } else {
+                return null;
+            }
+        }
+        return currentNode;
+    }
+
+    #setNodeAtPath(path, node) {
+        const parts = this.normalizePath(path).split('/').filter(p => p);
+        let currentNode = this.#filesystemTree;
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (i === parts.length - 1) {
+                currentNode[part] = node;
+            } else {
+                if (!currentNode[part] || typeof currentNode[part] !== 'object') {
+                    currentNode[part] = { _directories: [], _files: [] };
+                }
+                currentNode = currentNode[part];
+            }
+        }
+    }
+
+    #getParentPath(path) {
+        const normalizedPath = this.normalizePath(path);
+        const parts = normalizedPath.split('/').filter(p => p);
+        if (parts.length === 0) return '/';
+        parts.pop();
+        return '/' + parts.join('/');
+    }
+
+    #getFileName(path) {
+        const normalizedPath = this.normalizePath(path);
+        const parts = normalizedPath.split('/').filter(p => p);
+        return parts.length > 0 ? parts[parts.length - 1] : '';
+    }
 }
 
-export { FilesystemService };
+export { FilesystemBusService };

@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from './LogManager.js';
+import { createLogger } from '../Managers/LogManager.js';
 
 const log = createLogger('TerminalBusService');
 
@@ -27,19 +27,24 @@ const log = createLogger('TerminalBusService');
  * @listens for `input-response` - To receive the command string submitted by the user.
  * @listens for `command-execution-finished-broadcast` - To know when to request the next command.
  * @listens for `user-changed-broadcast` - To restart the command loop on login/logout.
+ * @listens for `clear-screen-request` - To clear the terminal view.
  *
  * @dispatches `input-request` - To ask the InputBusService to prompt the user for a command.
+ * @dispatches `command-execute-broadcast` - To trigger command execution.
  */
 class TerminalBusService {
     #eventBus;
     #eventNames;
+    #view = null; // The Terminal component instance
     #currentCorrelationId = 0;
 
     static EVENTS = {
         LISTEN_INPUT_RESPONSE: 'listenInputResponse',
         LISTEN_EXECUTION_FINISHED: 'listenExecutionFinished',
         LISTEN_USER_CHANGED: 'listenUserChanged',
-        USE_INPUT_REQUEST: 'useInputRequest'
+        USE_INPUT_REQUEST: 'useInputRequest',
+        USE_COMMAND_EXECUTE_BROADCAST: 'useCommandExecuteBroadcast',
+        LISTEN_CLEAR_SCREEN: 'listenClearScreen'
     };
 
     constructor(eventBus, eventNameConfig) {
@@ -47,6 +52,14 @@ class TerminalBusService {
         this.#eventNames = eventNameConfig;
         this.#registerListeners();
         log.log('Initializing...');
+    }
+
+    /**
+     * Connects this presenter service to its view component.
+     * @param {object} view - The instance of the Terminal component.
+     */
+    setView(view) {
+        this.#view = view;
     }
 
     /**
@@ -60,9 +73,17 @@ class TerminalBusService {
         // When we get a response for our input request, trigger the next step.
         this.#eventBus.listen(this.#eventNames[TerminalBusService.EVENTS.LISTEN_INPUT_RESPONSE], (payload) => {
             // We only care about the response that matches our request for a command.
-            if (payload.correlationId === this.#currentCorrelationId) {
-                // The Terminal.js component will listen for this and dispatch the execute event.
-                // This service doesn't need to dispatch the execute event itself.
+            if (payload.correlationId === this.#currentCorrelationId && payload.value.trim() && this.#view) {
+                const commandString = payload.value;
+                const outputElement = this.#view.createCommandOutput(commandString);
+                this.#eventBus.dispatch(this.#eventNames[TerminalBusService.EVENTS.USE_COMMAND_EXECUTE_BROADCAST], { commandString, outputElement });
+
+                // For now, we assume the command finishes instantly and request the next one.
+                // A more robust solution would wait for a 'command-finished' event.
+                this.#eventBus.dispatch(this.#eventNames[TerminalBusService.EVENTS.LISTEN_EXECUTION_FINISHED]);
+            } else {
+                // If input was empty, just request the next command immediately.
+                this.#requestNextCommand();
             }
         });
 
@@ -74,6 +95,12 @@ class TerminalBusService {
         // If the user logs in or out, restart the command loop.
         this.#eventBus.listen(this.#eventNames[TerminalBusService.EVENTS.LISTEN_USER_CHANGED], () => {
             this.#requestNextCommand();
+        });
+
+        this.#eventBus.listen(this.#eventNames[TerminalBusService.EVENTS.LISTEN_CLEAR_SCREEN], () => {
+            if (this.#view) {
+                this.#view.clearOutput();
+            }
         });
     }
 

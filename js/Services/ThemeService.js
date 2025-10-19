@@ -15,40 +15,73 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from './LogService.js';
+import { createLogger } from '../Managers/LogManager.js';
 
-const log = createLogger('ThemeService');
+const log = createLogger('ThemeBusService');
+
+// Define constants for hardcoded strings
+const VAR_THEME = 'THEME';
+const DEFAULT_THEME = 'green';
 
 /**
- * @class ThemeService
- * @description Manages the terminal's color theme.
+ * @class ThemeBusService
+ * @description Manages the terminal's color theme by reacting to environment variable changes.
+ *
+ * @listens for `variable-changed-broadcast` - For changes to the THEME variable.
+ * @listens for `variable-get-response` - For the initial THEME value.
+ *
+ * @dispatches `variable-get-request` - To get the initial THEME variable on startup.
+ * @dispatches `theme-changed-broadcast` - When the theme is successfully applied.
  */
-class ThemeService {
+class ThemeBusService {
     static VALID_THEMES = ['green', 'yellow', 'orange', 'red'];
-    #environmentService;
+    #eventBus;
+    #eventNames;
 
-    constructor(services) {
-        this.#environmentService = services.environment;
+    static EVENTS = {
+        LISTEN_VAR_CHANGED: 'listenVarChanged',
+        USE_VAR_GET: 'useVarGet',
+        LISTEN_VAR_GET_RESPONSE: 'listenVarGetResponse',
+        USE_THEME_CHANGED_BROADCAST: 'useThemeChangedBroadcast'
+    };
+
+    constructor(eventBus, eventNameConfig) {
+        this.#eventBus = eventBus;
+        this.#eventNames = eventNameConfig;
+        this.#registerListeners();
         log.log('Initializing...');
     }
 
-    /**
-     * Applies the color theme based on the THEME environment variable.
-     * If the theme is invalid, it defaults to 'green'.
-     */
-    applyTheme() {
-        let themeName = this.#environmentService.getVariable('THEME');
-        if (!ThemeService.VALID_THEMES.includes(themeName)) {
-            themeName = 'green';
-        }
-        const themeColor = `var(--arefi-color-${themeName})`;
+    start() {
+        // After all services are initialized, request the initial theme value.
+        this.#eventBus.dispatch(this.#eventNames[ThemeBusService.EVENTS.USE_VAR_GET], { key: VAR_THEME });
+    }
+
+    #registerListeners() {
+        this.#eventBus.listen(this.#eventNames[ThemeBusService.EVENTS.LISTEN_VAR_CHANGED], (payload) => {
+            if (payload.key === VAR_THEME) {
+                this.applyTheme(payload.value);
+            }
+        });
+
+        this.#eventBus.listen(this.#eventNames[ThemeBusService.EVENTS.LISTEN_VAR_GET_RESPONSE], (payload) => {
+            if (payload.key !== VAR_THEME) return;
+            const theme = payload.value || DEFAULT_THEME;
+            this.applyTheme(theme);
+        });
+    }
+
+    applyTheme(themeName) {
+        const finalTheme = ThemeBusService.VALID_THEMES.includes(themeName) ? themeName : DEFAULT_THEME;
+        const themeColor = `var(--arefi-color-${finalTheme})`;
         document.documentElement.style.setProperty('--arefi-color-theme', themeColor);
-        log.log(`Applied theme: ${themeName}`);
+        this.#eventBus.dispatch(this.#eventNames[ThemeBusService.EVENTS.USE_THEME_CHANGED_BROADCAST], { themeName: finalTheme });
+        log.log(`Applied theme: ${finalTheme}`);
     }
 
     getValidThemes() {
-        return ThemeService.VALID_THEMES;
+        return ThemeBusService.VALID_THEMES;
     }
 }
 
-export { ThemeService };
+export { ThemeBusService };

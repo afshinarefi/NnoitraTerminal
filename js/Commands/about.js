@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { ArefiMedia } from '../Components/Media.js';
-import { createLogger } from '../Services/LogService.js';
+import { createLogger } from '../Managers/LogManager.js';
 /**
  * @class About
  * @description Implements the 'about' command, which displays personal information from a JSON file.

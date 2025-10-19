@@ -15,6 +15,10 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { createLogger } from '../Managers/LogManager.js';
+import { VAR_CATEGORIES } from './Constants.js';
+
+// Import all command classes
 import { Welcome } from '../cmd/welcome.js';
 import { About } from '../cmd/about.js';
 import { Env } from '../cmd/env.js';
@@ -35,116 +39,166 @@ import { Unalias } from '../cmd/unalias.js';
 import { Export } from '../cmd/export.js';
 import { Theme } from '../cmd/theme.js';
 import { Version } from '../cmd/version.js';
-import { FilesystemService } from './FilesystemService.js';
-import { createLogger } from './LogService.js';
 
-const log = createLogger('CommandService');
+const log = createLogger('CommandBusService');
+
+// Constants
+const VAR_ALIAS = 'ALIAS';
 
 /**
- * @class CommandService
- * @description Manages the registration, retrieval, and execution of terminal commands.
- * It acts as a central registry for all available commands in the terminal application.
+ * @class CommandBusService
+ * @description Manages command registration, resolution, and execution via the event bus.
+ *
+ * @provides `command-execute-request` - Listens for requests to execute a command string.
+ * @provides `autocomplete-request` - Listens for requests to get autocomplete suggestions.
+ *
+ * @dispatches `autocomplete-broadcast` - Dispatches suggestions for any interested listeners.
+ * @dispatches `variable-get-request` - Dispatches to get the ALIAS variable.
+ * @dispatches `variable-set-request` - Dispatches to set the ALIAS variable.
+ * @dispatches `fs-is-directory-request` - Dispatches to check if a path is a directory.
+ *
+ * @listens for `variable-get-response` - Listens for the ALIAS value.
+ * @listens for `fs-is-directory-response` - Listens for the response to the directory check.
  */
-class CommandService {
-    /** @private {Map<string, Function>} #registry - A map storing command names as keys and their corresponding CommandClass constructors as values. */
+class CommandBusService {
+    #eventBus;
+    #eventNames;
     #registry = new Map();
-    /** @private {EnvironmentService} #environmentService - Reference to the EnvironmentService for passing to commands. */
-    #environmentService;
-    /** @private {HistoryService} #historyService - Reference to the HistoryService for passing to commands. */
-    #historyService;
-    /** @private {FilesystemService} #filesystemService - Reference to the FilesystemService for passing to commands. */
-    #filesystemService;
-    /** @private {Object} #services - A container for all services. */
-    #services;
+    #services; // This will hold other bus-based services
+    #aliases = {};
 
-    /**
-     * Creates an instance of CommandService.
-     * Registers initial commands like 'welcome' and 'env'.
-     * @param {Object} services - An object containing all services (environmentService, historyService, etc.).
-     */
-    constructor(services) {
-      this.#services = services;
+    static EVENTS = {
+        PROVIDE_EXECUTE: 'provideExecute',
+        PROVIDE_AUTOCOMPLETE: 'provideAutocomplete',
+        USE_AUTOCOMPLETE_BROADCAST: 'useAutocompleteBroadcast',
+        USE_VAR_GET: 'useVarGet',
+        USE_VAR_SET: 'useVarSet',
+        LISTEN_VAR_GET_RESPONSE: 'listenVarGetResponse',
+        USE_FS_IS_DIR_REQUEST: 'useFsIsDirRequest',
+        LISTEN_FS_IS_DIR_RESPONSE: 'listenFsIsDirResponse',
+        USE_CLEAR_SCREEN_REQUEST: 'useClearScreenRequest',
+    };
 
-      // Register default commands here.
-      this.register('welcome', Welcome);
-      this.register('about', About);
-      this.register('env', Env);
-      this.register('help', Help);
-      this.register('man', Man);
-      this.register('history', History);
-      this.register('ls', Ls);
-      this.register('cd', Cd);
-      this.register('cat', Cat);
-      this.register('clear', Clear);
-      this.register('view', View);
-      this.register('adduser', AddUser);
-      this.register('login', Login);
-      this.register('logout', Logout);
-      this.register('passwd', Passwd);
-      this.register('alias', Alias);
-      this.register('unalias', Unalias);
-      this.register('export', Export);
-      this.register('theme', Theme);
-      this.register('version', Version);
+    constructor(eventBus, eventNameConfig, services) {
+        this.#eventBus = eventBus;
+        this.#eventNames = eventNameConfig;
+        this.#services = services; // Keep a reference to all services
+
+        this.#registerCommands();
+        this.#registerListeners();
+        log.log('Initializing...');
     }
 
-    /**
-     * Registers a new command with the service.
-     * @param {string} name - The name of the command (e.g., 'ls', 'cd').
-     * @param {Function} CommandClass - The constructor function of the command class.
-     */
-    register(name, CommandClass) {
-        this.#registry.set(name, CommandClass);
+    #registerCommands() {
+        // Register commands with their specific service dependencies.
+        this.register('welcome', Welcome, []);
+        this.register('about', About, []);
+        this.register('env', Env, ['environment']);
+        this.register('help', Help, ['getHelpCommandNames', 'getCommandClass']);
+        this.register('man', Man, ['getAvailableCommandNames', 'getCommandClass']);
+        this.register('history', History, ['history']); // Placeholder for old service
+        this.register('ls', Ls, ['filesystem']); // Placeholder
+        this.register('cd', Cd, ['isDirectory', 'changeDirectory']);
+        this.register('cat', Cat, ['filesystem']); // Placeholder
+        this.register('clear', Clear, ['clearScreen']);
+        this.register('view', View, ['filesystem']); // Placeholder
+        this.register('adduser', AddUser, ['login']); // Placeholder
+        this.register('login', Login, ['login']);
+        this.register('logout', Logout, ['login']); // Placeholder
+        this.register('passwd', Passwd, ['login']); // Placeholder
+        this.register('alias', Alias, ['getAliases', 'setAliases']);
+        this.register('unalias', Unalias, ['getAliases', 'setAliases']);
+        this.register('export', Export, ['environment']);
+        this.register('theme', Theme, ['environment', 'theme']); // Placeholders
+        this.register('version', Version, []);
     }
-    
-    /**
-     * Retrieves an instance of a registered command.
-     * @param {string} name - The name of the command to retrieve.
-     * @returns {Object|null} A new instance of the command class if found, otherwise null.
-     */
+
+    start() {
+        // Request initial alias state now that all services are listening.
+        this.#eventBus.dispatch(this.#eventNames[CommandBusService.EVENTS.USE_VAR_GET], { key: VAR_ALIAS });
+    }
+
+    #registerListeners() {
+        this.#eventBus.listen(this.#eventNames[CommandBusService.EVENTS.PROVIDE_EXECUTE], (payload) => this.execute(payload.commandString, payload.outputElement));
+        this.#eventBus.listen(this.#eventNames[CommandBusService.EVENTS.PROVIDE_AUTOCOMPLETE], (payload) => this.autocomplete(payload.parts));
+
+        this.#eventBus.listen(this.#eventNames[CommandBusService.EVENTS.LISTEN_VAR_GET_RESPONSE], (payload) => {
+            if (payload.key === VAR_ALIAS && payload.value) {
+                try {
+                    this.#aliases = JSON.parse(payload.value);
+                } catch (e) {
+                    log.error("Error parsing ALIAS variable:", e);
+                    this.#aliases = {};
+                }
+            }
+        });
+
+        // This service acts as a middleman for commands, so it needs to handle
+        // the responses from other services. This listener is a placeholder for that logic.
+        this.#eventBus.listen(this.#eventNames[CommandBusService.EVENTS.LISTEN_FS_IS_DIR_RESPONSE], (payload) => {
+            // In a full implementation, we would use the correlationId to resolve a promise
+            // that was created when the request was dispatched.
+            log.log('Received fs-is-directory-response:', payload);
+        });
+    }
+
+    register(name, CommandClass, requiredServices = []) {
+        this.#registry.set(name, { CommandClass, requiredServices });
+    }
+
     getCommand(name) {
-        const CommandClass = this.#registry.get(name);
-        if (CommandClass) {
-            return new CommandClass(this.#services);
+        const registration = this.#registry.get(name);
+        if (registration) {
+            const { CommandClass, requiredServices } = registration;
+
+            // Create a tailored 'services' object for each command, providing only what it needs.
+            // This acts as a gateway and adheres to the principle of least privilege.
+            const allProvidedServices = {
+                getAliases: this.getAliases.bind(this),
+                setAliases: this.setAliases.bind(this),
+                isDirectory: this.isDirectory.bind(this),
+                changeDirectory: this.changeDirectory.bind(this),
+                clearScreen: this.clearScreen.bind(this),
+                login: this.login.bind(this),
+                getHelpCommandNames: this.getHelpCommandNames.bind(this),
+                getAvailableCommandNames: this.getAvailableCommandNames.bind(this),
+                getCommandClass: this.getCommandClass.bind(this),
+                // Direct service access for legacy commands during transition
+                environment: this.#services.environment,
+                filesystem: this.#services.filesystem,
+                history: this.#services.history,
+                theme: this.#services.theme,
+            };
+
+            const commandServices = {};
+            for (const serviceName of requiredServices) {
+                if (allProvidedServices[serviceName]) {
+                    commandServices[serviceName] = allProvidedServices[serviceName];
+                } else {
+                    log.warn(`Command '${name}' requested unknown service '${serviceName}'.`);
+                }
+            }
+
+            return new CommandClass(commandServices);
         }
         return null;
     }
 
-    /**
-     * Retrieves the class constructor of a registered command.
-     * @param {string} name - The name of the command to retrieve.
-     * @returns {Function|undefined} The command class constructor if found, otherwise `undefined`.
-     */
     getCommandClass(name) {
-        return this.#registry.get(name);
+        const registration = this.#registry.get(name);
+        return registration ? registration.CommandClass : undefined;
     }
 
-    /**
-     * Returns a sorted list of all registered command names.
-     * @returns {string[]} An array of command names.
-     */
     getCommandNames() {
         return Array.from(this.#registry.keys());
     }
 
-    /**
-     * Returns a sorted list of currently available command names based on context (e.g., login status).
-     * @returns {string[]} An array of available command names.
-     */
     getAvailableCommandNames() {
         const availableRegistered = this.getHelpCommandNames();
-        const aliases = this.getAliases();
-        const aliasNames = Object.keys(aliases);
-
-        // Combine registered commands and aliases, ensuring no duplicates, and sort them.
+        const aliasNames = Object.keys(this.#aliases);
         return [...new Set([...availableRegistered, ...aliasNames])].sort();
     }
 
-    /**
-     * Returns a sorted list of command names suitable for the 'help' command.
-     * This excludes aliases.
-     * @returns {string[]} An array of command names for the help listing.
-     */
     getHelpCommandNames() {
         const registeredCommands = this.getCommandNames();
         const availableCommands = registeredCommands.filter(name => {
@@ -152,139 +206,128 @@ class CommandService {
             if (CommandClass && typeof CommandClass.isAvailable === 'function') {
                 return CommandClass.isAvailable(this.#services);
             }
-            return true; // If isAvailable is not defined, assume the command is always available.
+            return true;
         });
         return availableCommands.sort();
     }
 
-        /**
-         * Provides autocomplete suggestions based on the current command input parts.
-         * @param {string[]} parts - An array of command parts (e.g., `[]` for initial command, `['welcome']` for arguments).
-         * @returns {Promise<string[]>} Promise resolving to an array of possible completions.
-         */
-        async autocomplete(parts) {
-            log.log('Autocomplete received parts:', parts);
+    async autocomplete(parts) {
+        log.log('Autocomplete received parts:', parts);
+        let suggestions = [];
 
-            const isCompletingCommandName = parts.length === 1 && parts[0] !== '';
+        const isCompletingCommandName = parts.length <= 1;
 
-            // If completing the first word (command name)
-            if (isCompletingCommandName) {
-                log.log('Completing command name.');
-                return this.getAvailableCommandNames();
-            }
-
-            // If input is empty, also complete command name
-            if (!parts || parts.length === 0 || (parts.length === 1 && parts[0] === '')) {
-                return this.getAvailableCommandNames();
-            }
-    
+        if (isCompletingCommandName) {
+            const input = parts[0] || '';
+            suggestions = this.getAvailableCommandNames().filter(name => name.startsWith(input));
+        } else {
             let commandName = parts[0];
             let argsForCompletion = parts.slice(1);
-            log.log(`Initial command: "${commandName}", args:`, argsForCompletion);
-    
-            // Check for alias and substitute if found
-            const aliases = this.getAliases();
-            if (aliases[commandName]) {
-                log.log(`Found alias for "${commandName}"`);
-                const aliasValue = aliases[commandName];
-                const aliasParts = aliasValue.split(/\s+/).filter(p => p); // Split and remove empty strings
-                
+
+            if (this.#aliases[commandName]) {
+                const aliasValue = this.#aliases[commandName];
+                const aliasParts = aliasValue.split(/\s+/).filter(p => p);
                 commandName = aliasParts[0];
-                const aliasArgs = aliasParts.slice(1);
-                
-                // Prepend the alias's own arguments to the arguments typed by the user
-                argsForCompletion = [...aliasArgs, ...argsForCompletion];
-                log.log(`Expanded to command: "${commandName}", combined args:`, argsForCompletion);
+                argsForCompletion = [...aliasParts.slice(1), ...argsForCompletion];
             }
-    
+
             const CommandClass = this.getCommandClass(commandName);
-    
             if (CommandClass && typeof CommandClass.autocompleteArgs === 'function') {
-                log.log(`Found CommandClass for "${commandName}" with autocompleteArgs.`);
-                // If the original input ended with a space, it means we are completing a new, empty argument.
-                // Otherwise, we are completing the last partial argument.
-                const completionArgs = argsForCompletion;
-                log.log('Calling autocompleteArgs with:', completionArgs);
-                const result = CommandClass.autocompleteArgs(completionArgs, this.#services);
-                // Handle both sync and async results from autocompleteArgs
-                const finalResult = (result instanceof Promise) ? await result : result;
-                log.log('Received suggestions from command:', finalResult);
-                return finalResult;
-            }
-    
-            return [];
-        }
-
-    /**
-     * Executes a given command and appends its output to the provided output element.
-     * @param {string} cmd - The full command string to execute.
-     * @param {HTMLElement} output - The DOM element where the command's output should be appended.
-     * @returns {Promise<void>} A promise that resolves when the command execution is complete.
-     */
-    async execute(cmd, output) {
-
-      const trimmedCmd = cmd.trim();
-      if (!trimmedCmd) {
-          output.innerText = ""; // Clear output for empty command.
-          return;
-      }
-
-      let args = trimmedCmd.split(/\s+/);
-      let commandName = args[0];
-
-      // Check for alias and substitute if found
-      const aliases = this.getAliases();
-      if (aliases[commandName]) {
-          const aliasValue = aliases[commandName];
-          const aliasArgs = aliasValue.split(/\s+/);
-          const remainingUserArgs = args.slice(1);
-          // Reconstruct the command string and re-parse
-          const newCmd = [...aliasArgs, ...remainingUserArgs].join(' ');
-          args = newCmd.split(/\s+/);
-          commandName = args[0];
-      }
-
-      // Check if the command is registered.
-      if (this.#registry.has(commandName)) {
-          try {
-              const commandHandler = this.getCommand(commandName);
-              // Execute the command handler and append its result to the output.
-              const resultElement = await commandHandler.execute(args);
-              output.appendChild(resultElement);
-          } catch (e) {
-              // Handle errors during command execution.
-              output.textContent = `Error executing ${commandName}: ${e.message}`;
-          }
-      } else {
-          // If it's not a registered command (it might have been an alias that resolved to a non-existent command)
-          output.textContent = commandName + ": command not found";
-      }
-  }
-
-    /**
-     * Retrieves all defined aliases as an object by parsing the ALIAS environment variable.
-     * @returns {Object.<string, string>} An object of aliases.
-     */
-    getAliases() {
-        const aliasString = this.#services.environment.getVariable('ALIAS');
-        if (aliasString) {
-            try {
-                return JSON.parse(aliasString);
-            } catch (e) {
-                log.error("Error parsing ALIAS environment variable:", e);
-                return {};
+                const result = CommandClass.autocompleteArgs(argsForCompletion, this.#services);
+                suggestions = (result instanceof Promise) ? await result : result;
             }
         }
-        return {};
+
+        this.#eventBus.dispatch(this.#eventNames[CommandBusService.EVENTS.USE_AUTOCOMPLETE_BROADCAST], { suggestions });
     }
 
-    /**
-     * Sets the aliases object in the environment by converting it to a JSON string.
-     * @param {Object.<string, string>} aliases - The object of aliases to store.
-     */
+    async execute(cmd, output) {
+        const trimmedCmd = cmd.trim();
+        if (!trimmedCmd) {
+            if (output) output.innerText = "";
+            return;
+        }
+
+        let args = trimmedCmd.split(/\s+/);
+        let commandName = args[0];
+
+        if (this.#aliases[commandName]) {
+            const aliasValue = this.#aliases[commandName];
+            const aliasArgs = aliasValue.split(/\s+/);
+            const remainingUserArgs = args.slice(1);
+            const newCmd = [...aliasArgs, ...remainingUserArgs].join(' ');
+            args = newCmd.split(/\s+/);
+            commandName = args[0];
+        }
+
+        if (this.#registry.has(commandName)) {
+            try {
+                const commandHandler = this.getCommand(commandName);
+                const resultElement = await commandHandler.execute(args);
+                if (output) output.appendChild(resultElement);
+            } catch (e) {
+                if (output) output.textContent = `Error executing ${commandName}: ${e.message}`;
+                log.error(`Error executing ${commandName}:`, e);
+            }
+        } else {
+            if (output) output.textContent = `${commandName}: command not found`;
+        }
+    }
+
+    getAliases() {
+        return this.#aliases;
+    }
+
     setAliases(aliases) {
-        this.#services.environment.setVariable('ALIAS', JSON.stringify(aliases));
+        this.#aliases = aliases;
+        this.#eventBus.dispatch(this.#eventNames[CommandBusService.EVENTS.USE_VAR_SET], {
+            key: VAR_ALIAS,
+            value: JSON.stringify(aliases),
+            category: VAR_CATEGORIES.REMOTE
+        });
+    }
+
+    // --- Service Gateway Methods for Commands ---
+
+    async isDirectory(path) {
+        // This method encapsulates the async event bus logic for the command.
+        // The command can simply `await this.isDirectory(path)` and get a boolean.
+        return new Promise(resolve => {
+            const correlationId = `is-dir-${Date.now()}-${Math.random()}`;
+
+            const responseListener = (payload) => {
+                if (payload.correlationId === correlationId) {
+                    // The event bus needs a way to remove listeners to prevent memory leaks.
+                    // For now, we assume this logic exists.
+                    // this.#eventBus.removeListener('fs-is-directory-response', responseListener);
+                    resolve(payload.isDirectory);
+                }
+            };
+
+            this.#eventBus.listen(this.#eventNames[CommandBusService.EVENTS.LISTEN_FS_IS_DIR_RESPONSE], responseListener);
+
+            this.#eventBus.dispatch(this.#eventNames[CommandBusService.EVENTS.USE_FS_IS_DIR_REQUEST], {
+                path,
+                correlationId
+            });
+        });
+    }
+
+    changeDirectory(path) {
+        this.#eventBus.dispatch(this.#eventNames[CommandBusService.EVENTS.USE_VAR_SET], {
+            key: 'PWD',
+            value: path,
+            category: VAR_CATEGORIES.TEMP
+        });
+    }
+
+    async login(username, password) {
+        return this.#services.login.login(username, password);
+    }
+
+    clearScreen() {
+        this.#eventBus.dispatch(this.#eventNames[CommandBusService.EVENTS.USE_CLEAR_SCREEN_REQUEST]);
     }
 }
 
-export { CommandService };
+export { CommandBusService };

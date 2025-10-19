@@ -23,11 +23,9 @@ const log = createLogger('ApiManager');
  * @description A manager for making authenticated requests to a specific backend API endpoint.
  */
 export class ApiManager {
-    #environmentService;
     #apiEndpoint;
 
-    constructor(services, endpoint) {
-        this.#environmentService = services.environment;
+    constructor(endpoint) {
         this.#apiEndpoint = endpoint;
     }
 
@@ -35,11 +33,11 @@ export class ApiManager {
      * Makes a POST request to the backend API, automatically including the session token.
      * @param {string} action - The action to perform (e.g., 'login', 'get_env').
      * @param {Object} [data={}] - An object containing the data to send.
+     * @param {string|null} [token=null] - The session token to include, if any.
      * @returns {Promise<object>} The JSON response from the server.
      */
-    async post(action, data = {}) {
+    async post(action, data = {}, token = null) {
         const formData = new FormData();
-        const token = this.#environmentService.getVariable('TOKEN');
 
         if (token) {
             formData.append('token', token);
