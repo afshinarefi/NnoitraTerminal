@@ -15,8 +15,9 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { ArefiMedia } from '../Components/Media.js';
-import { createLogger } from '../Services/LogService.js';
+import { Media } from '../Components/Media.js';
+import { createLogger } from '../Managers/LogManager.js';
+
 const log = createLogger('view');
 /**
  * @class View
@@ -80,7 +81,7 @@ class View {
 
         const mediaSrc = `/fs${path}`;
         log.log(`Creating media element with src: "${mediaSrc}"`);
-        const mediaElement = new ArefiMedia();
+        const mediaElement = new Media();
         mediaElement.src = mediaSrc;
         outputDiv.appendChild(mediaElement);
 

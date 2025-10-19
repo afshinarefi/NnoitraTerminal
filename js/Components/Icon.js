@@ -15,8 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { ArefiBaseComponent } from './BaseComponent.js';
-import { createLogger } from '../Services/LogService.js';
+import { BaseComponent } from './BaseComponent.js';
+import { createLogger } from '../Managers/LogManager.js';
 const log = createLogger('Icon');
 
 /**
@@ -50,11 +50,11 @@ iconSpecificStyles.replaceSync(CSS);
 
 /**
  * @class Icon
- * @extends ArefiBaseComponent
+ * @extends BaseComponent
  * @description A custom element that displays various symbolic icons within the terminal,
  * indicating different states like ready, busy, or history index.
  */
-class Icon extends ArefiBaseComponent {
+class Icon extends BaseComponent {
   /**
    * @private
    * @type {Object.<string, string>}

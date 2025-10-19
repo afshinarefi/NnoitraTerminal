@@ -15,31 +15,26 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { EVENTS } from './Events.js';
 import { createLogger } from '../Managers/LogManager.js';
 
-const log = createLogger('HintBusService');
+const log = createLogger('HintService');
 
 /**
- * @class HintBusService
- * @description Acts as a presenter for the HintBox component. It controls the visibility
- * and content of the hint box based on application-wide events.
+ * @class HintService
+ * @description Acts as a presenter for the HintBox component. It listens for
+ * autocomplete and command execution events to control the visibility and
+ * content of the hint box.
  *
- * @listens for `autocomplete-broadcast` - To show autocomplete suggestions in the hint box.
- * @listens for `command-execute-broadcast` - To hide the hint box when a command is executed.
+ * @listens for `autocomplete-broadcast` - Shows the hint box with suggestions.
+ * @listens for `command-execute-broadcast` - Hides the hint box.
  */
-class HintBusService {
+class HintService {
     #eventBus;
-    #eventNames;
     #view = null; // The HintBox component instance
 
-    static EVENTS = {
-        LISTEN_AUTOCOMPLETE_BROADCAST: 'listenAutocompleteBroadcast',
-        LISTEN_COMMAND_EXECUTE: 'listenCommandExecute'
-    };
-
-    constructor(eventBus, eventNameConfig) {
+    constructor(eventBus) {
         this.#eventBus = eventBus;
-        this.#eventNames = eventNameConfig;
         this.#registerListeners();
         log.log('Initializing...');
     }
@@ -53,23 +48,38 @@ class HintBusService {
     }
 
     #registerListeners() {
-        this.#eventBus.listen(this.#eventNames[HintBusService.EVENTS.LISTEN_AUTOCOMPLETE_BROADCAST], (payload) => {
-            if (this.#view) {
-                if (payload.suggestions && payload.suggestions.length > 1) {
-                    // The prefix is needed to correctly display multi-word suggestions.
-                    this.#view.show(payload.suggestions, payload.prefix);
-                } else {
-                    this.#view.hide();
-                }
-            }
+        // Listen for autocomplete suggestions to display them
+        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_BROADCAST, (payload) => {
+            this.#handleShowHints(payload);
         });
 
-        this.#eventBus.listen(this.#eventNames[HintBusService.EVENTS.LISTEN_COMMAND_EXECUTE], () => {
-            if (this.#view) {
-                this.#view.hide();
-            }
+        // Listen for command submission to hide the hints
+        this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, () => {
+            this.#handleHideHints();
         });
+    }
+
+    /**
+     * Shows or hides the hint box based on the received suggestions.
+     * @param {object} payload - The event payload.
+     * @param {string[]} payload.suggestions - The list of suggestions.
+     * @param {number} payload.prefixLength - The length of the common prefix.
+     */
+    #handleShowHints(payload) {
+        if (!this.#view) return;
+
+        if (payload.suggestions && payload.suggestions.length > 0) {
+            this.#view.show(payload.suggestions, payload.prefixLength);
+        } else {
+            this.#view.hide();
+        }
+    }
+
+    #handleHideHints() {
+        if (this.#view) {
+            this.#view.hide();
+        }
     }
 }
 
-export { HintBusService };
+export { HintService };

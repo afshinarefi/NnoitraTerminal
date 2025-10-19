@@ -21,24 +21,26 @@ const log = createLogger('cat');
 export class Cat {
     static DESCRIPTION = 'Print the content of a FILE';
 
-    #filesystemService;
+    #getFileContents;
+    #autocompletePath;
 
     constructor(services) {
-        this.#filesystemService = services.filesystem;
+        this.#getFileContents = services.getFileContents;
+        this.#autocompletePath = services.autocompletePath;
     }
 
     static man() {
         return `NAME\n       cat - Concatenate and print files.\n\nSYNOPSIS\n       cat [FILE]...\n\nDESCRIPTION\n       The cat command reads files sequentially, writing them to the standard output.`;
     }
 
-    static async autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) {
         if (currentArgs.length > 1) {
             return [];
         }
         const input = currentArgs[0] || '';
-        const allPaths = await services.filesystem.autocompletePath(input, true);
+        const allPaths = await this.#autocompletePath(input, true);
         // Filter to only suggest .txt files or directories (to allow navigation)
-        return allPaths.filter(p => p.endsWith('/') || p.toLowerCase().endsWith('.txt'));
+        return allPaths.filter(p => p.endsWith('/') || p.toLowerCase().endsWith('.txt') || p.toLowerCase().endsWith('.md'));
     }
 
     async execute(args) {
@@ -52,35 +54,13 @@ export class Cat {
             return output;
         }
 
-        let path = filePathArg;
-        if (!path.startsWith('/')) {
-            path = this.#filesystemService.getCurrentPath().replace(/\/$/, '') + '/' + path;
-        }
-        path = this.#filesystemService.normalizePath(path);
-        log.log(`Attempting to read file: "${path}"`);
-
-        if (!this.#filesystemService.isFile(path)) {
-            log.warn(`Path is not a file or does not exist: "${path}"`);
-            output.textContent = `cat: ${filePathArg}: No such file or it is a directory`;
-            return output;
-        }
-
-        if (!path.toLowerCase().endsWith('.txt')) {
-            log.warn(`File is not a .txt file: "${path}"`);
-            output.textContent = `cat: ${filePathArg}: Cannot display binary file or unsupported file type. Only .txt files are supported.`;
-            return output;
-        }
-
         try {
-            const response = await fetch(`/fs${path}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const content = await response.text();
+            // Delegate file fetching and path resolution to the injected function.
+            const content = await this.#getFileContents(filePathArg);
             output.textContent = content;
         } catch (error) {
-            log.error(`Failed to fetch file content for "${path}":`, error);
-            output.textContent = `cat: ${filePathArg}: Cannot read file`;
+            log.error(`Failed to get file content for "${filePathArg}":`, error);
+            output.textContent = `cat: ${filePathArg}: ${error.message}`;
         }
 
         return output;

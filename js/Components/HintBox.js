@@ -15,8 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { ArefiBaseComponent } from './BaseComponent.js';
-import { createLogger } from '../Services/LogService.js';
+import { BaseComponent } from './BaseComponent.js';
+import { createLogger } from '../Managers/LogManager.js';
 const log = createLogger('HintBox');
 
 /**
@@ -74,11 +74,11 @@ hintBoxSpecificStyles.replaceSync(CSS);
 
 /**
  * @class HintBox
- * @extends ArefiBaseComponent
+ * @extends BaseComponent
  * @description A custom element that displays a box of hints or suggestions, typically used for autocomplete.
  * It handles the dynamic rendering of suggestions with a subtle animation.
  */
-class HintBox extends ArefiBaseComponent {
+class HintBox extends BaseComponent {
   /**
    * Creates an instance of HintBox.
    * Initializes the shadow DOM, applies component-specific styles, and hides the box by default.

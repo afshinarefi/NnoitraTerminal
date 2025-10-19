@@ -1,4 +1,3 @@
-import { VAR_CATEGORIES } from '../Services/EnvironmentService.js';
 /**
  * Arefi Terminal
  * Copyright (C) 2025 Arefi
@@ -16,8 +15,8 @@ import { VAR_CATEGORIES } from '../Services/EnvironmentService.js';
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { ArefiBaseComponent } from './BaseComponent.js';
-import { createLogger } from '../Services/LogService.js';
+import { BaseComponent } from './BaseComponent.js';
+import { createLogger } from '../Managers/LogManager.js';
 const log = createLogger('TerminalItem');
 import { Icon } from './Icon.js';
 
@@ -37,14 +36,24 @@ const TEMPLATE = `
  * @constant {string} CSS - CSS styles for the TerminalItem component's shadow DOM.
  */
 const CSS = `
+[part=header],
 [part=command-container],
 [part=output] {
   display: none;
 }
 
+:host(.header-visible) [part=header] {
+  display: inline-block;
+}
+
 :host(.active) [part=command-container],
 :host(.active) [part=output] {
   display: block;
+}
+
+[part=command-container] {
+  display: flex;
+  align-items: center;
 }
 
 [part=command] {
@@ -93,31 +102,17 @@ terminalItemSpecificStyles.replaceSync(CSS);
 
 /**
  * @class TerminalItem
- * @extends ArefiBaseComponent
+ * @extends BaseComponent
  * @description Represents a single entry in the terminal output, displaying a command and its corresponding output.
  * Each item includes a timestamp, user/host/path information, an indexed icon, and the command text.
  */
-class TerminalItem extends ArefiBaseComponent {
-  /** @private {number} #nextId - A static counter to generate unique IDs for each TerminalItem instance. */
-  static #nextId = 1;
+class TerminalItem extends BaseComponent {
   /** @private {number} #id - The unique ID for this specific TerminalItem instance. */
   #id;
-  /** @private {Date} #timestamp - The timestamp when the item was created. */
-  #timestamp;
-  /** @private {string} #DEFAULT_PS1 - The default prompt format. */
-  static #DEFAULT_PS1 = '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}';
-
-
-  /**
-   * Resets the static ID counter back to 1.
-   */
-  static resetIdCounter() {
-    TerminalItem.#nextId = 1;
-  }
 
   /**
    * Creates an instance of TerminalItem.
-   * Initializes the shadow DOM, applies component-specific styles, and assigns a unique ID.
+   * Initializes the shadow DOM and applies component-specific styles.
    */
   constructor() {
     // Pass the template and map to the base constructor, including the Icon component.
@@ -125,56 +120,6 @@ class TerminalItem extends ArefiBaseComponent {
 
     // Apply component-specific styles to the shadow DOM.
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalItemSpecificStyles];
-
-    // Assign a unique ID to this terminal item and set its `id` attribute.
-    this.#id = TerminalItem.#nextId++;
-    this.id = `term-item-${this.#id}`;
-    this.#timestamp = new Date(); // Store the creation timestamp.
-    log.log(`Created item with ID: ${this.#id}`);
-  }
-
-  /**
-   * Sets the header information for the terminal item.
-   * @private
-   * @param {EnvironmentService} environmentService - The environment service to get variables from.
-   */
-  #setHeader(environmentService) {
-    const format = environmentService.getVariable('PS1');
-
-    const replacements = {
-      user: environmentService.getVariable('USER'),
-      host: environmentService.getVariable('HOST'),
-      path: environmentService.getVariable('PWD'),
-      year: this.#timestamp.getFullYear(),
-      month: String(this.#timestamp.getMonth() + 1).padStart(2, '0'),
-      day: String(this.#timestamp.getDate()).padStart(2, '0'),
-      hour: String(this.#timestamp.getHours()).padStart(2, '0'),
-      minute: String(this.#timestamp.getMinutes()).padStart(2, '0'),
-      second: String(this.#timestamp.getSeconds()).padStart(2, '0')
-    };
-
-    // Replace all {key} placeholders with their corresponding values.
-    const headerText = format.replace(/\{(\w+)\}/g, (match, key) => {
-      return replacements[key] !== undefined ? replacements[key] : match;
-    });
-
-    this.refs.header.textContent = headerText;
-  }
-
-  /**
-   * Sets the command text displayed in the terminal item.
-   * @param {string} text - The command string to display.
-   */
-  setCommand(text) {
-    this.refs.command.textContent = text;
-  }
-
-  /**
-   * Sets the icon for the terminal item, typically displaying its unique ID.
-   * @private
-   */
-  #setIcon() {
-    this.refs.icon.indexed(this.#id);
   }
 
   /**
@@ -187,15 +132,31 @@ class TerminalItem extends ArefiBaseComponent {
   }
 
   /**
-   * Sets the full content of the terminal item.
-   * @param {EnvironmentService} environmentService - The environment service for context.
+   * Sets the header content and makes it visible.
+   * @param {number} id - The unique ID for this item.
+   * @param {string} headerText - The pre-formatted header string (PS1).
+   */
+  setHeader(id, headerText) {
+    log.log(`Setting header for ID ${id}`);
+    this.#id = id;
+    this.id = `term-item-${id}`;
+    this.refs.header.textContent = headerText;
+    this.classList.add('header-visible');
+  }
+
+  /**
+   * Sets the command content and makes the command and output areas visible.
    * @param {string} command - The command string to display.
    */
-  setContent(environmentService, command) {
-    log.log(`Setting content for ID ${this.#id}:`, { command });
-    this.setCommand(command);
-    this.#setHeader(environmentService);
-    this.#setIcon();
+  setContent(command) {
+    if (this.#id === undefined) {
+      log.error('setContent called before setHeader. ID is not set.');
+      return;
+    }
+    log.log(`Setting command content for ID ${this.#id}:`, { command });
+    this.refs.command.textContent = command;
+    this.refs.icon.indexed(this.#id);
+    this.classList.add('active');
   }
 }
 

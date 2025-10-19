@@ -20,16 +20,16 @@ import { createLogger } from './Managers/LogManager.js';
 
 // Import all new Bus-based services
 import { EventBusService } from './Services/EventBusService.js';
-import { EnvironmentBusService } from './Services/EnvironmentService.js';
-import { AccountingBusService } from './Services/AccountingService.js';
-import { HistoryBusService } from './Services/HistoryService.js';
-import { CommandBusService } from './Services/CommandService.js';
-import { FilesystemBusService } from './Services/FilesystemService.js';
-import { ThemeBusService } from './Services/ThemeService.js';
-import { InputBusService } from './Services/InputService.js';
-import { HintBusService } from './Services/HintService.js';
-import { FaviconBusService } from './Services/FaviconService.js';
-import { TerminalBusService } from './Services/TerminalService.js';
+import { EnvironmentService } from './Services/EnvironmentService.js';
+import { AccountingService } from './Services/AccountingService.js';
+import { HistoryService } from './Services/HistoryService.js';
+import { CommandService } from './Services/CommandService.js';
+import { FilesystemService } from './Services/FilesystemService.js';
+import { ThemeService } from './Services/ThemeService.js';
+import { InputService } from './Services/InputService.js';
+import { HintService } from './Services/HintService.js';
+import { FaviconService } from './Services/FaviconService.js';
+import { TerminalService } from './Services/TerminalService.js';
 
 const log = createLogger('main');
 
@@ -42,16 +42,16 @@ function main() {
     services.bus = bus;
 
     // Instantiate all the new services
-    services.environment = new EnvironmentBusService(bus);
-    services.accounting = new AccountingBusService(bus);
-    services.history = new HistoryBusService(bus);
-    services.command = new CommandBusService(bus, services);
-    services.theme = new ThemeBusService(bus);
-    services.input = new InputBusService(bus);
-    services.hint = new HintBusService(bus);
-    services.favicon = new FaviconBusService(bus);
-    services.terminal = new TerminalBusService(bus);
-    services.filesystem = new FilesystemBusService(bus);
+    services.environment = new EnvironmentService(bus);
+    services.accounting = new AccountingService(bus);
+    services.history = new HistoryService(bus);
+    services.command = new CommandService(bus, services);
+    services.theme = new ThemeService(bus);
+    services.input = new InputService(bus);
+    services.hint = new HintService(bus);
+    services.favicon = new FaviconService(bus);
+    services.terminal = new TerminalService(bus);
+    services.filesystem = new FilesystemService(bus);
 
     // Create the main terminal component and add it to the DOM
     const terminalComponent = new Terminal();

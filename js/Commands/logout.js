@@ -40,11 +40,12 @@ class Logout {
 
     /**
      * Determines if the command is available in the current context.
-     * @param {object} services - A collection of all services.
+     * @param {object} context - The current application context.
+     * @param {boolean} context.isLoggedIn - Whether a user is currently logged in.
      * @returns {boolean} True if the command is available, false otherwise.
      */
-    static isAvailable(services) {
-        return services.login.isLoggedIn();
+    static isAvailable(context) {
+        return context.isLoggedIn;
     }
 
     async execute(args) {

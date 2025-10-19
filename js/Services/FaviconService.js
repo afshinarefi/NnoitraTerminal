@@ -16,28 +16,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
+import { EVENTS } from './Events.js';
 
-const log = createLogger('FaviconBusService');
+const log = createLogger('FaviconService');
 
 /**
- * @class FaviconBusService
+ * @class FaviconService
  * @description Manages the website's favicon. It dynamically generates and updates the
  * favicon in the document head when the application's theme changes.
  *
  * @listens for `theme-changed-broadcast` - To trigger a favicon re-render.
  */
-class FaviconBusService {
+class FaviconService {
     static #SIZES = [16, 32, 64, 128, 180]; // 180 for apple-touch-icon
     #eventBus;
-    #eventNames;
 
-    static EVENTS = {
-        LISTEN_THEME_CHANGED: 'listenThemeChanged',
-    };
-
-    constructor(eventBus, eventNameConfig) {
+    constructor(eventBus) {
         this.#eventBus = eventBus;
-        this.#eventNames = eventNameConfig;
         this.#registerListeners();
         log.log('Initializing...');
     }
@@ -48,10 +43,12 @@ class FaviconBusService {
     }
 
     #registerListeners() {
-        this.#eventBus.listen(this.#eventNames[FaviconBusService.EVENTS.LISTEN_THEME_CHANGED], () => {
-            log.log('Theme changed, rerendering favicon.');
-            this.#renderFavicon();
-        });
+        this.#eventBus.listen(EVENTS.THEME_CHANGED_BROADCAST, this.#handleThemeChanged.bind(this));
+    }
+
+    #handleThemeChanged() {
+        log.log('Theme changed, rerendering favicon.');
+        this.#renderFavicon();
     }
 
     /**
@@ -106,7 +103,7 @@ class FaviconBusService {
         // Remove any existing favicon links
         document.querySelectorAll("link[rel~='icon'], link[rel='apple-touch-icon']").forEach(el => el.remove());
 
-        FaviconBusService.#SIZES.forEach(size => {
+        FaviconService.#SIZES.forEach(size => {
             const url = this.#drawIcon({ ...drawOptions, size });
             const link = document.createElement('link');
             link.rel = size === 180 ? 'apple-touch-icon' : 'icon';
@@ -118,4 +115,4 @@ class FaviconBusService {
     }
 }
 
-export { FaviconBusService };
+export { FaviconService };

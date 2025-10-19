@@ -15,8 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { ArefiBaseComponent } from './BaseComponent.js';
-import { createLogger } from '../Services/LogService.js';
+import { BaseComponent } from './BaseComponent.js';
+import { createLogger } from '../Managers/LogManager.js';
 const log = createLogger('Media');
 
 /**
@@ -44,11 +44,11 @@ mediaSpecificStyles.replaceSync(CSS);
 
 /**
  * @class ArefiMedia
- * @extends ArefiBaseComponent
+ * @extends BaseComponent
  * @description A custom element for displaying images or videos. It handles the loading
  * of media and dispatches a 'media-loaded' event upon completion to solve scroll timing issues.
  */
-class ArefiMedia extends ArefiBaseComponent {
+class Media extends BaseComponent {
   #mediaElement;
 
   constructor() {
@@ -115,6 +115,6 @@ class ArefiMedia extends ArefiBaseComponent {
 }
 
 // Define the custom element 'arefi-media'
-customElements.define('arefi-media', ArefiMedia);
+customElements.define('arefi-media', Media);
 
-export { ArefiMedia };
+export { Media };

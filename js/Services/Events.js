@@ -55,4 +55,10 @@ export const EVENTS = {
     // Filesystem
     FS_IS_DIR_REQUEST: 'fs-is-directory-request',
     FS_IS_DIR_RESPONSE: 'fs-is-directory-response',
+    FS_AUTOCOMPLETE_PATH_REQUEST: 'fs-autocomplete-path-request',
+    FS_AUTOCOMPLETE_PATH_RESPONSE: 'fs-autocomplete-path-response',
+    FS_GET_DIRECTORY_CONTENTS_REQUEST: 'fs-get-directory-contents-request',
+    FS_GET_DIRECTORY_CONTENTS_RESPONSE: 'fs-get-directory-contents-response',
+    FS_GET_FILE_CONTENTS_REQUEST: 'fs-get-file-contents-request',
+    FS_GET_FILE_CONTENTS_RESPONSE: 'fs-get-file-contents-response',
 };

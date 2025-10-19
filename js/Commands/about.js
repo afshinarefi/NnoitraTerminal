@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { ArefiMedia } from '../Components/Media.js';
+import { Media } from '../Components/Media.js';
 import { createLogger } from '../Managers/LogManager.js';
 /**
  * @class About
@@ -67,7 +67,7 @@ class About {
                         element.appendChild(document.createTextNode(item.Value));
                     }
                 } else if (item.Type === 'Image') {
-                    element = new ArefiMedia();
+                    element = new Media();
                     element.id = item.Id;
                     element.src = item.Source;
                 }

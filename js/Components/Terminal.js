@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { ArefiBaseComponent } from './BaseComponent.js';
+import { BaseComponent } from './BaseComponent.js';
 import { TerminalItem } from './TerminalItem.js';
 import { CommandLine } from './CommandLine.js';
 import { HintBox } from './HintBox.js';
@@ -69,29 +69,16 @@ terminalSpecificStyles.replaceSync(CSS);
 
 /**
  * @class Terminal
- * @extends ArefiBaseComponent
+ * @extends BaseComponent
  * @description Represents the main terminal component, handling user input, command execution, and output display.
  * It integrates various services like history, command execution, environment, and autocomplete.
  */
-class Terminal extends ArefiBaseComponent {
+class Terminal extends BaseComponent {
 
   /** @private {ResizeObserver} #resizeObserver - Observes changes to the terminal's size to adjust scrolling. */
   #resizeObserver;
   /** @private {MutationObserver} #mutationObserver - Observes changes in the terminal output to automatically scroll. */
   #mutationObserver;
-
-  /**
-   * Clears all output from the terminal
-   * @private
-   */
-  #clearOutput = () => {
-    const output = this.shadowRoot.querySelector('[part=output]');
-    if (output) {
-      output.innerHTML = '';
-    }
-    // Reset the command ID counter.
-    TerminalItem.resetIdCounter();
-  };
 
   /**
    * Creates an instance of Terminal.
@@ -166,23 +153,20 @@ class Terminal extends ArefiBaseComponent {
   }
 
   /**
-   * Creates a new TerminalItem, populates it with the command, and returns the
-   * element where the command's output should be rendered.
-   * @param {string} commandString - The command string that was executed.
-   * @returns {HTMLElement} The output element for the command.
+   * Appends a child element (like a TerminalItem) to the main output area.
+   * @param {HTMLElement} child - The element to append.
    */
-  createCommandOutput(commandString) {
-    const item = new TerminalItem();
-    // The setContent method will need to be refactored to not depend on a service.
-    // For now, we'll pass a dummy object.
-    item.setContent({ getVariable: (key) => '...' }, commandString);
-    item.classList.add('active');
-    this.refs.output.appendChild(item);
+  appendToOutput(child) {
+    this.refs.output.appendChild(child);
+  }
 
-    // Scroll to the bottom immediately to show the command being run.
-    this.scrollToBottom();
-
-    return item.getOutput();
+  /**
+   * Clears all output from the terminal.
+   */
+  clearOutput() {
+    if (this.refs.output) {
+      this.refs.output.innerHTML = '';
+    }
   }
 
   /**

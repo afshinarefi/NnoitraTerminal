@@ -123,7 +123,6 @@
 
 /var/www/html/js/Components/BaseComponent.js
 /var/www/html/js/Components/CommandLine.js
-/var/www/html/js/Components/Favicon.js
 /var/www/html/js/Components/HintBox.js
 /var/www/html/js/Components/Icon.js
 /var/www/html/js/Components/Media.js

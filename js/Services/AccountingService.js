@@ -20,7 +20,7 @@ import { VAR_CATEGORIES } from './Constants.js';
 import { ApiManager } from '../Managers/ApiManager.js';
 import { EVENTS } from './Events.js';
 
-const log = createLogger('AccountingBusService');
+const log = createLogger('AccountingService');
 
 // Define constants for hardcoded strings to improve maintainability.
 const API_ENDPOINT = '/server/accounting.py';
@@ -30,7 +30,7 @@ const VAR_TOKEN_EXPIRY = 'TOKEN_EXPIRY';
 const GUEST_USER = 'guest';
 
 /**
- * @class AccountingBusService
+ * @class AccountingService
  * @description Handles user authentication and session management via the event bus.
  *
  * @listens for `variable-persist-request` - Handles requests to save environment variables.
@@ -42,46 +42,27 @@ const GUEST_USER = 'guest';
  * @dispatches `variable-get-request` - To get session-related environment variables.
  * @dispatches `environment-reset-request` - To reset the environment service.
  */
-class AccountingBusService {
+class AccountingService {
     #eventBus;
-    #eventNames;
     #apiManager;
     #user = GUEST_USER;
     #token = null;
+    #initialStateCorrelationId = null;
 
-    static EVENTS = {
-        PROVIDE_PERSIST_VAR: 'providePersistVar',
-        PROVIDE_PERSIST_CMD: 'providePersistCmd',
-        PROVIDE_HISTORY_LOAD: 'provideHistoryLoad',
-        USE_USER_CHANGED: 'useUserChanged',
-        USE_VAR_SET: 'useVarSet',
-        USE_VAR_GET: 'useVarGet',
-        USE_ENV_RESET: 'useEnvReset',
-        LISTEN_VAR_GET_RESPONSE: 'listenVarGetResponse'
-    };
-
-    constructor(eventBus, eventNameConfig) {
+    constructor(eventBus) {
         this.#eventBus = eventBus;
-        this.#eventNames = eventNameConfig;
         this.#apiManager = new ApiManager(API_ENDPOINT);
         this.#registerListeners();
         log.log('Initializing...');
-
-        // Request initial state
-        this.#eventBus.dispatch(this.#eventNames[AccountingBusService.EVENTS.USE_VAR_GET], { key: VAR_USER });
-        this.#eventBus.dispatch(this.#eventNames[AccountingBusService.EVENTS.USE_VAR_GET], { key: VAR_TOKEN });
     }
 
     #registerListeners() {
         // Listen for responses to the initial variable check
-        this.#eventBus.listen(this.#eventNames[AccountingBusService.EVENTS.LISTEN_VAR_GET_RESPONSE], (payload) => {
-            if (payload.key === VAR_USER) this.#user = payload.value || GUEST_USER;
-            if (payload.key === VAR_TOKEN) this.#token = payload.value;
-        });
+        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, this.#handleInitialStateResponse.bind(this));
 
-        this.#eventBus.listen(this.#eventNames[AccountingBusService.EVENTS.PROVIDE_PERSIST_VAR], (payload) => this.#handlePersistVariable(payload));
-        this.#eventBus.listen(this.#eventNames[AccountingBusService.EVENTS.PROVIDE_PERSIST_CMD], (payload) => this.#handlePersistCommand(payload));
-        // PROVIDE_HISTORY_LOAD listener will be added when that service is refactored.
+        this.#eventBus.listen(EVENTS.VAR_PERSIST_REQUEST, (payload) => this.#handlePersistVariable(payload));
+        this.#eventBus.listen(EVENTS.COMMAND_PERSIST_REQUEST, (payload) => this.#handlePersistCommand(payload));
+        this.#eventBus.listen(EVENTS.HISTORY_LOAD_REQUEST, (payload) => this.#handleHistoryLoad(payload));
     }
 
     isLoggedIn() {
@@ -90,8 +71,10 @@ class AccountingBusService {
 
     start() {
         // Request initial state now that all services are listening.
-        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { key: VAR_USER });
-        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { key: VAR_TOKEN });
+        this.#initialStateCorrelationId = `as-init-${Date.now()}`;
+        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { 
+            keys: [VAR_USER, VAR_TOKEN],
+            correlationId: this.#initialStateCorrelationId });
     }
 
     async login(username, password) {
@@ -172,6 +155,39 @@ class AccountingBusService {
             value: payload.command
         }, this.#token);
     }
+
+    async #handleHistoryLoad(payload) {
+        if (this.#user === GUEST_USER || !this.isLoggedIn()) {
+            log.warn(`History load blocked: User is guest or not logged in.`);
+            return;
+        }
+        const result = await this.#apiManager.post('get_data', {
+            category: 'HISTORY'
+        }, this.#token);
+
+        // Dispatch a response event that HistoryService will listen for.
+        // This part of the flow needs to be completed in HistoryService.
+        log.log("History data received from server:", result);
+    }
+
+    #handleInitialStateResponse({ values, correlationId }) {
+        // Only process the response if it's for our specific startup request.
+        if (correlationId !== this.#initialStateCorrelationId) {
+            return;
+        }
+
+        // Handle USER variable
+        if (values.hasOwnProperty(VAR_USER) && values[VAR_USER]) {
+            this.#user = values[VAR_USER];
+        } else {
+            this.#user = GUEST_USER;
+            // If no user is set, explicitly set the environment to the guest user.
+            this.#dispatchSetVariable(VAR_USER, GUEST_USER, VAR_CATEGORIES.LOCAL);
+        }
+
+        // Handle TOKEN variable
+        this.#token = values[VAR_TOKEN] || null;
+    }
 }
 
-export { AccountingBusService };
+export { AccountingService };

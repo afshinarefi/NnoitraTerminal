@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Services/LogService.js';
+import { createLogger } from '../Managers/LogManager.js';
 /**
  * @class Welcome
  * @description Implements the 'welcome' command, displaying an ASCII art welcome message.

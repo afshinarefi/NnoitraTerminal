@@ -15,41 +15,36 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { EVENTS } from './Events.js';
 import { createLogger } from '../Managers/LogManager.js';
+import { TerminalItem } from '../Components/TerminalItem.js';
 
-const log = createLogger('TerminalBusService');
+const log = createLogger('TerminalService');
+
+// Define constants for environment variable keys to improve maintainability.
+const VAR_PS1 = 'PS1';
+const VAR_USER = 'USER';
+const VAR_HOST = 'HOST';
+const VAR_PWD = 'PWD';
 
 /**
- * @class TerminalBusService
- * @description Orchestrates the main command loop of the terminal. It requests user input,
- * waits for the response, triggers command execution, and then repeats the cycle.
+ * @class TerminalService
+ * @description Acts as a presenter for the terminal's output area. It handles
+ * creating and populating TerminalItem components in response to command execution.
+ * It also orchestrates the main command execution loop.
  *
- * @listens for `input-response` - To receive the command string submitted by the user.
- * @listens for `command-execution-finished-broadcast` - To know when to request the next command.
- * @listens for `user-changed-broadcast` - To restart the command loop on login/logout.
- * @listens for `clear-screen-request` - To clear the terminal view.
- *
- * @dispatches `input-request` - To ask the InputBusService to prompt the user for a command.
- * @dispatches `command-execute-broadcast` - To trigger command execution.
+ * @listens for `input-response` - Receives user input and triggers command execution.
+ * @listens for `command-execution-finished-broadcast` - Restarts the input loop.
+ * @listens for `clear-screen-request` - Clears the terminal output.
  */
-class TerminalBusService {
+class TerminalService {
     #eventBus;
-    #eventNames;
     #view = null; // The Terminal component instance
-    #currentCorrelationId = 0;
+    #nextId = 1;
+    #currentItem = null; // The currently pending terminal item
 
-    static EVENTS = {
-        LISTEN_INPUT_RESPONSE: 'listenInputResponse',
-        LISTEN_EXECUTION_FINISHED: 'listenExecutionFinished',
-        LISTEN_USER_CHANGED: 'listenUserChanged',
-        USE_INPUT_REQUEST: 'useInputRequest',
-        USE_COMMAND_EXECUTE_BROADCAST: 'useCommandExecuteBroadcast',
-        LISTEN_CLEAR_SCREEN: 'listenClearScreen'
-    };
-
-    constructor(eventBus, eventNameConfig) {
+    constructor(eventBus) {
         this.#eventBus = eventBus;
-        this.#eventNames = eventNameConfig;
         this.#registerListeners();
         log.log('Initializing...');
     }
@@ -62,60 +57,107 @@ class TerminalBusService {
         this.#view = view;
     }
 
+    #registerListeners() {
+        this.#eventBus.listen(EVENTS.INPUT_RESPONSE, this.#handleInputResponse.bind(this));
+        this.#eventBus.listen(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST, this.#requestNextCommand.bind(this));
+        this.#eventBus.listen(EVENTS.CLEAR_SCREEN_REQUEST, this.#handleClear.bind(this));
+        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, this.#handlePromptVariablesResponse.bind(this));
+    }
+
     /**
-     * Starts the main application loop by requesting the first command.
+     * Starts the main terminal loop by requesting the first command.
      */
     start() {
         this.#requestNextCommand();
     }
 
-    #registerListeners() {
-        // When we get a response for our input request, trigger the next step.
-        this.#eventBus.listen(this.#eventNames[TerminalBusService.EVENTS.LISTEN_INPUT_RESPONSE], (payload) => {
-            // We only care about the response that matches our request for a command.
-            if (payload.correlationId === this.#currentCorrelationId && payload.value.trim() && this.#view) {
-                const commandString = payload.value;
-                const outputElement = this.#view.createCommandOutput(commandString);
-                this.#eventBus.dispatch(this.#eventNames[TerminalBusService.EVENTS.USE_COMMAND_EXECUTE_BROADCAST], { commandString, outputElement });
+    #handleClear() {
+        if (!this.#view) return;
+        this.#view.clearOutput();
+        this.#nextId = 1;
+        // After clearing, we might want to re-prompt the user.
+        // However, the 'clear' command itself will finish and trigger the next prompt.
+    }
 
-                // For now, we assume the command finishes instantly and request the next one.
-                // A more robust solution would wait for a 'command-finished' event.
-                this.#eventBus.dispatch(this.#eventNames[TerminalBusService.EVENTS.LISTEN_EXECUTION_FINISHED]);
-            } else {
-                // If input was empty, just request the next command immediately.
-                this.#requestNextCommand();
-            }
-        });
+    #handleInputResponse({ value: commandString }) {
+        if (!this.#view) return;
 
-        // When a command has finished executing, we can ask for the next one.
-        this.#eventBus.listen(this.#eventNames[TerminalBusService.EVENTS.LISTEN_EXECUTION_FINISHED], () => {
-            this.#requestNextCommand();
-        });
+        // Now that we have the command, populate the pending terminal item.
+        this.#currentItem.setContent(commandString);
+        // The setContent method now handles making the command part visible.
 
-        // If the user logs in or out, restart the command loop.
-        this.#eventBus.listen(this.#eventNames[TerminalBusService.EVENTS.LISTEN_USER_CHANGED], () => {
-            this.#requestNextCommand();
-        });
+        const outputContainer = { element: this.#currentItem.getOutput() };
 
-        this.#eventBus.listen(this.#eventNames[TerminalBusService.EVENTS.LISTEN_CLEAR_SCREEN], () => {
-            if (this.#view) {
-                this.#view.clearOutput();
-            }
+        // Dispatch the event for the CommandService to execute the command.
+        this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTE_BROADCAST, {
+            commandString,
+            outputElement: outputContainer
         });
     }
 
-    /**
-     * Dispatches a request for the next command from the user.
-     */
+    #formatHeader(vars) {
+        const format = vars[VAR_PS1] || '[{user}@{host}:{path}]';
+        const timestamp = new Date();
+        const replacements = {
+            user: vars[VAR_USER] || 'guest',
+            host: vars[VAR_HOST] || 'arefi.info',
+            path: vars[VAR_PWD] || '~',
+            year: timestamp.getFullYear(),
+            month: String(timestamp.getMonth() + 1).padStart(2, '0'),
+            day: String(timestamp.getDate()).padStart(2, '0'),
+            hour: String(timestamp.getHours()).padStart(2, '0'),
+            minute: String(timestamp.getMinutes()).padStart(2, '0'),
+            second: String(timestamp.getSeconds()).padStart(2, '0')
+        };
+
+        return format.replace(/\{(\w+)\}/g, (match, key) => replacements[key] ?? match);
+    }
+
+    #createAndDisplayHeader(headerText) {
+        const id = this.#nextId++;
+        const item = new TerminalItem();
+        
+        // Set only the header content initially and make it visible.
+        item.setHeader(id, headerText);
+
+        this.#view.appendToOutput(item);
+        this.#currentItem = item; // Store as the pending item.
+    }
+
     #requestNextCommand() {
-        this.#currentCorrelationId++;
-        log.log(`Requesting next command with correlationId: ${this.#currentCorrelationId}`);
-        this.#eventBus.dispatch(this.#eventNames[TerminalBusService.EVENTS.USE_INPUT_REQUEST], {
-            prompt: '', // Main prompt is handled by PS1, not here.
-            options: { allowHistory: true, allowAutocomplete: true },
-            correlationId: this.#currentCorrelationId
+        // First, request the variables needed to build the prompt header (PS1).
+        const correlationId = `prompt-vars-${Date.now()}`;
+        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, {
+            keys: [VAR_PS1, VAR_USER, VAR_HOST, VAR_PWD],
+            correlationId: correlationId
         });
+    }
+
+    #requestInput() {
+        const prompt = '';
+
+        // Standard options for a command prompt.
+        const options = {
+            allowHistory: true,
+            allowAutocomplete: true,
+            isSecret: false
+        };
+
+        // Dispatch the request for user input.
+        this.#eventBus.dispatch(EVENTS.INPUT_REQUEST, { prompt, options });
+    }
+
+    #handlePromptVariablesResponse({ values, correlationId }) {
+        // Ensure this response is for our prompt variable request.
+        if (!correlationId || !correlationId.startsWith('prompt-vars-')) {
+            return;
+        }
+
+        // Now that we have the variables, format the header, create the item, and request input.
+        const headerText = this.#formatHeader(values);
+        this.#createAndDisplayHeader(headerText);
+        this.#requestInput();
     }
 }
 
-export { TerminalBusService };
+export { TerminalService };

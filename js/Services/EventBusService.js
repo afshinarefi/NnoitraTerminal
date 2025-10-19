@@ -49,7 +49,7 @@ class EventBusService {
      */
     dispatch(eventName, payload) {
         if (this.#listeners.has(eventName)) {
-            this.#listeners.get(eventName).forEach(callback => callback(payload));
+            this.#listeners.get(eventName).forEach(callback => {log.log([eventName, payload]); callback(payload)});
         }
     }
 }

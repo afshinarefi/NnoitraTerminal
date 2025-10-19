@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
-import { parseAssignment } from '../utils/parseUtil.js';
+import { parseAssignment } from '../Utils/ParseUtil.js';
 const log = createLogger('export');
 
 /**

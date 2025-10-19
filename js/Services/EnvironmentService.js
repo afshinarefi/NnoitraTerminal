@@ -37,7 +37,7 @@ const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
  * @dispatches `VAR_CHANGED_BROADCAST` - When any variable's value changes.
  * @dispatches `VAR_GET_RESPONSE` - The value in response to a get request.
  */
-class EnvironmentBusService {
+class EnvironmentService {
     #eventBus;
 	#categorizedVariables = new Map([
 		[VAR_CATEGORIES.TEMP, new Map()],
@@ -82,9 +82,19 @@ class EnvironmentBusService {
 		localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localObj));
 	}
 
-    #handleGetVariable({ key, correlationId }) {
-        const value = this.getVariable(key);
-        this.#eventBus.dispatch(EVENTS.VAR_GET_RESPONSE, { key, value, correlationId });
+    #handleGetVariable({ key, keys, correlationId }) {
+        const response = {
+            values: {},
+            correlationId
+        };
+        const keysToProcess = keys || (key ? [key] : []);
+
+        for (const k of keysToProcess) {
+            response.values[k] = this.getVariable(k);
+        }
+
+        // Dispatch a single response with all requested values.
+        this.#eventBus.dispatch(EVENTS.VAR_GET_RESPONSE, response);
     }
 
 	getVariable(key) {
@@ -208,4 +218,4 @@ class EnvironmentBusService {
 	}
 }
 
-export { EnvironmentBusService };
+export { EnvironmentService };

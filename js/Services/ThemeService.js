@@ -16,8 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
+import { EVENTS } from './Events.js';
 
-const log = createLogger('ThemeBusService');
+const log = createLogger('ThemeService');
 
 // Define constants for hardcoded strings
 const VAR_THEME = 'THEME';
@@ -33,55 +34,54 @@ const DEFAULT_THEME = 'green';
  * @dispatches `variable-get-request` - To get the initial THEME variable on startup.
  * @dispatches `theme-changed-broadcast` - When the theme is successfully applied.
  */
-class ThemeBusService {
+class ThemeService {
     static VALID_THEMES = ['green', 'yellow', 'orange', 'red'];
     #eventBus;
-    #eventNames;
+    #initialThemeCorrelationId = null;
 
-    static EVENTS = {
-        LISTEN_VAR_CHANGED: 'listenVarChanged',
-        USE_VAR_GET: 'useVarGet',
-        LISTEN_VAR_GET_RESPONSE: 'listenVarGetResponse',
-        USE_THEME_CHANGED_BROADCAST: 'useThemeChangedBroadcast'
-    };
-
-    constructor(eventBus, eventNameConfig) {
+    constructor(eventBus) {
         this.#eventBus = eventBus;
-        this.#eventNames = eventNameConfig;
         this.#registerListeners();
         log.log('Initializing...');
     }
 
     start() {
         // After all services are initialized, request the initial theme value.
-        this.#eventBus.dispatch(this.#eventNames[ThemeBusService.EVENTS.USE_VAR_GET], { key: VAR_THEME });
+        this.#initialThemeCorrelationId = `theme-init-${Date.now()}`;
+        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, {
+            key: VAR_THEME,
+            correlationId: this.#initialThemeCorrelationId
+        });
     }
 
     #registerListeners() {
-        this.#eventBus.listen(this.#eventNames[ThemeBusService.EVENTS.LISTEN_VAR_CHANGED], (payload) => {
-            if (payload.key === VAR_THEME) {
-                this.applyTheme(payload.value);
-            }
-        });
+        this.#eventBus.listen(EVENTS.VAR_CHANGED_BROADCAST, this.#handleVarChanged.bind(this));
+        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, this.#handleInitialThemeResponse.bind(this));
+    }
 
-        this.#eventBus.listen(this.#eventNames[ThemeBusService.EVENTS.LISTEN_VAR_GET_RESPONSE], (payload) => {
-            if (payload.key !== VAR_THEME) return;
-            const theme = payload.value || DEFAULT_THEME;
-            this.applyTheme(theme);
-        });
+    #handleVarChanged(payload) {
+        if (payload.key === VAR_THEME) {
+            this.applyTheme(payload.value);
+        }
+    }
+
+    #handleInitialThemeResponse({ values, correlationId }) {
+        if (correlationId !== this.#initialThemeCorrelationId || !values.hasOwnProperty(VAR_THEME)) return;
+        const theme = values[VAR_THEME] || DEFAULT_THEME;
+        this.applyTheme(theme);
     }
 
     applyTheme(themeName) {
-        const finalTheme = ThemeBusService.VALID_THEMES.includes(themeName) ? themeName : DEFAULT_THEME;
+        const finalTheme = ThemeService.VALID_THEMES.includes(themeName) ? themeName : DEFAULT_THEME;
         const themeColor = `var(--arefi-color-${finalTheme})`;
         document.documentElement.style.setProperty('--arefi-color-theme', themeColor);
-        this.#eventBus.dispatch(this.#eventNames[ThemeBusService.EVENTS.USE_THEME_CHANGED_BROADCAST], { themeName: finalTheme });
+        this.#eventBus.dispatch(EVENTS.THEME_CHANGED_BROADCAST, { themeName: finalTheme });
         log.log(`Applied theme: ${finalTheme}`);
     }
 
     getValidThemes() {
-        return ThemeBusService.VALID_THEMES;
+        return ThemeService.VALID_THEMES;
     }
 }
 
-export { ThemeBusService };
+export { ThemeService };

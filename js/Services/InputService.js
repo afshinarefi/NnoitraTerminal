@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { EVENTS } from './Events.js';
 import { createLogger } from '../Managers/LogManager.js';
 
 const log = createLogger('InputBusService');
@@ -28,36 +29,30 @@ const log = createLogger('InputBusService');
  * @listens for `history-indexed-response` - Updates the command line view with a history item.
  * @listens for `autocomplete-broadcast` - Updates the command line view with autocomplete suggestions.
  *
- * @dispatches `input-response` - In response to an `input-request`.
+ * @dispatches `command-execute-broadcast` - When the user submits a command.
+ * @dispatches `input-response-broadcast` - In response to an `input-request`.
  * @dispatches `history-previous-request` - When the user requests the previous history item.
  * @dispatches `history-next-request` - When the user requests the next history item.
  * @dispatches `autocomplete-request` - When the user requests autocomplete.
  */
-class InputBusService {
+class InputService {
     #eventBus;
     #eventNames;
     #view = null; // The CommandLine component instance
     #inputBuffer = '';
-    #isReading = false;
     #isSecret = false;
     #secretValue = '';
 
+    // Properties for swipe gesture detection
+    #touchStartX = 0;
+    #touchStartY = 0;
+
+    // State properties for the current input mode
     #allowHistory = false;
     #allowAutocomplete = false;
 
-    static EVENTS = {
-        PROVIDE_INPUT: 'provideInput',
-        USE_HISTORY_PREVIOUS: 'useHistoryPrevious',
-        USE_HISTORY_NEXT: 'useHistoryNext',
-        USE_AUTOCOMPLETE_REQUEST: 'useAutocompleteRequest',
-        LISTEN_HISTORY_RESPONSE: 'listenHistoryResponse',
-        LISTEN_AUTOCOMPLETE_BROADCAST: 'listenAutocompleteBroadcast',
-        USE_INPUT_RESPONSE: 'useInputResponse'
-    };
-
-    constructor(eventBus, eventNameConfig) {
+    constructor(eventBus) {
         this.#eventBus = eventBus;
-        this.#eventNames = eventNameConfig;
         this.#registerListeners();
         log.log('Initializing...');
     }
@@ -68,57 +63,35 @@ class InputBusService {
      */
     setView(view) {
         this.#view = view;
-        // The view should delegate its keydown events to this service.
-        this.#view.addEventListener('keydown', (e) => this.onKeyDown(e));
-        this.#view.addEventListener('input', (e) => this.#onInput(e));
+        // The view delegates its raw user interaction events to this service.
+        this.#view.addEventListener('keydown', (e) => this.#onKeyDown(e.detail));
+        this.#view.addEventListener('input', (e) => this.#onInput(e.detail));
+        this.#view.addEventListener('command-submit', (e) => this.#onCommandSubmit(e.detail));
+        this.#view.addEventListener('autocomplete-request', (e) => this.#onAutocompleteRequest(e.detail));
+        this.#view.addEventListener('touchstart', (e) => this.#onTouchStart(e.detail));
+        this.#view.addEventListener('touchend', (e) => this.#onTouchEnd(e.detail));
     }
 
     #registerListeners() {
-        this.#eventBus.listen(this.#eventNames[InputBusService.EVENTS.PROVIDE_INPUT], (payload) => {
-            // When a command requests input, this service enters "read" mode.
-            const { prompt, options, correlationId } = payload;
-            this.read(prompt, options, correlationId);
-        });
-
-        this.#eventBus.listen(this.#eventNames[InputBusService.EVENTS.LISTEN_HISTORY_RESPONSE], (payload) => {
-            if (this.#view) {
-                this.#view.setValue(payload.command);
-                // This logic could be expanded to show the history index icon
-            }
-        });
-
-        this.#eventBus.listen(this.#eventNames[InputBusService.EVENTS.LISTEN_AUTOCOMPLETE_BROADCAST], (payload) => {
-            if (this.#view) {
-                this.#view.setValue(payload.suggestions[0] || this.#view.getValue());
-                // This logic could be expanded to show the hint box
-            }
-        });
+        this.#eventBus.listen(EVENTS.INPUT_REQUEST, this.#handleInputRequest.bind(this));
+        this.#eventBus.listen(EVENTS.HISTORY_INDEXED_RESPONSE, this.#handleHistoryResponse.bind(this));
+        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_BROADCAST, this.#handleAutocompleteBroadcast.bind(this));
     }
 
+    // --- Event Handlers ---
+    
     /**
-     * Handles all keydown events delegated from the view.
+     * Handles keydown events delegated from the view.
      * @param {KeyboardEvent} event
      */
-    onKeyDown(event) {
+    #onKeyDown(event) {
         if (!this.#view) return;
 
-        if (this.#isReading) {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                this.#finishRead();
-            }
-            return;
-        }
-
-        if (this.#view.isDisabled()) {
-            event.stopPropagation();
-            event.preventDefault();
-            return;
-        }
-
-        this.#view.focus();
-
         switch (event.key) {
+            // Enter is handled by the 'command-submit' event listener
+            // to consolidate submission logic.
+
+            /*
             case 'Enter':
                 event.preventDefault();
                 const command = this.#view.getValue();
@@ -126,28 +99,27 @@ class InputBusService {
                 this.#finishRead();
                 break;
 
+            */
             case 'ArrowUp':
                 if (this.#allowHistory) {
                     event.preventDefault();
                     if (this.#inputBuffer === '') {
                         this.#inputBuffer = this.#view.getValue();
                     }
-                    this.#eventBus.dispatch(this.#eventNames[InputBusService.EVENTS.USE_HISTORY_PREVIOUS]);
+                    this.#eventBus.dispatch(EVENTS.HISTORY_PREVIOUS_REQUEST);
                 }
                 break;
 
             case 'ArrowDown':
                 if (this.#allowHistory) {
                     event.preventDefault();
-                    this.#eventBus.dispatch(this.#eventNames[InputBusService.EVENTS.USE_HISTORY_NEXT]);
+                    this.#eventBus.dispatch(EVENTS.HISTORY_NEXT_REQUEST);
                 }
                 break;
 
             case 'Tab':
                 if (this.#allowAutocomplete) {
-                    event.preventDefault();
-                    const parts = this.#view.getValue().split(/\s+/);
-                    this.#eventBus.dispatch(this.#eventNames[InputBusService.EVENTS.USE_AUTOCOMPLETE_REQUEST], { parts });
+                    this.#onAutocompleteRequest(this.#view.getValue());
                 }
                 break;
         }
@@ -158,55 +130,135 @@ class InputBusService {
      * @param {InputEvent} event
      */
     #onInput(event) {
-        if (!this.#isSecret || !this.#view) return;
+        if (!this.#isSecret || !this.#view) return; // Only act in secret mode
 
-        const input = this.#view.getInputElement();
-        // This is a simplified masking logic. A robust implementation would handle
-        // pastes, deletions, and cursor movements more gracefully.
-        const lastChar = event.data;
-        if (lastChar) {
-            this.#secretValue += lastChar;
-        } else {
-            // Handle backspace
-            this.#secretValue = this.#secretValue.slice(0, -1);
-        }
-        input.value = '●'.repeat(this.#secretValue.length);
+        // The view's #handleInput logic is now responsible for updating the display
+        // and providing the real value here.
+        this.#secretValue = event.realValue;
     }
 
-    read(prompt, options = {}, correlationId) {
-        this.#isReading = true;
+    #onCommandSubmit(value) {
+        if (this.correlationId) {
+            // If we are in a read operation, finish it.
+            this.#finishRead();
+        } else {
+            // Otherwise, it's a normal command submission.
+            this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTE_BROADCAST, { commandString: value });
+        }
+    }
+
+    #onAutocompleteRequest(value) {
+        if (this.#allowAutocomplete) {
+            const parts = value.split(/\s+/);
+            this.#eventBus.dispatch(EVENTS.AUTOCOMPLETE_REQUEST, { parts });
+        }
+    }
+
+    // --- Gesture Handlers ---
+
+    /**
+     * Records the starting position of a touch event for swipe detection.
+     * @param {Touch} touch - The touch object from the event.
+     */
+    #onTouchStart(touch) {
+        if (!touch) return;
+        this.#touchStartX = touch.clientX;
+        this.#touchStartY = touch.clientY;
+    }
+
+    /**
+     * Calculates the gesture at the end of a touch and triggers autocomplete on a right swipe.
+     * @param {Touch} touch - The touch object from the event.
+     */
+    #onTouchEnd(touch) {
+        if (this.#touchStartX === 0 || !touch) return;
+
+        const deltaX = touch.clientX - this.#touchStartX;
+        const deltaY = touch.clientY - this.#touchStartY;
+
+        // Reset start coordinates
+        this.#touchStartX = 0;
+        this.#touchStartY = 0;
+
+        // Check for a right swipe: significant horizontal movement, minimal vertical movement.
+        if (deltaX > 50 && Math.abs(deltaY) < 50) {
+            this.#onAutocompleteRequest(this.#view.getValue());
+        }
+    }
+
+    // --- Core Logic Methods ---
+
+    #startRead(prompt, options = {}, correlationId) {
         this.#isSecret = options.isSecret || false;
-        this.#allowHistory = options.allowHistory || false;
-        this.#allowAutocomplete = options.allowAutocomplete || false;
+        // By default, a read operation should not allow history or autocomplete
+        this.#allowHistory = options.allowHistory || false; // e.g. login prompt
+        this.#allowAutocomplete = options.allowAutocomplete || false; // e.g. shell prompt
         this.#secretValue = '';
         this.correlationId = correlationId; // Store the ID for the response
         this.#inputBuffer = '';
+
         this.#view.clear();
         this.#view.enable();
         this.#view.setPlaceholder(prompt);
+        this.#view.setSecret(this.#isSecret);
         this.#view.focus();
     }
 
     #finishRead() {
         const value = this.#isSecret ? this.#secretValue : this.#view.getValue();
 
-        // Dispatch the response event with the value and the original correlationId.
-        this.#eventBus.dispatch(this.#eventNames[InputBusService.EVENTS.USE_INPUT_RESPONSE], {
+        // Dispatch the response event with the value and the original correlationId
+        this.#eventBus.dispatch(EVENTS.INPUT_RESPONSE, {
             value: value,
             correlationId: this.correlationId
         });
 
-        this.#isReading = false;
+        this.#resetState();
+    }
+
+    #resetState() {
+        // Reset all state to default for a normal command prompt
         this.#isSecret = false;
-        this.#allowHistory = false;
-        this.#allowAutocomplete = false;
+        this.#allowHistory = true; // Normal prompt allows history
+        this.#allowAutocomplete = true; // Normal prompt allows autocomplete
         this.#secretValue = '';
         this.correlationId = null;
+        this.#inputBuffer = '';
+
         this.#view.clear();
         this.#view.enable();
         this.#view.setPlaceholder('');
-        this.#inputBuffer = '';
+        this.#view.setSecret(false);
+    }
+
+    // --- Listener Implementations ---
+
+    #handleInputRequest(payload) {
+        // When a command requests input, this service enters "read" mode.
+        const { prompt, options, correlationId } = payload;
+        this.#startRead(prompt, options, correlationId);
+        if (options?.isSecret) {
+            this.#view.setIcon('key');
+        }
+    }
+
+    #handleHistoryResponse(payload) {
+        if (this.#view) {
+            this.#view.setValue(payload.command);
+            // This logic could be expanded to show the history index icon
+        }
+    }
+
+    #handleAutocompleteBroadcast(payload) {
+        if (this.#view) {
+            // Don't autocomplete if there are no suggestions
+            if (!payload.suggestions || payload.suggestions.length === 0) {
+                return;
+            }
+            this.#view.setValue(payload.suggestions[0]);
+            // This logic could be expanded to show the hint box
+        }
     }
 }
 
-export { InputBusService };
+export { InputService };

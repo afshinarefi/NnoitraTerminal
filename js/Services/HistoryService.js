@@ -40,7 +40,7 @@ const DEFAULT_HISTSIZE = '1000';
  * @dispatches `VAR_GET_REQUEST` - To get the HISTSIZE variable.
  * @dispatches `VAR_SET_REQUEST` - To set the HISTSIZE variable.
  */
-class HistoryBusService {
+class HistoryService {
     #eventBus;
     #history = [];
     #cursorIndex = 0;
@@ -56,7 +56,7 @@ class HistoryBusService {
         this.#eventBus.listen(EVENTS.HISTORY_PREVIOUS_REQUEST, () => this.#handleGetPrevious());
         this.#eventBus.listen(EVENTS.HISTORY_NEXT_REQUEST, () => this.#handleGetNext());
         this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, (payload) => this.addCommand(payload.commandString));
-        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, (payload) => this.#handleHistSizeResponse(payload));
+        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, ({ values }) => this.#handleHistSizeResponse(values));
     }
 
     start() {
@@ -64,10 +64,12 @@ class HistoryBusService {
         this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { key: VAR_HISTSIZE });
     }
 
-    #handleHistSizeResponse(payload) {
-        if (payload.key !== VAR_HISTSIZE) return;
+    #handleHistSizeResponse(values) {
+        if (!values.hasOwnProperty(VAR_HISTSIZE)) return;
 
-        if (payload.value === undefined) {
+        const histSizeValue = values[VAR_HISTSIZE];
+
+        if (histSizeValue === undefined) {
             // If HISTSIZE is not set at all, set it to the default.
             this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
                 key: VAR_HISTSIZE,
@@ -77,7 +79,7 @@ class HistoryBusService {
             this.#maxSize = parseInt(DEFAULT_HISTSIZE, 10);
         } else {
             // If it is set, validate it.
-            this.#validateHistSize(payload.value);
+            this.#validateHistSize(histSizeValue);
         }
     }
 
@@ -154,4 +156,4 @@ class HistoryBusService {
     }
 }
 
-export { HistoryBusService };
+export { HistoryService };

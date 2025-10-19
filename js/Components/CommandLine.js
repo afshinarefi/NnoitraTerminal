@@ -15,8 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { ArefiBaseComponent } from './BaseComponent.js';
-import { createLogger } from '../Services/LogService.js';
+import { BaseComponent } from './BaseComponent.js';
+import { createLogger } from '../Managers/LogManager.js';
 import { Icon } from './Icon.js';
 const log = createLogger('CommandLine');
 
@@ -66,23 +66,11 @@ commandLineSpecificStyles.replaceSync(CSS);
 
 /**
  * @class CommandLine
- * @extends ArefiBaseComponent
+ * @extends BaseComponent
  * @description Represents the command input line in the terminal. It handles user input,
  * keyboard navigation for command history, and dispatches events for command submission and autocomplete.
  */
-class CommandLine extends ArefiBaseComponent {
-  /** @private {Object.<string, Service>} #services - A collection of services used by the command line (e.g., history). */
-  #services = {};
-  /** @private {string} #inputBuffer - Stores the current input value when navigating history. */
-  #inputBuffer;
-  /** @private {number} #touchStartX - The starting X coordinate of a touch event. */
-  #touchStartX = 0;
-  /** @private {number} #touchStartY - The starting Y coordinate of a touch event. */
-  #touchStartY = 0;
-  /** @private {Function|null} #readResolve - The resolve function for the current read operation. */
-  #readResolve = null;
-  /** @private {boolean} #isReading - Flag indicating if the component is in interactive read mode. */
-  #isReading = false;
+class CommandLine extends BaseComponent {
   /** @private {boolean} #isSecret - Flag indicating if the read mode is for secret (password) input. */
   #isSecret = false;
   /** @private {string} #secretValue - Stores the actual value when in secret input mode. */
@@ -100,234 +88,92 @@ class CommandLine extends ArefiBaseComponent {
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, commandLineSpecificStyles];
 
     // Add touch event listeners for swipe-to-autocomplete gesture.
-    this.refs.footer.addEventListener('touchstart', this.#handleTouchStart.bind(this), { passive: true });
-    this.refs.footer.addEventListener('touchend', this.#handleTouchEnd.bind(this), { passive: true });
+    this.refs.footer.addEventListener('touchstart', (e) => this.#dispatch('touchstart', e.touches[0]), { passive: true });
+    this.refs.footer.addEventListener('touchend', (e) => this.#dispatch('touchend', e.changedTouches[0]), { passive: true });
     // Listen for input to handle manual password masking.
-    this.refs.prompt.addEventListener('input', this.#handleInput.bind(this));
+    this.refs.prompt.addEventListener('input', this.#onInput.bind(this));
+    // Centralize keydown handling
+    this.refs.prompt.addEventListener('keydown', this.#onKeyDown.bind(this));
   }
 
-  /**
-   * Sets the history service for the command line.
-   * @param {HistoryService} service - The history service instance to use.
-   */
-  setHistoryService(service) {
-    if (!service) {
-      log.error("Attempted to set null history manager on CommandLine.");
-      return;
-    }
-    this.#services.history = service;
-  }
-
-  /**
-   * Reads a single line of input from the user for interactive commands.
-   * @param {string} prompt - The prompt to display to the user (e.g., "Password:").
-   * @param {boolean} [isSecret=false] - If true, the input will be masked.
-   * @returns {Promise<string|null>} A promise that resolves with the user's input, or null if cancelled (Ctrl+C).
-   */
-  read(prompt, isSecret = false) {
-    this.#isReading = true;
-    this.#isSecret = isSecret;
-    this.#secretValue = '';
-
-    this.clear();
-    this.enable(); // Ensure the prompt is enabled for reading
-    if (isSecret) {
-      this.refs.icon.key(); // Use a key icon for secret prompts
-    }
-
-    this.refs.prompt.placeholder = prompt;
-    this.focus();
-
-    return new Promise(resolve => {
-      this.#readResolve = resolve;
-    });
-  }
-
-  /**
-   * Records the starting position of a touch event for swipe detection.
-   * @private
-   * @param {TouchEvent} event - The touchstart event.
-   */
-  #handleTouchStart(event) {
-    if (event.touches.length === 1) {
-      this.#touchStartX = event.touches[0].clientX;
-      this.#touchStartY = event.touches[0].clientY;
-    }
-  }
-
-  /**
-   * Calculates the gesture at the end of a touch and triggers autocomplete on a right swipe.
-   * @private
-   * @param {TouchEvent} event - The touchend event.
-   */
-  #handleTouchEnd(event) {
-    if (this.#touchStartX === 0) return;
-
-    const touchEndX = event.changedTouches[0].clientX;
-    const touchEndY = event.changedTouches[0].clientY;
-
-    const deltaX = touchEndX - this.#touchStartX;
-    const deltaY = touchEndY - this.#touchStartY;
-
-    // Reset start coordinates
-    this.#touchStartX = 0;
-    this.#touchStartY = 0;
-
-    // Check for a right swipe: significant horizontal movement, minimal vertical movement.
-    if (deltaX > 50 && Math.abs(deltaY) < 50) {
-      log.log('Right swipe detected, dispatching autocomplete request.');
-      this.dispatchEvent(new CustomEvent('autocomplete-request', {
-        bubbles: true,
-        composed: true,
-        detail: this.refs.prompt.value
-      }));
-    }
-  }
   /**
    * Handles the input event to manually mask characters for secret input.
    * @private
    * @param {InputEvent} event - The input event.
    */
-  #handleInput(event) {
+  #onInput(event) {
       if (!this.#isSecret) {
+          this.#dispatch('input', { realValue: this.refs.prompt.value });
           return; // Do nothing if not in secret mode.
       }
-  
+
       const input = this.refs.prompt;
       const realValue = this.#secretValue;
       const displayValue = input.value;
       const selectionStart = input.selectionStart;
-  
+
       // Find the difference between the real value and what's displayed
       let diff = '';
       if (displayValue.length > realValue.length) {
           // Character(s) were added
           const start = selectionStart - (displayValue.length - realValue.length);
           diff = displayValue.substring(start, selectionStart);
+      } else if (displayValue.length < realValue.length) {
+          // Character(s) were deleted (e.g., backspace)
+          // This is a simplification; robust handling is complex.
+          // We assume deletion happens at the end for this logic.
       }
-  
+
       // Reconstruct the real value based on the change
       const before = realValue.slice(0, selectionStart - diff.length);
       const after = realValue.slice(selectionStart - diff.length + (realValue.length - displayValue.length) + diff.length);
       this.#secretValue = before + diff + after;
-  
+
       // Update the display to be all asterisks again, preserving cursor position
       const newDisplay = '●'.repeat(this.#secretValue.length);
       input.value = newDisplay;
       // Restore the cursor position
       input.setSelectionRange(selectionStart, selectionStart);
+
+      // Dispatch the real value to the presenter
+      this.#dispatch('input', { realValue: this.#secretValue });
   }
 
   /**
-   * Handles various keyboard events for command input, history navigation, and autocomplete.
+   * Handles keyboard events and dispatches them for the presenter to handle.
+   * @private
    * @param {KeyboardEvent} event - The keyboard event.
    */
-  handleEvent(event) {
-    // If we are in interactive read mode, handle input differently.
-    if (this.#isReading) {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            const value = this.#isSecret ? this.#secretValue : this.refs.prompt.value;
-            this.#finishRead(value);
-        }
-        // In read mode, we don't process other special keys like Tab or ArrowUp.
-        return;
-    }
-
-    // If the prompt is disabled, ignore all keyboard events.
+  #onKeyDown(event) {
     if (this.refs.prompt.disabled) {
       event.stopPropagation();
       event.preventDefault();
       return;
     }
 
-    this.focus(); // Ensure the prompt is focused on key interaction.
-
-    switch (event.key) {
-      case 'Enter':
-        event.preventDefault();
-        log.log('Enter key pressed.');
-        const command = this.refs.prompt.value;
-        this.#services.history.resetCursor(); // Reset history cursor after command submission.
-        this.clear(); // Clear the input field.
-        this.refs.icon.ready(); // Set icon to ready state.
-
-        // Dispatch a custom event for command submission.
-        const commandEvent = new CustomEvent('command-submit', {
-          bubbles: true, // Allows event to bubble up the DOM.
-          composed: true, // Allows event to pass through Shadow DOM boundaries.
-          detail: command // The payload: the actual command string.
-        });
-        this.dispatchEvent(commandEvent);
-        break;
-
-      case 'ArrowUp':
-        event.preventDefault();
-        log.log('ArrowUp key pressed.');
-        // Save current input before loading history if at the beginning of history navigation.
-        if (this.#services.history.getCursorIndex() === 0) {
-          this.#inputBuffer = this.refs.prompt.value;
-        }
-
-        const previousHistoryItem = this.#services.history.getPrevious();
-        if (previousHistoryItem.index !== 0) {
-          this.refs.prompt.value = previousHistoryItem.command;
-          this.refs.icon.history(previousHistoryItem.index);
-        }
-        break;
-
-      case 'ArrowDown':
-        event.preventDefault();
-        log.log('ArrowDown key pressed.');
-        const nextHistoryItem = this.#services.history.getNext();
-
-        // If at the end of history (new/empty command line), restore the buffered input.
-        if (nextHistoryItem.index === 0) {
-          this.refs.prompt.value = this.#inputBuffer;
-          this.refs.icon.ready();
-        } else {
-          // Otherwise, load the command from history.
-          this.refs.prompt.value = nextHistoryItem.command;
-          this.refs.icon.history(nextHistoryItem.index);
-        }
-        break;
-
-      case 'Tab':
-        event.preventDefault();
-        log.log('Tab key pressed, dispatching autocomplete request.');
-        // Dispatch a custom event to request autocomplete suggestions.
-        const autocompleteEvent = new CustomEvent('autocomplete-request', {
-          bubbles: true,
-          composed: true,
-          detail: this.refs.prompt.value
-        });
-        this.dispatchEvent(autocompleteEvent);
-        break;
-
-      default:
-        // No specific action for other keys.
-        break;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.#dispatch('command-submit', this.refs.prompt.value);
+      this.clear();
+    } else if (event.key === 'Tab') {
+      event.preventDefault();
+      this.#dispatch('autocomplete-request', this.refs.prompt.value);
+    } else {
+      // For other keys like ArrowUp/Down, just forward the event
+      this.#dispatch('keydown', event);
     }
   }
 
   /**
-   * Finishes an interactive read operation and restores the normal prompt.
+   * Helper to dispatch custom events.
    * @private
-   * @param {string|null} value - The value to resolve the read promise with.
+   * @param {string} name - The event name.
+   * @param {*} detail - The event payload.
    */
-  #finishRead(value) {
-      if (this.#readResolve) {
-          this.#readResolve(value);
-      }
-      this.#isReading = false;
-      this.#readResolve = null;
-      this.#isSecret = false;
-      this.#secretValue = '';
-
-      // Restore normal prompt state and enable it
-      this.clear();
-      this.enable();
+  #dispatch(name, detail) {
+    this.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true, detail }));
   }
+
   /**
    * Sets focus on the command prompt input field.
    */
@@ -337,20 +183,20 @@ class CommandLine extends ArefiBaseComponent {
 
   /**
    * Retrieves the current command string from the input field.
-   * @returns {string} The current value of the command prompt.
+   * @returns {string} The current value of the input.
    */
-  command() {
+  getValue() {
     return this.refs.prompt.value;
   }
 
   /**
    * Sets the value of the command prompt input field.
-   * @param {string} value - The string to set as the command prompt's value.
+   * @param {string} value - The string to set as the input's value.
    */
-  setCommand(value) {
+  setValue(value) {
     this.refs.prompt.value = value;
   }
-
+  
   /**
    * Clears the command prompt input field.
    */
@@ -360,10 +206,11 @@ class CommandLine extends ArefiBaseComponent {
   }
 
   /**
-   * Disables the command prompt, visually indicating that a command is running.
+   * Disables the command prompt.
+   * @param {boolean} disabled - True to disable, false to enable.
    */
-  disable() {
-    this.refs.prompt.disabled = true;
+  setDisabled(disabled) {
+    this.refs.prompt.disabled = disabled;
     this.refs.icon.busy(); // Set icon to busy state.
     this.refs.prompt.placeholder = 'Running Command ...'; // Provide feedback to the user.
   }
@@ -379,12 +226,28 @@ class CommandLine extends ArefiBaseComponent {
   }
 
   /**
-   * Forces an update of the prompt display, typically after a state change like logout.
+   * Sets the placeholder text of the input field.
+   * @param {string} text - The placeholder text.
    */
-  updatePrompt() {
-    // The prompt state (icon, placeholder) is managed by enable/disable.
-    // Calling enable ensures it's in the correct 'ready' state for a new guest session.
-    this.enable();
+  setPlaceholder(text) {
+    this.refs.prompt.placeholder = text;
+  }
+
+  /**
+   * Sets the icon for the prompt.
+   * @param {'ready'|'busy'|'key'|'history'} type - The type of icon.
+   * @param {number} [value] - Optional value for history icon.
+   */
+  setIcon(type, value) {
+    this.refs.icon[type](value);
+  }
+
+  /**
+   * Configures the component for secret (password) input mode.
+   * @param {boolean} isSecret - True to enable secret mode.
+   */
+  setSecret(isSecret) {
+    this.#isSecret = isSecret;
   }
 }
 
