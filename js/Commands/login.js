@@ -24,12 +24,12 @@ const log = createLogger('login');
 class Login {
     static DESCRIPTION = 'Log in as a user.';
 
-    #prompt;
-    #loginService;
+    #prompt; // Function to request user input
+    #login;  // Function to perform login
 
     constructor(services) {
         this.#prompt = services.prompt;
-        this.#loginService = services.login;
+        this.#login = services.login;
     }
 
     static man() {
@@ -42,42 +42,30 @@ class Login {
 
     /**
      * Determines if the command is available in the current context.
-     * @param {object} services - A collection of all services.
+     * @param {object} context - The current application context.
+     * @param {boolean} context.isLoggedIn - Whether a user is currently logged in.
      * @returns {boolean} True if the command is available, false otherwise.
      */
-    static isAvailable(services) {
-        return !services.login.isLoggedIn();
-    }
-
-    /**
-     * Hashes a string using SHA-256.
-     * @param {string} string - The string to hash.
-     * @returns {Promise<string>} A promise that resolves to the hex-encoded hash.
-     */
-    async #hashString(string) {
-        const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(string));
-        return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    static isAvailable(context) {
+        return !context.isLoggedIn;
     }
 
     async execute(args) {
         log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         const username = args[1];
-        let password = args[2];
 
         if (!username) {
             outputDiv.textContent = 'Usage: login <username>';
             return outputDiv;
         }
 
-        // If password is not provided as an argument, prompt for it interactively.
-        if (!password) {
-            log.log('Password not provided, prompting user.');
-            password = await this.#prompt.read('Password', true);
-        }
+        // Always prompt for the password interactively for security reasons.
+        log.log('Prompting user for password.');
+        const password = await this.#prompt('Password: ', { isSecret: true, allowHistory: false, allowAutocomplete: false });
 
         try {
-            const loginResult = await this.#loginService.login(username, password);
+            const loginResult = await this.#login(username, password);
             outputDiv.textContent = loginResult.message;
         } catch (error) {
             log.error('Network or parsing error during login:', error);

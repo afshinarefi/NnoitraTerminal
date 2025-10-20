@@ -82,19 +82,18 @@ class EnvironmentService {
 		localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localObj));
 	}
 
-    #handleGetVariable({ key, keys, correlationId }) {
-        const response = {
-            values: {},
-            correlationId
-        };
+    #handleGetVariable({ key, keys, respond }) {
+        if (!respond) return; // Not a request-response event
+
+        const values = {};
         const keysToProcess = keys || (key ? [key] : []);
-
         for (const k of keysToProcess) {
-            response.values[k] = this.getVariable(k);
+            values[k] = this.getVariable(k);
         }
-
-        // Dispatch a single response with all requested values.
-        this.#eventBus.dispatch(EVENTS.VAR_GET_RESPONSE, response);
+        const wasSent = respond({ values });
+        if (!wasSent) {
+            log.warn('Attempted to respond to a request that has already timed out.');
+        }
     }
 
 	getVariable(key) {

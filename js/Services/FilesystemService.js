@@ -39,7 +39,7 @@ class FilesystemService {
 
     constructor(eventBus) {
         this.#eventBus = eventBus;
-        this.#apiManager = new ApiManager('/server/filesystem.py');
+        this.#apiManager = new ApiManager('/Server/Filesystem.py');
         this.#registerListeners();
         log.log('Initializing...');
     }

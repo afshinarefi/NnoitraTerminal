@@ -31,7 +31,7 @@ import { HintService } from './Services/HintService.js';
 import { FaviconService } from './Services/FaviconService.js';
 import { TerminalService } from './Services/TerminalService.js';
 
-const log = createLogger('main');
+const log = createLogger('Main');
 
 function main() {
     log.log('Application starting...');
@@ -42,15 +42,25 @@ function main() {
     services.bus = bus;
 
     // Instantiate all the new services
+    log.log('Environment Service starting...');
     services.environment = new EnvironmentService(bus);
+    log.log('Accounting Service starting...');
     services.accounting = new AccountingService(bus);
+    log.log('History Service starting...');
     services.history = new HistoryService(bus);
+    log.log('Command Service starting...');
     services.command = new CommandService(bus, services);
+    log.log('Theme Service starting...');
     services.theme = new ThemeService(bus);
+    log.log('Input Service starting...');
     services.input = new InputService(bus);
+    log.log('Hint Service starting...');
     services.hint = new HintService(bus);
+    log.log('Favicon Service starting...');
     services.favicon = new FaviconService(bus);
+    log.log('Terminal Service starting...');
     services.terminal = new TerminalService(bus);
+    log.log('Filesystem Service starting...');
     services.filesystem = new FilesystemService(bus);
 
     // Create the main terminal component and add it to the DOM

@@ -58,41 +58,15 @@ class TerminalService {
     }
 
     #registerListeners() {
-        this.#eventBus.listen(EVENTS.INPUT_RESPONSE, this.#handleInputResponse.bind(this));
-        this.#eventBus.listen(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST, this.#requestNextCommand.bind(this));
+        this.#eventBus.listen(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST, this.#runCommandLoop.bind(this));
         this.#eventBus.listen(EVENTS.CLEAR_SCREEN_REQUEST, this.#handleClear.bind(this));
-        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, this.#handlePromptVariablesResponse.bind(this));
     }
 
     /**
      * Starts the main terminal loop by requesting the first command.
      */
     start() {
-        this.#requestNextCommand();
-    }
-
-    #handleClear() {
-        if (!this.#view) return;
-        this.#view.clearOutput();
-        this.#nextId = 1;
-        // After clearing, we might want to re-prompt the user.
-        // However, the 'clear' command itself will finish and trigger the next prompt.
-    }
-
-    #handleInputResponse({ value: commandString }) {
-        if (!this.#view) return;
-
-        // Now that we have the command, populate the pending terminal item.
-        this.#currentItem.setContent(commandString);
-        // The setContent method now handles making the command part visible.
-
-        const outputContainer = { element: this.#currentItem.getOutput() };
-
-        // Dispatch the event for the CommandService to execute the command.
-        this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTE_BROADCAST, {
-            commandString,
-            outputElement: outputContainer
-        });
+        this.#runCommandLoop();
     }
 
     #formatHeader(vars) {
@@ -124,13 +98,37 @@ class TerminalService {
         this.#currentItem = item; // Store as the pending item.
     }
 
-    #requestNextCommand() {
-        // First, request the variables needed to build the prompt header (PS1).
-        const correlationId = `prompt-vars-${Date.now()}`;
-        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, {
-            keys: [VAR_PS1, VAR_USER, VAR_HOST, VAR_PWD],
-            correlationId: correlationId
-        });
+    async #runCommandLoop() {
+        try {
+            // 1. Get environment variables to build the prompt header.
+            const response = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { keys: [VAR_PS1, VAR_USER, VAR_HOST, VAR_PWD] });
+            const headerText = this.#formatHeader(response.values);
+            this.#createAndDisplayHeader(headerText);
+
+            // 2. Request user input and wait for the response.
+            const { value: commandString } = await this.#requestInput();
+
+            // 3. Populate the command item and dispatch for execution.
+            if (this.#currentItem) {
+                this.#currentItem.setContent(commandString);
+                const outputContainer = { element: this.#currentItem.getOutput() };
+                this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTE_BROADCAST, {
+                    commandString,
+                    outputElement: outputContainer
+                });
+            }
+
+        } catch (error) {
+            log.error("Error in command loop:", error);
+            // If something fails, dispatch the finished event to try again.
+            this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST);
+        }
+    }
+
+    #handleClear() {
+        if (!this.#view) return;
+        this.#view.clearOutput();
+        this.#nextId = 1;
     }
 
     #requestInput() {
@@ -143,20 +141,8 @@ class TerminalService {
             isSecret: false
         };
 
-        // Dispatch the request for user input.
-        this.#eventBus.dispatch(EVENTS.INPUT_REQUEST, { prompt, options });
-    }
-
-    #handlePromptVariablesResponse({ values, correlationId }) {
-        // Ensure this response is for our prompt variable request.
-        if (!correlationId || !correlationId.startsWith('prompt-vars-')) {
-            return;
-        }
-
-        // Now that we have the variables, format the header, create the item, and request input.
-        const headerText = this.#formatHeader(values);
-        this.#createAndDisplayHeader(headerText);
-        this.#requestInput();
+        // Request user input and return the promise.
+        return this.#eventBus.request(EVENTS.INPUT_REQUEST, { prompt, options }, 0);
     }
 }
 

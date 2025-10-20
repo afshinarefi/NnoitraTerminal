@@ -45,6 +45,7 @@ class Welcome {
           throw new Error(`Failed to load welcome message: ${response.statusText}`);
         }
         const welcomeText = await response.text();
+        this.#log.log(`Welcome message loaded successfully. ${welcomeText.length} characters.`);
         outputDiv.innerText = welcomeText;
       } catch (error) {
         this.#log.error('Error loading welcome message:', error);

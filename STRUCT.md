@@ -153,5 +153,5 @@
 /var/www/html/LICENSE
 /var/www/html/PLAN.md
 /var/www/html/README.md
-/var/www/html/Server/accounting.py
-/var/www/html/Server/filesystem.py
+/var/www/html/Server/Accounting.py
+/var/www/html/Server/Filesystem.py

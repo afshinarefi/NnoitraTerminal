@@ -26,16 +26,18 @@ const ACTIVE_LOG_CATEGORIES = new Set([
     // --- Bus Services ---
      'EventBus',
      'EnvBusService',
-     'LoginBusService',
+     'welcome',
+    //  'LoginBusService',
+    //  'Main',
 
-    // --- Services ---
+    // // --- Services ---
     //  'Autocomplete',
     //  'CommandService',
     //  'EnvService',
     //  'FS',
     //  'History',
 
-    // --- Components ---
+    // // --- Components ---
     //  'BaseComponent',
     //  'CommandLine',
     //  'HintBox',

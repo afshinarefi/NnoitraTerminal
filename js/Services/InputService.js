@@ -70,6 +70,9 @@ class InputService {
         this.#view.addEventListener('autocomplete-request', (e) => this.#onAutocompleteRequest(e.detail));
         this.#view.addEventListener('touchstart', (e) => this.#onTouchStart(e.detail));
         this.#view.addEventListener('touchend', (e) => this.#onTouchEnd(e.detail));
+
+        // Set the initial state to disabled. The prompt is not usable until the main loop requests input.
+        this.#view.setDisabled(true);
     }
 
     #registerListeners() {
@@ -138,12 +141,10 @@ class InputService {
     }
 
     #onCommandSubmit(value) {
-        if (this.correlationId) {
-            // If we are in a read operation, finish it.
+        // For any input, finish the read operation, which uses the `respond` function.
+        // This handles both normal commands and interactive prompts consistently.
+        if (this.respond) {
             this.#finishRead();
-        } else {
-            // Otherwise, it's a normal command submission.
-            this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTE_BROADCAST, { commandString: value });
         }
     }
 
@@ -194,7 +195,6 @@ class InputService {
         this.#allowHistory = options.allowHistory || false; // e.g. login prompt
         this.#allowAutocomplete = options.allowAutocomplete || false; // e.g. shell prompt
         this.#secretValue = '';
-        this.correlationId = correlationId; // Store the ID for the response
         this.#inputBuffer = '';
 
         this.#view.clear();
@@ -207,13 +207,9 @@ class InputService {
     #finishRead() {
         const value = this.#isSecret ? this.#secretValue : this.#view.getValue();
 
-        // Dispatch the response event with the value and the original correlationId
-        this.#eventBus.dispatch(EVENTS.INPUT_RESPONSE, {
-            value: value,
-            correlationId: this.correlationId
-        });
-
-        this.#resetState();
+        // The `respond` function is attached by the event bus's `request` method.
+        this.respond({ value });
+        this.#view.setDisabled(true); // Disable prompt after responding.
     }
 
     #resetState() {
@@ -222,7 +218,6 @@ class InputService {
         this.#allowHistory = true; // Normal prompt allows history
         this.#allowAutocomplete = true; // Normal prompt allows autocomplete
         this.#secretValue = '';
-        this.correlationId = null;
         this.#inputBuffer = '';
 
         this.#view.clear();
@@ -234,12 +229,13 @@ class InputService {
     // --- Listener Implementations ---
 
     #handleInputRequest(payload) {
-        // When a command requests input, this service enters "read" mode.
-        const { prompt, options, correlationId } = payload;
-        this.#startRead(prompt, options, correlationId);
+        const { prompt, options, respond } = payload;
+        this.#startRead(prompt, options);
         if (options?.isSecret) {
             this.#view.setIcon('key');
         }
+        // Store the respond function to be called later in #finishRead
+        this.respond = respond;
     }
 
     #handleHistoryResponse(payload) {

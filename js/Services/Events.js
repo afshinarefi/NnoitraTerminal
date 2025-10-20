@@ -30,6 +30,8 @@ export const EVENTS = {
 
     // Accounting & User
     USER_CHANGED_BROADCAST: 'user-changed-broadcast',
+    LOGIN_REQUEST: 'login-request',
+    LOGOUT_REQUEST: 'logout-request',
 
     // History
     HISTORY_PREVIOUS_REQUEST: 'history-previous-request',

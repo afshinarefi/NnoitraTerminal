@@ -37,7 +37,6 @@ const DEFAULT_THEME = 'green';
 class ThemeService {
     static VALID_THEMES = ['green', 'yellow', 'orange', 'red'];
     #eventBus;
-    #initialThemeCorrelationId = null;
 
     constructor(eventBus) {
         this.#eventBus = eventBus;
@@ -45,30 +44,21 @@ class ThemeService {
         log.log('Initializing...');
     }
 
-    start() {
+    async start() {
         // After all services are initialized, request the initial theme value.
-        this.#initialThemeCorrelationId = `theme-init-${Date.now()}`;
-        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, {
-            key: VAR_THEME,
-            correlationId: this.#initialThemeCorrelationId
-        });
+        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: VAR_THEME });
+        const theme = values[VAR_THEME] || DEFAULT_THEME;
+        this.applyTheme(theme);
     }
 
     #registerListeners() {
         this.#eventBus.listen(EVENTS.VAR_CHANGED_BROADCAST, this.#handleVarChanged.bind(this));
-        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, this.#handleInitialThemeResponse.bind(this));
     }
 
     #handleVarChanged(payload) {
         if (payload.key === VAR_THEME) {
             this.applyTheme(payload.value);
         }
-    }
-
-    #handleInitialThemeResponse({ values, correlationId }) {
-        if (correlationId !== this.#initialThemeCorrelationId || !values.hasOwnProperty(VAR_THEME)) return;
-        const theme = values[VAR_THEME] || DEFAULT_THEME;
-        this.applyTheme(theme);
     }
 
     applyTheme(themeName) {

@@ -26,7 +26,7 @@ const log = createLogger('CommandLine');
 const TEMPLATE = `
   <div part="footer">
   <arefi-icon part="icon"></arefi-icon>
-  <input type="text" autocomplete="off" spellcheck="false" autocapitalize="off" autofocus="true" part="prompt">
+  <input type="text" autocomplete="off" spellcheck="false" autocapitalize="off" part="prompt">
   </div>
   `;
 

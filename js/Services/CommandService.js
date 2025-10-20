@@ -87,9 +87,9 @@ class CommandService {
         this.register('cd', Cd, ['isDirectory', 'changeDirectory']);
         this.register('cat', Cat, ['getFileContents', 'autocompletePath']);
         this.register('clear', Clear, ['clearScreen']);
-        this.register('view', View, ['getFileContents']);
-        this.register('adduser', AddUser, ['login']);
-        this.register('login', Login, ['login']);
+        this.register('view', View, ['getFileContents', 'autocompletePath']);
+        this.register('adduser', AddUser, ['prompt', 'login']);
+        this.register('login', Login, ['prompt', 'login']);
         this.register('logout', Logout, ['logout']);
         this.register('passwd', Passwd, ['login']);
         this.register('alias', Alias, ['getAliases', 'setAliases']);
@@ -99,9 +99,18 @@ class CommandService {
         this.register('version', Version, []);
     }
 
-    start() {
+    async start() {
         // Request initial alias state now that all services are listening.
-        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { key: VAR_ALIAS });
+        try {
+            const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: VAR_ALIAS });
+            if (values.hasOwnProperty(VAR_ALIAS)) {
+                const aliasValue = values[VAR_ALIAS];
+                this.#aliases = aliasValue ? JSON.parse(aliasValue) : {};
+            }
+        } catch (error) {
+            log.error("Failed to get initial ALIAS state:", error);
+            this.#aliases = {};
+        }
     }
 
     #registerListeners() {
@@ -113,33 +122,6 @@ class CommandService {
             this.#isLoggedIn = payload.isLoggedIn;
         });
 
-        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, ({ values }) => {
-            if (values.hasOwnProperty(VAR_ALIAS)) {
-                const aliasValue = values[VAR_ALIAS];
-                try {
-                    this.#aliases = aliasValue ? JSON.parse(aliasValue) : {};
-                } catch (e) {
-                    log.error("Error parsing ALIAS variable:", e);
-                    this.#aliases = {};
-                }
-            }
-        });
-
-        // This service acts as a middleman for commands, so it needs to handle
-        // the responses from other services. This listener is a placeholder for that logic.
-        this.#eventBus.listen(EVENTS.FS_IS_DIR_RESPONSE, (payload) => {
-            // In a full implementation, we would use the correlationId to resolve a promise
-            // that was created when the request was dispatched.
-            log.log('Received fs-is-directory-response:', payload);
-        });
-
-        this.#eventBus.listen(EVENTS.FS_GET_DIRECTORY_CONTENTS_RESPONSE, (payload) => {
-            // Handled via promise in the gateway method.
-        });
-
-        this.#eventBus.listen(EVENTS.FS_GET_FILE_CONTENTS_RESPONSE, (payload) => {
-            // Handled via promise in the gateway method.
-        });
     }
 
     register(name, CommandClass, requiredServices = []) {
@@ -159,6 +141,9 @@ class CommandService {
                 isDirectory: this.isDirectory.bind(this),
                 changeDirectory: this.changeDirectory.bind(this),
                 clearScreen: this.clearScreen.bind(this),
+                prompt: this.prompt.bind(this),
+                login: this.login.bind(this),
+                logout: this.logout.bind(this),
                 // Gateways are now event-based, so direct service calls are removed.
                 // The commands themselves will trigger the necessary input requests.
                 // For data retrieval, we provide async functions that use the event bus.
@@ -245,36 +230,43 @@ class CommandService {
         this.#eventBus.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, { suggestions });
     }
 
-    async execute(cmd, output) {
-        const trimmedCmd = cmd.trim();
-        if (!trimmedCmd) {
-            if (output) output.innerText = "";
-            return;
-        }
-
-        let args = trimmedCmd.split(/\s+/);
-        let commandName = args[0];
-
-        if (this.#aliases[commandName]) {
-            const aliasValue = this.#aliases[commandName];
-            const aliasArgs = aliasValue.split(/\s+/);
-            const remainingUserArgs = args.slice(1);
-            const newCmd = [...aliasArgs, ...remainingUserArgs].join(' ');
-            args = newCmd.split(/\s+/);
-            commandName = args[0];
-        }
-
-        if (this.#registry.has(commandName)) {
-            try {
-                const commandHandler = this.getCommand(commandName);
-                const resultElement = await commandHandler.execute(args);
-                if (output) output.appendChild(resultElement);
-            } catch (e) {
-                if (output) output.textContent = `Error executing ${commandName}: ${e.message}`;
-                log.error(`Error executing ${commandName}:`, e);
+    async execute(cmd, outputContainer) {
+        try {
+            const trimmedCmd = cmd.trim();
+            if (!trimmedCmd) {
+                return; // Do nothing for an empty command.
             }
-        } else {
-            if (output) output.textContent = `${commandName}: command not found`;
+
+            let args = trimmedCmd.split(/\s+/);
+            let commandName = args[0];
+
+            // Resolve alias if it exists
+            if (this.#aliases[commandName]) {
+                const aliasValue = this.#aliases[commandName];
+                const aliasArgs = aliasValue.split(/\s+/);
+                const remainingUserArgs = args.slice(1);
+                const newCmd = [...aliasArgs, ...remainingUserArgs].join(' ');
+                args = newCmd.split(/\s+/);
+                commandName = args[0];
+            }
+
+            const outputElement = outputContainer ? outputContainer.element : null;
+
+            if (this.#registry.has(commandName)) {
+                try {
+                    const commandHandler = this.getCommand(commandName);
+                    const resultElement = await commandHandler.execute(args);
+                    if (outputElement) outputElement.appendChild(resultElement);
+                } catch (e) {
+                    if (outputElement) outputElement.textContent = `Error executing ${commandName}: ${e.message}`;
+                    log.error(`Error executing ${commandName}:`, e);
+                }
+            } else {
+                if (outputElement) outputElement.textContent = `${commandName}: command not found`;
+            }
+        } finally {
+            // Always dispatch the finished event to allow the terminal loop to continue.
+            this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST);
         }
     }
 
@@ -293,103 +285,50 @@ class CommandService {
 
     // --- Service Gateway Methods for Commands ---
 
+    async prompt(promptText, options = {}) {
+        const response = await this.#eventBus.request(EVENTS.INPUT_REQUEST, { prompt: promptText, options });
+        return response.value;
+    }
+
+    async login(username, password) {
+        const response = await this.#eventBus.request(EVENTS.LOGIN_REQUEST, { username, password });
+        return response;
+    }
+
+    async logout() {
+        const response = await this.#eventBus.request(EVENTS.LOGOUT_REQUEST, {});
+        return response;
+    }
+
     async isDirectory(path) {
-        // This method encapsulates the async event bus logic for the command.
-        // The command can simply `await this.isDirectory(path)` and get a boolean.
-        return new Promise(resolve => {
-            const correlationId = `is-dir-${Date.now()}-${Math.random()}`;
-
-            const responseListener = (payload) => {
-                if (payload.correlationId === correlationId) {
-                    // The event bus needs a way to remove listeners to prevent memory leaks.
-                    // For now, we assume this logic exists.
-                    // this.#eventBus.removeListener('fs-is-directory-response', responseListener);
-                    resolve(payload.isDirectory);
-                }
-            };
-
-            this.#eventBus.listen(EVENTS.FS_IS_DIR_RESPONSE, responseListener);
-
-            this.#eventBus.dispatch(EVENTS.FS_IS_DIR_REQUEST, {
-                path,
-                correlationId
-            });
-        });
+        const response = await this.#eventBus.request(EVENTS.FS_IS_DIR_REQUEST, { path });
+        return response.isDirectory;
     }
 
     async getHistory() {
-        return new Promise((resolve) => {
-            const correlationId = `get-hist-${Date.now()}-${Math.random()}`;
-
-            const responseListener = (payload) => {
-                if (payload.correlationId === correlationId) {
-                    resolve(payload.history);
-                }
-            };
-
-            // This assumes a one-time listener or a mechanism to remove it.
-            this.#eventBus.listen(EVENTS.HISTORY_LOAD_RESPONSE, responseListener);
-
-            this.#eventBus.dispatch(EVENTS.HISTORY_LOAD_REQUEST, {
-                correlationId
-            });
-        });
+        const response = await this.#eventBus.request(EVENTS.HISTORY_LOAD_REQUEST, {});
+        return response.history;
     }
 
     async getDirectoryContents(path) {
-        return new Promise((resolve, reject) => {
-            const correlationId = `get-dir-${Date.now()}-${Math.random()}`;
-
-            const responseListener = (payload) => {
-                if (payload.correlationId === correlationId) {
-                    if (payload.error) {
-                        reject(payload.error);
-                    } else {
-                        resolve(payload.contents);
-                    }
-                }
-            };
-
-            this.#eventBus.listen(EVENTS.FS_GET_DIRECTORY_CONTENTS_RESPONSE, responseListener);
-
-            this.#eventBus.dispatch(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, {
-                path,
-                correlationId
-            });
-        });
+        const response = await this.#eventBus.request(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, { path });
+        if (response.error) {
+            throw new Error(response.error.message || 'Failed to get directory contents.');
+        }
+        return response.contents;
     }
 
     async getFileContents(path) {
-        return new Promise((resolve, reject) => {
-            const correlationId = `get-file-${Date.now()}-${Math.random()}`;
-
-            const responseListener = (payload) => {
-                if (payload.correlationId === correlationId) {
-                    if (payload.error) {
-                        reject(payload.error);
-                    } else {
-                        resolve(payload.contents);
-                    }
-                }
-            };
-
-            this.#eventBus.listen(EVENTS.FS_GET_FILE_CONTENTS_RESPONSE, responseListener);
-
-            this.#eventBus.dispatch(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, {
-                path,
-                correlationId
-            });
-        });
+        const response = await this.#eventBus.request(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, { path });
+        if (response.error) {
+            throw new Error(response.error.message || 'Failed to get file contents.');
+        }
+        return response.contents;
     }
 
     async autocompletePath(path, includeFiles) {
-        // This method encapsulates the async event bus logic for the command.
-        // The command can simply `await this.autocompletePath(path)` and get an array.
-        return new Promise(resolve => {
-            // This is a simplified implementation. A robust one would use correlation IDs.
-            this.#eventBus.listen(EVENTS.FS_AUTOCOMPLETE_PATH_RESPONSE, (payload) => resolve(payload.suggestions));
-            this.#eventBus.dispatch(EVENTS.FS_AUTOCOMPLETE_PATH_REQUEST, { path, includeFiles });
-        });
+        const response = await this.#eventBus.request(EVENTS.FS_AUTOCOMPLETE_PATH_REQUEST, { path, includeFiles });
+        return response.suggestions;
     }
 
     changeDirectory(path) {

@@ -25,6 +25,7 @@ const log = createLogger('EventBus');
  */
 class EventBusService {
     #listeners = new Map();
+    #pendingRequests = new Map();
 
     constructor() {
         log.log('Initializing...');
@@ -49,8 +50,69 @@ class EventBusService {
      */
     dispatch(eventName, payload) {
         if (this.#listeners.has(eventName)) {
-            this.#listeners.get(eventName).forEach(callback => {log.log([eventName, payload]); callback(payload)});
+            // Schedule the execution of listeners asynchronously.
+            // This allows the dispatch method to return immediately (fire-and-forget).
+            Promise.resolve().then(async () => {
+                // We get the list of listeners at the time of execution.
+                const listeners = this.#listeners.get(eventName);
+                if (listeners) {
+                    // Execute each listener in its own asynchronous microtask.
+                    // This prevents one listener from blocking another.
+                    listeners.forEach(callback => {
+                        // We don't await here. This ensures each listener is
+                        // invoked independently.
+                        log.log(`Dispatching event "${eventName}" to listener with payload: ${JSON.stringify(payload)}`);
+                        Promise.resolve().then(() => callback(payload));
+                    });
+                }
+            });
         }
+    }
+
+    /**
+     * Dispatches a request and returns a promise that resolves with the response.
+     * The dispatched event payload will be augmented with a `respond` function.
+     * @param {string} eventName - The name of the request event to dispatch.
+     * @param {*} payload - The data for the request.
+     * @param {number} [timeout=5000] - Timeout in milliseconds.
+     * @returns {Promise<any>} A promise that resolves with the response payload.
+     */
+    request(eventName, payload = {}, timeout = 60000) {
+        const correlationId = `${eventName}-${Date.now()}-${Math.random()}`;
+
+        return new Promise((resolve, reject) => {
+            // Store the promise handlers
+            this.#pendingRequests.set(correlationId, { resolve, reject });
+
+            // Set up a timeout to reject the promise if no response is received
+            let timeoutId = null;
+            if (timeout > 0) {
+                timeoutId = setTimeout(() => {
+                    if (this.#pendingRequests.has(correlationId)) {
+                        this.#pendingRequests.get(correlationId).reject(new Error(`Request timed out for event "${eventName}"`));
+                        this.#pendingRequests.delete(correlationId);
+                    }
+                }, timeout);
+            }
+
+            // Create the payload for the dispatched event, including the `respond` function
+            const requestPayload = {
+                ...payload,
+                respond: (responsePayload) => {
+                    if (this.#pendingRequests.has(correlationId)) {
+                        if (timeoutId) clearTimeout(timeoutId); // Clear the timeout since we got a response
+                        log.log(`Response received for event "${eventName}": ${JSON.stringify(responsePayload)}`);
+                        this.#pendingRequests.get(correlationId).resolve(responsePayload);
+                        this.#pendingRequests.delete(correlationId);
+                        return true; // Response was successfully delivered
+                    }
+                    // The request timed out or was already fulfilled.
+                    return false;
+                }
+            };
+
+            this.dispatch(eventName, requestPayload);
+        });
     }
 }
 

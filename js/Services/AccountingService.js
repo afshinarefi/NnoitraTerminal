@@ -23,7 +23,7 @@ import { EVENTS } from './Events.js';
 const log = createLogger('AccountingService');
 
 // Define constants for hardcoded strings to improve maintainability.
-const API_ENDPOINT = '/server/accounting.py';
+const API_ENDPOINT = '/Server/Accounting.py';
 const VAR_USER = 'USER';
 const VAR_TOKEN = 'TOKEN';
 const VAR_TOKEN_EXPIRY = 'TOKEN_EXPIRY';
@@ -47,7 +47,6 @@ class AccountingService {
     #apiManager;
     #user = GUEST_USER;
     #token = null;
-    #initialStateCorrelationId = null;
 
     constructor(eventBus) {
         this.#eventBus = eventBus;
@@ -58,23 +57,29 @@ class AccountingService {
 
     #registerListeners() {
         // Listen for responses to the initial variable check
-        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, this.#handleInitialStateResponse.bind(this));
-
         this.#eventBus.listen(EVENTS.VAR_PERSIST_REQUEST, (payload) => this.#handlePersistVariable(payload));
         this.#eventBus.listen(EVENTS.COMMAND_PERSIST_REQUEST, (payload) => this.#handlePersistCommand(payload));
         this.#eventBus.listen(EVENTS.HISTORY_LOAD_REQUEST, (payload) => this.#handleHistoryLoad(payload));
+        this.#eventBus.listen(EVENTS.LOGIN_REQUEST, this.#handleLoginRequest.bind(this));
+        this.#eventBus.listen(EVENTS.LOGOUT_REQUEST, this.#handleLogoutRequest.bind(this));
     }
 
     isLoggedIn() {
         return !!this.#token;
     }
 
-    start() {
+    async start() {
         // Request initial state now that all services are listening.
-        this.#initialStateCorrelationId = `as-init-${Date.now()}`;
-        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { 
-            keys: [VAR_USER, VAR_TOKEN],
-            correlationId: this.#initialStateCorrelationId });
+        try {
+            const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { keys: [VAR_USER, VAR_TOKEN] });
+            this.#handleInitialStateResponse(values);
+        } catch (error) {
+            log.error("Failed to get initial state from EnvironmentService:", error);
+            // If the request fails, proceed with default guest state.
+            this.#user = GUEST_USER;
+            this.#token = null;
+            this.#dispatchSetVariable(VAR_USER, GUEST_USER, VAR_CATEGORIES.LOCAL);
+        }
     }
 
     async login(username, password) {
@@ -128,6 +133,16 @@ class AccountingService {
         this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: GUEST_USER, isLoggedIn: false });
     }
 
+    async #handleLoginRequest({ username, password, respond }) {
+        const result = await this.login(username, password);
+        respond(result);
+    }
+
+    async #handleLogoutRequest({ respond }) {
+        const result = await this.logout();
+        respond(result);
+    }
+
     #dispatchSetVariable(key, value, category) {
         this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, { key, value, category });
     }
@@ -170,12 +185,7 @@ class AccountingService {
         log.log("History data received from server:", result);
     }
 
-    #handleInitialStateResponse({ values, correlationId }) {
-        // Only process the response if it's for our specific startup request.
-        if (correlationId !== this.#initialStateCorrelationId) {
-            return;
-        }
-
+    #handleInitialStateResponse(values) {
         // Handle USER variable
         if (values.hasOwnProperty(VAR_USER) && values[VAR_USER]) {
             this.#user = values[VAR_USER];
