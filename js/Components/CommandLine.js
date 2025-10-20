@@ -49,6 +49,7 @@ const CSS = `
   border: none;
   outline: none;
   color: var(--arefi-color-text); /* VAR */
+  min-width: 0; /* Prevents overflow in flex container */
   flex-grow: 1;
   font-family: var(--arefi-font-family);
   font-size: var(--arefi-font-size);
@@ -154,12 +155,11 @@ class CommandLine extends BaseComponent {
     if (event.key === 'Enter') {
       event.preventDefault();
       this.#dispatch('command-submit', this.refs.prompt.value);
-      this.clear();
-    } else if (event.key === 'Tab') {
+      // The input service will be responsible for clearing the input.
+    } else if (event.key === 'Tab' || event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      // For special keys that affect the input value, prevent the default browser action
+      // and forward the raw event to the InputService for handling.
       event.preventDefault();
-      this.#dispatch('autocomplete-request', this.refs.prompt.value);
-    } else {
-      // For other keys like ArrowUp/Down, just forward the event
       this.#dispatch('keydown', event);
     }
   }
@@ -195,6 +195,22 @@ class CommandLine extends BaseComponent {
    */
   setValue(value) {
     this.refs.prompt.value = value;
+  }
+
+  /**
+   * Gets the current cursor position within the input field.
+   * @returns {number} The cursor position index.
+   */
+  getCursorPosition() {
+    return this.refs.prompt.selectionStart;
+  }
+
+  /**
+   * Sets the cursor position within the input field.
+   * @param {number} position - The position to set the cursor at.
+   */
+  setCursorPosition(position) {
+    this.refs.prompt.setSelectionRange(position, position);
   }
   
   /**

@@ -52,6 +52,7 @@ export const EVENTS = {
     AUTOCOMPLETE_BROADCAST: 'autocomplete-broadcast',
     GET_ALIASES_REQUEST: 'get-aliases-request',
     SET_ALIASES_REQUEST: 'set-aliases-request',
+    GET_AUTOCOMPLETE_CONTEXT_REQUEST: 'get-autocomplete-context-request',
     GET_COMMAND_LIST_REQUEST: 'get-command-list-request',
     GET_COMMAND_META_REQUEST: 'get-command-meta-request',
 
@@ -62,6 +63,7 @@ export const EVENTS = {
     // UI
     CLEAR_SCREEN_REQUEST: 'clear-screen-request',
     THEME_CHANGED_BROADCAST: 'theme-changed-broadcast',
+    UI_SCROLL_TO_BOTTOM_REQUEST: 'ui-scroll-to-bottom-request',
     SET_THEME_REQUEST: 'set-theme-request',
     GET_VALID_THEMES_REQUEST: 'get-valid-themes-request',
 

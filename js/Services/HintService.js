@@ -68,8 +68,14 @@ class HintService {
     #handleShowHints(payload) {
         if (!this.#view) return;
 
-        if (payload.suggestions && payload.suggestions.length > 0) {
-            this.#view.show(payload.suggestions, payload.prefixLength);
+        const { beforeCursorTokens, options } = payload;
+
+        // Only show the hint box if there is more than one option,
+        // or if there is one option that is not an empty string (for partial completions).
+        if (options && options.length > 1 || (options.length === 1 && options[0] !== '')) {
+            const lastToken = beforeCursorTokens[beforeCursorTokens.length - 1] || '';
+            const fullSuggestions = options.map(suffix => lastToken + suffix);
+            this.#view.show(fullSuggestions, lastToken.length);
         } else {
             this.#view.hide();
         }

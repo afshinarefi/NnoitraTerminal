@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { EVENTS } from '../Services/Events.js';
-import { VAR_CATEGORIES } from '../Services/Constants.js';
 
 /**
  * @class ServiceApiManager
@@ -39,6 +38,10 @@ export class ServiceApiManager {
 
     clearScreen() {
         this.#eventBus.dispatch(EVENTS.CLEAR_SCREEN_REQUEST);
+    }
+
+    scrollToBottom() {
+        this.#eventBus.dispatch(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST);
     }
 
     // --- User/Accounting Gateway Methods ---

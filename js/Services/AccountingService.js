@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
-import { VAR_CATEGORIES } from './Constants.js';
 import { ApiManager } from '../Managers/ApiManager.js';
 import { EVENTS } from './Events.js';
 

@@ -30,6 +30,7 @@ import { InputService } from './Services/InputService.js';
 import { HintService } from './Services/HintService.js';
 import { FaviconService } from './Services/FaviconService.js';
 import { TerminalService } from './Services/TerminalService.js';
+import { AutocompleteService } from './Services/AutocompleteService.js';
 
 const log = createLogger('Main');
 
@@ -52,6 +53,7 @@ function main() {
     services.favicon = new FaviconService(bus);
     services.terminal = new TerminalService(bus);
     services.filesystem = new FilesystemService(bus);
+    services.autocomplete = new AutocompleteService(bus);
 
     // Create the main terminal component and add it to the DOM
     const terminalComponent = new Terminal();

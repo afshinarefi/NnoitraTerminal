@@ -49,6 +49,7 @@ class EventBusService {
      * @param {*} [payload] - The data to pass to the listeners.
      */
     dispatch(eventName, payload) {
+        log.log(`Dispatching event "${eventName}" with payload: ${JSON.stringify(payload)}`);
         if (this.#listeners.has(eventName)) {
             // Schedule the execution of listeners asynchronously.
             // This allows the dispatch method to return immediately (fire-and-forget).

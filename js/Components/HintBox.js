@@ -66,6 +66,7 @@ const CSS = `
 
 .suffix {
   font-weight: bold;
+}
 `;
 
 // Define component-specific styles

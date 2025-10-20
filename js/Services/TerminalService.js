@@ -59,6 +59,7 @@ class TerminalService {
 
     #registerListeners() {
         this.#eventBus.listen(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST, this.#runCommandLoop.bind(this));
+        this.#eventBus.listen(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST, this.#handleScrollToBottom.bind(this));
         this.#eventBus.listen(EVENTS.CLEAR_SCREEN_REQUEST, this.#handleClear.bind(this));
     }
 
@@ -129,6 +130,12 @@ class TerminalService {
         if (!this.#view) return;
         this.#view.clearOutput();
         this.#nextId = 1;
+    }
+
+    #handleScrollToBottom() {
+        if (this.#view) {
+            this.#view.scrollToBottom();
+        }
     }
 
     #requestInput() {

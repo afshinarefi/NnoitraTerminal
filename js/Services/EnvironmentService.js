@@ -46,10 +46,10 @@ class EnvironmentService {
 
     #eventBus;
 	#categorizedVariables = new Map([
-		[VAR_CATEGORIES.TEMP, new Map()],
-		[VAR_CATEGORIES.LOCAL, new Map()],
-		[VAR_CATEGORIES.REMOTE, new Map()],
-		[VAR_CATEGORIES.USERSPACE, new Map()]
+		[EnvironmentService.VAR_CATEGORIES.TEMP, new Map()],
+		[EnvironmentService.VAR_CATEGORIES.LOCAL, new Map()],
+		[EnvironmentService.VAR_CATEGORIES.REMOTE, new Map()],
+		[EnvironmentService.VAR_CATEGORIES.USERSPACE, new Map()]
 	]);
     
 	constructor(eventBus) {

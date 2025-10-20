@@ -18,7 +18,7 @@
 import { EVENTS } from './Events.js';
 import { createLogger } from '../Managers/LogManager.js';
 
-const log = createLogger('InputBusService');
+const log = createLogger('InputService');
 
 /**
  * @class InputBusService
@@ -93,16 +93,6 @@ class InputService {
         switch (event.key) {
             // Enter is handled by the 'command-submit' event listener
             // to consolidate submission logic.
-
-            /*
-            case 'Enter':
-                event.preventDefault();
-                const command = this.#view.getValue();
-                // For any input, finish the read operation, which dispatches the response.
-                this.#finishRead();
-                break;
-
-            */
             case 'ArrowUp':
                 if (this.#allowHistory) {
                     event.preventDefault();
@@ -114,6 +104,7 @@ class InputService {
                 break;
 
             case 'ArrowDown':
+                log.log('ArrowDown key pressed - requesting next history if allowed.');
                 if (this.#allowHistory) {
                     event.preventDefault();
                     this.#eventBus.dispatch(EVENTS.HISTORY_NEXT_REQUEST);
@@ -121,6 +112,8 @@ class InputService {
                 break;
 
             case 'Tab':
+                log.log('Tab key pressed - triggering autocomplete if allowed.', this.#allowAutocomplete);
+                event.preventDefault(); // Ensure default tab behavior is stopped
                 if (this.#allowAutocomplete) {
                     this.#onAutocompleteRequest(this.#view.getValue());
                 }
@@ -145,13 +138,18 @@ class InputService {
         // This handles both normal commands and interactive prompts consistently.
         if (this.respond) {
             this.#finishRead();
+            this.#view.clear();
         }
     }
 
     #onAutocompleteRequest(value) {
         if (this.#allowAutocomplete) {
-            const parts = value.split(/\s+/);
-            this.#eventBus.dispatch(EVENTS.AUTOCOMPLETE_REQUEST, { parts });
+            const cursorPosition = this.#view.getCursorPosition(); // This method needs to be added to CommandLine.js
+            const beforeCursorText = value.substring(0, cursorPosition);
+            const afterCursorText = value.substring(cursorPosition);
+
+            log.log('Dispatching autocomplete request:', { beforeCursorText, afterCursorText });
+            this.#eventBus.dispatch(EVENTS.AUTOCOMPLETE_REQUEST, { beforeCursorText, afterCursorText });
         }
     }
 
@@ -246,13 +244,16 @@ class InputService {
     }
 
     #handleAutocompleteBroadcast(payload) {
-        if (this.#view) {
-            // Don't autocomplete if there are no suggestions
-            if (!payload.suggestions || payload.suggestions.length === 0) {
-                return;
-            }
-            this.#view.setValue(payload.suggestions[0]);
-            // This logic could be expanded to show the hint box
+        if (!this.#view) return;
+
+        const { beforeCursorTokens, afterCursorText } = payload;
+
+        if (beforeCursorTokens) {
+            const newTextBeforeCursor = beforeCursorTokens.join(' ');
+            const fullText = newTextBeforeCursor + afterCursorText;
+
+            this.#view.setValue(fullText);
+            this.#view.setCursorPosition(newTextBeforeCursor.length); // This method needs to be added to CommandLine.js
         }
     }
 }

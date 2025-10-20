@@ -17,6 +17,7 @@
  */
 import { createList } from '../Utils/TableUtil.js';
 import { createLogger } from '../Managers/LogManager.js';
+import { OptionContext } from '../Utils/OptionContext.js';
 
 const log = createLogger('ls');
 /**
@@ -45,11 +46,9 @@ class Ls {
     async autocompleteArgs(currentArgs) {
         // Only provide suggestions for the first argument.
         if (currentArgs.length > 1) {
-            return [];
+            return OptionContext.none();
         }
-        const input = currentArgs[0] || '';
-        // For 'ls', suggest both directories and files.
-        return await this.#autocompletePath(input, true);
+        return OptionContext.path({ includeFiles: true });
     }
 
     async execute(args) {

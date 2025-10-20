@@ -17,8 +17,8 @@
  */
 import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from './Events.js';
-import { VAR_CATEGORIES } from './Constants.js';
 import { ServiceApiManager } from '../Managers/ServiceApiManager.js';
+import { OptionContext } from '../Utils/OptionContext.js';
 
 // Import all command classes
 import { Welcome } from '../Commands/welcome.js';
@@ -102,13 +102,13 @@ class CommandService {
 
     #registerListeners() {
         this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, (payload) => this.execute(payload.commandString, payload.outputElement));
-        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_REQUEST, (payload) => this.autocomplete(payload.parts));
 
         this.#eventBus.listen(EVENTS.GET_ALIASES_REQUEST, this.#handleGetAliasesRequest.bind(this));
         this.#eventBus.listen(EVENTS.SET_ALIASES_REQUEST, this.#handleSetAliasesRequest.bind(this));
 
         this.#eventBus.listen(EVENTS.GET_COMMAND_LIST_REQUEST, this.#handleGetCommandListRequest.bind(this));
         this.#eventBus.listen(EVENTS.GET_COMMAND_META_REQUEST, this.#handleGetCommandMetaRequest.bind(this));
+        this.#eventBus.listen(EVENTS.GET_AUTOCOMPLETE_CONTEXT_REQUEST, this.#handleGetAutocompleteContext.bind(this));
     }
 
     register(name, CommandClass, requiredServices = []) {
@@ -184,38 +184,6 @@ class CommandService {
             isLoggedIn: await this.#apiProvider.isLoggedIn(),
             // Future context properties can be added here
         };
-    }
-
-    async autocomplete(parts) {
-        log.log('Autocomplete received parts:', parts);
-        let suggestions = [];
-
-        const isCompletingCommandName = parts.length <= 1;
-
-        if (isCompletingCommandName) {
-            const input = parts[0] || '';
-            suggestions = (await this.getAvailableCommandNames()).filter(name => name.startsWith(input));
-        } else {
-            let commandName = parts[0];
-            let argsForCompletion = parts.slice(1);
-
-            const aliases = await this.#apiProvider.getAliases();
-            if (aliases[commandName]) {
-                const aliasValue = aliases[commandName];
-                const aliasParts = aliasValue.split(/\s+/).filter(p => p);
-                commandName = aliasParts[0];
-                argsForCompletion = [...aliasParts.slice(1), ...argsForCompletion];
-            }
-
-            const CommandClass = this.getCommandClass(commandName);
-            if (CommandClass && typeof CommandClass.autocompleteArgs === 'function') {
-                const commandInstance = this.getCommand(commandName);
-                const result = commandInstance.autocompleteArgs(argsForCompletion);
-                suggestions = (result instanceof Promise) ? await result : result;
-            }
-        }
-
-        this.#eventBus.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, { suggestions });
     }
 
     async execute(cmd, outputContainer) {
@@ -299,6 +267,41 @@ class CommandService {
                 value = undefined;
         }
         respond({ value });
+    }
+
+    async #handleGetAutocompleteContext({ parts, respond }) {
+        const isCompletingCommandName = parts.length <= 1;
+
+        if (isCompletingCommandName) {
+            const input = parts[0] || '';
+            const suggestions = (await this.getAvailableCommandNames()).filter(name => name.startsWith(input));
+            const context = OptionContext.command(suggestions);
+            context.input = input; // Add the input part to the context
+            respond(context);
+            return;
+        }
+
+        // It's an argument, so we need to ask the command itself.
+        let commandName = parts[0];
+        let argsForCompletion = parts.slice(1);
+        const input = argsForCompletion[argsForCompletion.length - 1] || '';
+
+        const aliases = await this.#apiProvider.getAliases();
+        if (aliases[commandName]) {
+            const aliasParts = aliases[commandName].split(/\s+/).filter(p => p);
+            commandName = aliasParts[0];
+            argsForCompletion = [...aliasParts.slice(1), ...argsForCompletion];
+        }
+
+        const CommandClass = this.getCommandClass(commandName);
+        if (CommandClass && typeof CommandClass.autocompleteArgs === 'function') {
+            const commandInstance = this.getCommand(commandName);
+            // The command will return a context object, e.g., { type: 'PATH', ... }
+            const context = await commandInstance.autocompleteArgs(argsForCompletion);
+            respond({ ...context, input: input }); // Add the current input part to the response
+        } else {
+            respond(OptionContext.none()); // No specific completion available
+        }
     }
 }
 

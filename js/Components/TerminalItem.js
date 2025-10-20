@@ -36,6 +36,11 @@ const TEMPLATE = `
  * @constant {string} CSS - CSS styles for the TerminalItem component's shadow DOM.
  */
 const CSS = `
+:host {
+  display: block;
+  margin-bottom: 10px; /* Add some space between terminal items */
+}
+
 [part=header],
 [part=command-container],
 [part=output] {
@@ -43,7 +48,7 @@ const CSS = `
 }
 
 :host(.header-visible) [part=header] {
-  display: inline-block;
+  display: block;
 }
 
 :host(.active) [part=command-container],

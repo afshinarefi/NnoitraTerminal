@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
+import { OptionContext } from '../Utils/OptionContext.js';
 const log = createLogger('cat');
 
 export class Cat {
@@ -35,12 +36,9 @@ export class Cat {
 
     async autocompleteArgs(currentArgs) {
         if (currentArgs.length > 1) {
-            return [];
+            return OptionContext.none();
         }
-        const input = currentArgs[0] || '';
-        const allPaths = await this.#autocompletePath(input, true);
-        // Filter to only suggest .txt files or directories (to allow navigation)
-        return allPaths.filter(p => p.endsWith('/') || p.toLowerCase().endsWith('.txt') || p.toLowerCase().endsWith('.md'));
+        return OptionContext.path({ includeFiles: true });
     }
 
     async execute(args) {
