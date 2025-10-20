@@ -48,25 +48,42 @@ class ThemeService {
         // After all services are initialized, request the initial theme value.
         const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: VAR_THEME });
         const theme = values[VAR_THEME] || DEFAULT_THEME;
-        this.applyTheme(theme);
+        this.applyTheme(theme, false); // Don't persist on initial load
     }
 
     #registerListeners() {
         this.#eventBus.listen(EVENTS.VAR_CHANGED_BROADCAST, this.#handleVarChanged.bind(this));
+        this.#eventBus.listen(EVENTS.SET_THEME_REQUEST, this.#handleSetThemeRequest.bind(this));
+        this.#eventBus.listen(EVENTS.GET_VALID_THEMES_REQUEST, this.#handleGetValidThemesRequest.bind(this));
     }
 
     #handleVarChanged(payload) {
+        // This handles changes from other sources, like manual `export THEME=...`
         if (payload.key === VAR_THEME) {
-            this.applyTheme(payload.value);
+            this.applyTheme(payload.value, false);
         }
     }
 
-    applyTheme(themeName) {
+    #handleSetThemeRequest({ themeName, respond }) {
+        const finalTheme = this.applyTheme(themeName);
+        respond({ theme: finalTheme });
+    }
+
+    #handleGetValidThemesRequest({ respond }) {
+        respond({ themes: this.getValidThemes() });
+    }
+
+    applyTheme(themeName, persist = true) {
         const finalTheme = ThemeService.VALID_THEMES.includes(themeName) ? themeName : DEFAULT_THEME;
         const themeColor = `var(--arefi-color-${finalTheme})`;
         document.documentElement.style.setProperty('--arefi-color-theme', themeColor);
         this.#eventBus.dispatch(EVENTS.THEME_CHANGED_BROADCAST, { themeName: finalTheme });
         log.log(`Applied theme: ${finalTheme}`);
+
+        if (persist) {
+            this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, { key: VAR_THEME, value: finalTheme, category: 'USERSPACE' });
+        }
+        return finalTheme;
     }
 
     getValidThemes() {

@@ -62,6 +62,8 @@ class AccountingService {
         this.#eventBus.listen(EVENTS.HISTORY_LOAD_REQUEST, (payload) => this.#handleHistoryLoad(payload));
         this.#eventBus.listen(EVENTS.LOGIN_REQUEST, this.#handleLoginRequest.bind(this));
         this.#eventBus.listen(EVENTS.LOGOUT_REQUEST, this.#handleLogoutRequest.bind(this));
+        this.#eventBus.listen(EVENTS.PASSWORD_CHANGE_REQUEST, this.#handleChangePasswordRequest.bind(this));
+        this.#eventBus.listen(EVENTS.IS_LOGGED_IN_REQUEST, this.#handleIsLoggedInRequest.bind(this));
     }
 
     isLoggedIn() {
@@ -141,6 +143,28 @@ class AccountingService {
     async #handleLogoutRequest({ respond }) {
         const result = await this.logout();
         respond(result);
+    }
+
+    async #changePassword(oldPassword, newPassword) {
+        if (!this.isLoggedIn()) {
+            return { status: 'error', message: 'Not logged in.' };
+        }
+        try {
+            const result = await this.#apiManager.post('change_password', { old_password: oldPassword, new_password: newPassword }, this.#token);
+            return result;
+        } catch (error) {
+            log.error('Network or parsing error during password change:', error);
+            return { status: 'error', message: `Error: ${error.message}` };
+        }
+    }
+
+    async #handleChangePasswordRequest({ oldPassword, newPassword, respond }) {
+        const result = await this.#changePassword(oldPassword, newPassword);
+        respond(result);
+    }
+
+    #handleIsLoggedInRequest({ respond }) {
+        respond({ isLoggedIn: this.isLoggedIn() });
     }
 
     #dispatchSetVariable(key, value, category) {

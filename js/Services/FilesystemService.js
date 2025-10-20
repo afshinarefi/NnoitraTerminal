@@ -48,6 +48,7 @@ class FilesystemService {
         this.#eventBus.listen(EVENTS.FS_AUTOCOMPLETE_PATH_REQUEST, this.#handleAutocompletePath.bind(this));
         this.#eventBus.listen(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, this.#handleGetDirectoryContents.bind(this));
         this.#eventBus.listen(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, this.#handleGetFileContents.bind(this));
+        this.#eventBus.listen(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, this.#handleChangeDirectory.bind(this));
     }
 
     async #handleAutocompletePath({ path, includeFiles, correlationId }) {
@@ -71,6 +72,16 @@ class FilesystemService {
         // This is a placeholder for fetching file content.
         // For now, it simulates an error for non-existent files.
         this.#eventBus.dispatch(EVENTS.FS_GET_FILE_CONTENTS_RESPONSE, { error: new Error('File not found.'), correlationId });
+    }
+
+    #handleChangeDirectory({ path }) {
+        // In a more complex system, this would first validate that 'path' is a real directory.
+        // For now, it directly updates the PWD environment variable.
+        this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
+            key: 'PWD',
+            value: path,
+            category: 'TEMP' // PWD is a temporary, session-only variable.
+        });
     }
 
     /**

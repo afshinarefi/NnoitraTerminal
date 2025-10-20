@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { fetchTextFile } from '../Utils/FileUtil.js';
 import { createLogger } from '../Managers/LogManager.js';
 /**
  * @class Welcome
@@ -40,11 +41,7 @@ class Welcome {
       const outputDiv = document.createElement('div');
       outputDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
       try {
-        const response = await fetch('data/motd.txt');
-        if (!response.ok) {
-          throw new Error(`Failed to load welcome message: ${response.statusText}`);
-        }
-        const welcomeText = await response.text();
+        const welcomeText = await fetchTextFile('data/motd.txt');
         this.#log.log(`Welcome message loaded successfully. ${welcomeText.length} characters.`);
         outputDiv.innerText = welcomeText;
       } catch (error) {

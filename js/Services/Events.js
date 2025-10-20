@@ -32,6 +32,8 @@ export const EVENTS = {
     USER_CHANGED_BROADCAST: 'user-changed-broadcast',
     LOGIN_REQUEST: 'login-request',
     LOGOUT_REQUEST: 'logout-request',
+    PASSWORD_CHANGE_REQUEST: 'password-change-request',
+    IS_LOGGED_IN_REQUEST: 'is-logged-in-request',
 
     // History
     HISTORY_PREVIOUS_REQUEST: 'history-previous-request',
@@ -45,6 +47,10 @@ export const EVENTS = {
     COMMAND_EXECUTION_FINISHED_BROADCAST: 'command-execution-finished-broadcast',
     AUTOCOMPLETE_REQUEST: 'autocomplete-request',
     AUTOCOMPLETE_BROADCAST: 'autocomplete-broadcast',
+    GET_ALIASES_REQUEST: 'get-aliases-request',
+    SET_ALIASES_REQUEST: 'set-aliases-request',
+    GET_COMMAND_LIST_REQUEST: 'get-command-list-request',
+    GET_COMMAND_META_REQUEST: 'get-command-meta-request',
 
     // Input
     INPUT_REQUEST: 'input-request',
@@ -53,8 +59,11 @@ export const EVENTS = {
     // UI
     CLEAR_SCREEN_REQUEST: 'clear-screen-request',
     THEME_CHANGED_BROADCAST: 'theme-changed-broadcast',
+    SET_THEME_REQUEST: 'set-theme-request',
+    GET_VALID_THEMES_REQUEST: 'get-valid-themes-request',
 
     // Filesystem
+    FS_CHANGE_DIRECTORY_REQUEST: 'fs-change-directory-request',
     FS_IS_DIR_REQUEST: 'fs-is-directory-request',
     FS_IS_DIR_RESPONSE: 'fs-is-directory-response',
     FS_AUTOCOMPLETE_PATH_REQUEST: 'fs-autocomplete-path-request',

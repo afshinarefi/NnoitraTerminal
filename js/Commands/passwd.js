@@ -26,11 +26,11 @@ class Passwd {
     static DESCRIPTION = 'Change user password.';
 
     #prompt;
-    #loginService;
+    #changePassword;
 
     constructor(services) {
         this.#prompt = services.prompt;
-        this.#loginService = services.login;
+        this.#changePassword = services.changePassword;
         log.log('Initializing...');
     }
 
@@ -50,47 +50,43 @@ DESCRIPTION
 
     /**
      * Determines if the command is available. Only logged-in users can change their password.
-     * @param {object} services - A collection of all services.
+     * @param {object} context - The current application context.
+     * @param {boolean} context.isLoggedIn - Whether a user is currently logged in.
      * @returns {boolean} True if the command is available, false otherwise.
      */
-    static isAvailable(services) {
-        return services.login.isLoggedIn();
+    static isAvailable(context) {
+        return context.isLoggedIn;
     }
 
     async execute(args) {
         log.log('Executing...');
         const outputDiv = document.createElement('div');
+        const promptOptions = { isSecret: true, allowHistory: false, allowAutocomplete: false };
 
         try {
-            const oldPassword = await this.#prompt.read('Old password', true);
-            if (oldPassword === null) { // User cancelled with Ctrl+C
-                outputDiv.textContent = 'passwd: Operation cancelled.';
-                return outputDiv;
-            }
+            const oldPassword = await this.#prompt('Old password: ', promptOptions);
 
-            const newPassword = await this.#prompt.read('New password', true);
-            if (newPassword === null) {
-                outputDiv.textContent = 'passwd: Operation cancelled.';
-                return outputDiv;
-            }
+            const newPassword = await this.#prompt('New password: ', promptOptions);
 
-            const confirmPassword = await this.#prompt.read('Confirm new password', true);
-            if (confirmPassword === null) {
-                outputDiv.textContent = 'passwd: Operation cancelled.';
-                return outputDiv;
-            }
+            const confirmPassword = await this.#prompt('Confirm new password: ', promptOptions);
 
             if (newPassword !== confirmPassword) {
                 outputDiv.textContent = 'passwd: Passwords do not match. Password not changed.';
                 return outputDiv;
             }
 
-            const result = await this.#loginService.changePassword(oldPassword, newPassword);
+            if (!newPassword) {
+                outputDiv.textContent = 'passwd: Password cannot be empty.';
+                return outputDiv;
+            }
+
+            const result = await this.#changePassword(oldPassword, newPassword);
             outputDiv.textContent = result.message;
 
         } catch (error) {
-            log.error('Error during password change:', error);
-            outputDiv.textContent = 'passwd: An unexpected error occurred.';
+            // A timeout on the prompt means the user cancelled (e.g., Ctrl+C)
+            log.warn('Password change operation cancelled or failed:', error);
+            outputDiv.textContent = 'passwd: Operation cancelled.';
         }
 
         return outputDiv;

@@ -22,29 +22,31 @@
  * To enable all logging, you can use a special '*' value or list all categories.
  * Example categories: 'FS', 'CommandService', 'Autocomplete', 'Terminal'
  */
-const ACTIVE_LOG_CATEGORIES = new Set([
-    // --- Bus Services ---
-     'EventBus',
-     'EnvBusService',
-     'welcome',
-    //  'LoginBusService',
-    //  'Main',
-
-    // // --- Services ---
-    //  'Autocomplete',
-    //  'CommandService',
-    //  'EnvService',
-    //  'FS',
-    //  'History',
-
-    // // --- Components ---
-    //  'BaseComponent',
-    //  'CommandLine',
-    //  'HintBox',
-    //  'Icon',
-    //  'Media',
-    //  'Terminal',
-    //  'TerminalItem',
+const ACTIVE_LOG_CATEGORIES = new Map([
+    // --- Services ---
+    ['EventBus', true],
+    ['EnvironmentService', true],
+    ['AccountingService', true],
+    ['CommandService', true],
+    ['FilesystemService', true],
+    ['HistoryService', true],
+    ['HintService', true],
+    ['InputService', true],
+    ['TerminalService', true],
+    ['ThemeService', true],
+    ['FaviconService', true],
+    // --- Components ---
+    ['CommandLine', false],
+    ['HintBox', false],
+    ['Terminal', false],
+    ['TerminalItem', false],
+    // --- Commands ---
+    ['login', false],
+    ['logout', false],
+    ['ls', false],
+    ['cat', false],
+    ['env', false],
+    ['history', false],
 ]);
 
 const noop = () => {}; // The no-operation function.
@@ -64,7 +66,7 @@ export function createLogger(category) {
         return loggerCache.get(category);
     }
 
-    const isEnabled = ACTIVE_LOG_CATEGORIES.has(category);
+    const isEnabled = ACTIVE_LOG_CATEGORIES.get(category) || false;
 
     const logger = {
         log: isEnabled ? console.log.bind(console, `[${category}]`) : noop,

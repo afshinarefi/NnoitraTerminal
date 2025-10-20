@@ -1,0 +1,152 @@
+/**
+ * Arefi Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+import { EVENTS } from '../Services/Events.js';
+import { VAR_CATEGORIES } from '../Services/Constants.js';
+
+/**
+ * @class ServiceApiManager
+ * @description Provides a clean, promise-based API for any service to interact with
+ * the rest of the application via the event bus, abstracting away request/response logic.
+ */
+export class ServiceApiManager {
+    #eventBus;
+
+    constructor(eventBus) {
+        this.#eventBus = eventBus;
+    }
+
+    // --- UI Gateway Methods ---
+
+    async prompt(promptText, options = {}) {
+        const response = await this.#eventBus.request(EVENTS.INPUT_REQUEST, { prompt: promptText, options });
+        return response.value;
+    }
+
+    clearScreen() {
+        this.#eventBus.dispatch(EVENTS.CLEAR_SCREEN_REQUEST);
+    }
+
+    // --- User/Accounting Gateway Methods ---
+
+    async login(username, password) {
+        return await this.#eventBus.request(EVENTS.LOGIN_REQUEST, { username, password });
+    }
+
+    async logout() {
+        return await this.#eventBus.request(EVENTS.LOGOUT_REQUEST, {});
+    }
+
+    async changePassword(oldPassword, newPassword) {
+        return await this.#eventBus.request(EVENTS.PASSWORD_CHANGE_REQUEST, { oldPassword, newPassword });
+    }
+
+    async isLoggedIn() {
+        const response = await this.#eventBus.request(EVENTS.IS_LOGGED_IN_REQUEST, {});
+        return response.isLoggedIn;
+    }
+
+    // --- Filesystem Gateway Methods ---
+
+    async isDirectory(path) {
+        const response = await this.#eventBus.request(EVENTS.FS_IS_DIR_REQUEST, { path });
+        return response.isDirectory;
+    }
+
+    async getDirectoryContents(path) {
+        const response = await this.#eventBus.request(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, { path });
+        if (response.error) {
+            throw new Error(response.error.message || 'Failed to get directory contents.');
+        }
+        return response.contents;
+    }
+
+    async getFileContents(path) {
+        const response = await this.#eventBus.request(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, { path });
+        if (response.error) {
+            throw new Error(response.error.message || 'Failed to get file contents.');
+        }
+        return response.contents;
+    }
+
+    async autocompletePath(path, includeFiles) {
+        const response = await this.#eventBus.request(EVENTS.FS_AUTOCOMPLETE_PATH_REQUEST, { path, includeFiles });
+        return response.suggestions;
+    }
+
+    // --- History Gateway Methods ---
+
+    async getHistory() {
+        const response = await this.#eventBus.request(EVENTS.HISTORY_LOAD_REQUEST, {});
+        return response.history;
+    }
+
+    // --- Environment Gateway Methods ---
+
+    changeDirectory(path) {
+        this.#eventBus.dispatch(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, { path });
+    }
+
+    async getVariable(key) {
+        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key });
+        return values ? values[key] : undefined;
+    }
+
+    setVariable(key, value, category) {
+        this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
+            key,
+            value,
+            category
+        });
+    }
+
+    // --- Alias Gateway Methods ---
+
+    async getAliases() {
+        const response = await this.#eventBus.request(EVENTS.GET_ALIASES_REQUEST, {});
+        return response.aliases;
+    }
+
+    setAliases(aliases) {
+        // This is a fire-and-forget dispatch
+        this.#eventBus.dispatch(EVENTS.SET_ALIASES_REQUEST, { aliases });
+    }
+
+    // --- Command Introspection Gateway Methods ---
+
+    async getCommandList() {
+        const response = await this.#eventBus.request(EVENTS.GET_COMMAND_LIST_REQUEST, {});
+        return response.commands;
+    }
+
+    async getCommandMeta(commandName, metaKey) {
+        const response = await this.#eventBus.request(EVENTS.GET_COMMAND_META_REQUEST, { commandName, metaKey });
+        return response.value;
+    }
+
+    // --- Theme Gateway Methods ---
+
+    async setTheme(themeName) {
+        const response = await this.#eventBus.request(EVENTS.SET_THEME_REQUEST, { themeName });
+        return response.theme;
+    }
+
+    async getValidThemes() {
+        const response = await this.#eventBus.request(EVENTS.GET_VALID_THEMES_REQUEST, {});
+        return response.themes;
+    }
+}

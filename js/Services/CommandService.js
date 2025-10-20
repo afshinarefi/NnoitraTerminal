@@ -18,6 +18,7 @@
 import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from './Events.js';
 import { VAR_CATEGORIES } from './Constants.js';
+import { ServiceApiManager } from '../Managers/ServiceApiManager.js';
 
 // Import all command classes
 import { Welcome } from '../Commands/welcome.js';
@@ -50,25 +51,21 @@ const VAR_ALIAS = 'ALIAS';
  * @class CommandBusService
  * @description Manages command registration, resolution, and execution via the event bus.
  *
- * @provides `command-execute-request` - Listens for requests to execute a command string.
- * @provides `autocomplete-request` - Listens for requests to get autocomplete suggestions.
- *
  * @dispatches `autocomplete-broadcast` - Dispatches suggestions for any interested listeners.
  * @dispatches `variable-get-request` - Dispatches to get the ALIAS variable.
  * @dispatches `variable-set-request` - Dispatches to set the ALIAS variable.
  * @dispatches `fs-is-directory-request` - Dispatches to check if a path is a directory.
  *
  * @listens for `variable-get-response` - Listens for the ALIAS value.
- * @listens for `fs-is-directory-response` - Listens for the response to the directory check.
  */
 class CommandService {
     #eventBus;
     #registry = new Map();
-    #aliases = {};
-    #isLoggedIn = false;
+    #apiProvider;
 
     constructor(eventBus) {
         this.#eventBus = eventBus;
+        this.#apiProvider = new ServiceApiManager(eventBus);
 
         this.#registerCommands();
         this.#registerListeners();
@@ -79,9 +76,9 @@ class CommandService {
         // Register commands with their specific service dependencies.
         this.register('welcome', Welcome, []);
         this.register('about', About, []);
-        this.register('env', Env, ['getAllVariablesCategorized']);
-        this.register('help', Help, ['getHelpCommandNames', 'getCommandClass']);
-        this.register('man', Man, ['getAvailableCommandNames', 'getCommandClass']);
+        this.register('env', Env, ['getVariable']); // To be refactored
+        this.register('help', Help, ['getCommandList', 'getCommandMeta']);
+        this.register('man', Man, ['getCommandList', 'getCommandMeta']);
         this.register('history', History, ['getHistory']);
         this.register('ls', Ls, ['getDirectoryContents', 'autocompletePath']);
         this.register('cd', Cd, ['isDirectory', 'changeDirectory']);
@@ -91,37 +88,27 @@ class CommandService {
         this.register('adduser', AddUser, ['prompt', 'login']);
         this.register('login', Login, ['prompt', 'login']);
         this.register('logout', Logout, ['logout']);
-        this.register('passwd', Passwd, ['login']);
+        this.register('passwd', Passwd, ['prompt', 'changePassword']);
         this.register('alias', Alias, ['getAliases', 'setAliases']);
         this.register('unalias', Unalias, ['getAliases', 'setAliases']);
-        this.register('export', Export, ['environment']);
-        this.register('theme', Theme, ['environment', 'theme']); // Placeholders
+        this.register('export', Export, ['setVariable']);
+        this.register('theme', Theme, ['setTheme', 'getValidThemes']);
         this.register('version', Version, []);
     }
 
     async start() {
-        // Request initial alias state now that all services are listening.
-        try {
-            const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: VAR_ALIAS });
-            if (values.hasOwnProperty(VAR_ALIAS)) {
-                const aliasValue = values[VAR_ALIAS];
-                this.#aliases = aliasValue ? JSON.parse(aliasValue) : {};
-            }
-        } catch (error) {
-            log.error("Failed to get initial ALIAS state:", error);
-            this.#aliases = {};
-        }
+        // No startup logic needed for aliases anymore.
     }
 
     #registerListeners() {
         this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, (payload) => this.execute(payload.commandString, payload.outputElement));
         this.#eventBus.listen(EVENTS.AUTOCOMPLETE_REQUEST, (payload) => this.autocomplete(payload.parts));
 
-        // Listen for user state changes to control command availability (e.g., logout)
-        this.#eventBus.listen(EVENTS.USER_CHANGED_BROADCAST, (payload) => {
-            this.#isLoggedIn = payload.isLoggedIn;
-        });
+        this.#eventBus.listen(EVENTS.GET_ALIASES_REQUEST, this.#handleGetAliasesRequest.bind(this));
+        this.#eventBus.listen(EVENTS.SET_ALIASES_REQUEST, this.#handleSetAliasesRequest.bind(this));
 
+        this.#eventBus.listen(EVENTS.GET_COMMAND_LIST_REQUEST, this.#handleGetCommandListRequest.bind(this));
+        this.#eventBus.listen(EVENTS.GET_COMMAND_META_REQUEST, this.#handleGetCommandMetaRequest.bind(this));
     }
 
     register(name, CommandClass, requiredServices = []) {
@@ -135,35 +122,26 @@ class CommandService {
 
             // Create a tailored 'services' object for each command, providing only what it needs.
             // This acts as a gateway and adheres to the principle of least privilege.
-            const allProvidedServices = {
-                getAliases: this.getAliases.bind(this),
-                setAliases: this.setAliases.bind(this),
-                isDirectory: this.isDirectory.bind(this),
-                changeDirectory: this.changeDirectory.bind(this),
-                clearScreen: this.clearScreen.bind(this),
-                prompt: this.prompt.bind(this),
-                login: this.login.bind(this),
-                logout: this.logout.bind(this),
-                // Gateways are now event-based, so direct service calls are removed.
-                // The commands themselves will trigger the necessary input requests.
-                // For data retrieval, we provide async functions that use the event bus.
-                getHistory: this.getHistory.bind(this),
-                // --- Filesystem Service Gateway ---
-                getDirectoryContents: this.getDirectoryContents.bind(this),
-                getFileContents: this.getFileContents.bind(this),
-                autocompletePath: this.autocompletePath.bind(this),
-                // --- Command Service Introspection ---
-                getHelpCommandNames: this.getHelpCommandNames.bind(this),
+            const allProvidedFunctions = {
+                // Functions that are part of CommandService's core responsibility (now deprecated for direct use by commands)
+                getPermittedCommandNames: this.getPermittedCommandNames.bind(this),
                 getAvailableCommandNames: this.getAvailableCommandNames.bind(this),
                 getCommandClass: this.getCommandClass.bind(this),
+
+                // Functions provided by the API gateway
+                ...Object.fromEntries(
+                    Object.getOwnPropertyNames(ServiceApiManager.prototype) // Get all method names from the provider
+                        .filter(name => name !== 'constructor') // Get all methods
+                        .map(name => [name, this.#apiProvider[name].bind(this.#apiProvider)])
+                )
             };
 
             const commandServices = {};
-            for (const serviceName of requiredServices) {
-                if (allProvidedServices[serviceName]) {
-                    commandServices[serviceName] = allProvidedServices[serviceName];
+            for (const funcName of requiredServices) {
+                if (allProvidedFunctions[funcName]) {
+                    commandServices[funcName] = allProvidedFunctions[funcName];
                 } else {
-                    log.warn(`Command '${name}' requested unknown service '${serviceName}'.`);
+                    log.warn(`Command '${name}' requested unknown function '${funcName}'.`);
                 }
             }
 
@@ -181,22 +159,31 @@ class CommandService {
         return Array.from(this.#registry.keys());
     }
 
-    getAvailableCommandNames() {
-        const availableRegistered = this.getHelpCommandNames();
-        const aliasNames = Object.keys(this.#aliases);
+    async getAvailableCommandNames() {
+        const availableRegistered = await this.getPermittedCommandNames();
+        // This part of autocomplete might not have access to aliases without an async call.
+        const aliasNames = []; // Simplified for now. A full implementation would need an async lookup.
         return [...new Set([...availableRegistered, ...aliasNames])].sort();
     }
 
-    getHelpCommandNames() {
+    async getPermittedCommandNames() {
         const registeredCommands = this.getCommandNames();
+        const context = await this.#getContext();
         const availableCommands = registeredCommands.filter(name => {
             const CommandClass = this.getCommandClass(name);
             if (CommandClass && typeof CommandClass.isAvailable === 'function') {
-                return CommandClass.isAvailable({ isLoggedIn: this.#isLoggedIn });
+                return CommandClass.isAvailable(context);
             }
             return true;
         });
         return availableCommands.sort();
+    }
+
+    async #getContext() {
+        return {
+            isLoggedIn: await this.#apiProvider.isLoggedIn(),
+            // Future context properties can be added here
+        };
     }
 
     async autocomplete(parts) {
@@ -207,13 +194,14 @@ class CommandService {
 
         if (isCompletingCommandName) {
             const input = parts[0] || '';
-            suggestions = this.getAvailableCommandNames().filter(name => name.startsWith(input));
+            suggestions = (await this.getAvailableCommandNames()).filter(name => name.startsWith(input));
         } else {
             let commandName = parts[0];
             let argsForCompletion = parts.slice(1);
 
-            if (this.#aliases[commandName]) {
-                const aliasValue = this.#aliases[commandName];
+            const aliases = await this.#apiProvider.getAliases();
+            if (aliases[commandName]) {
+                const aliasValue = aliases[commandName];
                 const aliasParts = aliasValue.split(/\s+/).filter(p => p);
                 commandName = aliasParts[0];
                 argsForCompletion = [...aliasParts.slice(1), ...argsForCompletion];
@@ -241,8 +229,9 @@ class CommandService {
             let commandName = args[0];
 
             // Resolve alias if it exists
-            if (this.#aliases[commandName]) {
-                const aliasValue = this.#aliases[commandName];
+            const aliases = await this.#apiProvider.getAliases();
+            if (aliases[commandName]) {
+                const aliasValue = aliases[commandName];
                 const aliasArgs = aliasValue.split(/\s+/);
                 const remainingUserArgs = args.slice(1);
                 const newCmd = [...aliasArgs, ...remainingUserArgs].join(' ');
@@ -270,77 +259,46 @@ class CommandService {
         }
     }
 
-    getAliases() {
-        return this.#aliases;
-    }
+    // --- Event Handlers for API Requests ---
 
-    setAliases(aliases) {
-        this.#aliases = aliases;
-        this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
-            key: VAR_ALIAS,
-            value: JSON.stringify(aliases),
-            category: VAR_CATEGORIES.REMOTE
-        });
-    }
-
-    // --- Service Gateway Methods for Commands ---
-
-    async prompt(promptText, options = {}) {
-        const response = await this.#eventBus.request(EVENTS.INPUT_REQUEST, { prompt: promptText, options });
-        return response.value;
-    }
-
-    async login(username, password) {
-        const response = await this.#eventBus.request(EVENTS.LOGIN_REQUEST, { username, password });
-        return response;
-    }
-
-    async logout() {
-        const response = await this.#eventBus.request(EVENTS.LOGOUT_REQUEST, {});
-        return response;
-    }
-
-    async isDirectory(path) {
-        const response = await this.#eventBus.request(EVENTS.FS_IS_DIR_REQUEST, { path });
-        return response.isDirectory;
-    }
-
-    async getHistory() {
-        const response = await this.#eventBus.request(EVENTS.HISTORY_LOAD_REQUEST, {});
-        return response.history;
-    }
-
-    async getDirectoryContents(path) {
-        const response = await this.#eventBus.request(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, { path });
-        if (response.error) {
-            throw new Error(response.error.message || 'Failed to get directory contents.');
+    async #handleGetAliasesRequest({ respond }) {
+        try {
+            const aliasValue = await this.#apiProvider.getVariable(VAR_ALIAS) || '{}';
+            respond({ aliases: JSON.parse(aliasValue) });
+        } catch (error) {
+            log.error("Failed to get aliases:", error);
+            respond({ aliases: {} });
         }
-        return response.contents;
     }
 
-    async getFileContents(path) {
-        const response = await this.#eventBus.request(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, { path });
-        if (response.error) {
-            throw new Error(response.error.message || 'Failed to get file contents.');
+    #handleSetAliasesRequest({ aliases }) {
+        this.#apiProvider.setVariable(VAR_ALIAS, JSON.stringify(aliases), VAR_CATEGORIES.REMOTE);
+    }
+
+    async #handleGetCommandListRequest({ respond }) {
+        const commands = await this.getPermittedCommandNames();
+        respond({ commands });
+    }
+
+    #handleGetCommandMetaRequest({ commandName, metaKey, respond }) {
+        const CommandClass = this.getCommandClass(commandName);
+        if (!CommandClass) {
+            respond({ value: undefined });
+            return;
         }
-        return response.contents;
-    }
 
-    async autocompletePath(path, includeFiles) {
-        const response = await this.#eventBus.request(EVENTS.FS_AUTOCOMPLETE_PATH_REQUEST, { path, includeFiles });
-        return response.suggestions;
-    }
-
-    changeDirectory(path) {
-        this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
-            key: 'PWD',
-            value: path,
-            category: VAR_CATEGORIES.TEMP
-        });
-    }
-
-    clearScreen() {
-        this.#eventBus.dispatch(EVENTS.CLEAR_SCREEN_REQUEST);
+        let value;
+        switch (metaKey) {
+            case 'description':
+                value = CommandClass.DESCRIPTION;
+                break;
+            case 'man':
+                value = CommandClass.man ? CommandClass.man() : 'No manual entry for this command.';
+                break;
+            default:
+                value = undefined;
+        }
+        respond({ value });
     }
 }
 
