@@ -24,9 +24,12 @@ export const EVENTS = {
     ENV_RESET_REQUEST: 'environment-reset-request',
     VAR_GET_REQUEST: 'variable-get-request',
     VAR_GET_RESPONSE: 'variable-get-response',
-    VAR_SET_REQUEST: 'variable-set-request',
     VAR_CHANGED_BROADCAST: 'variable-changed-broadcast',
     VAR_PERSIST_REQUEST: 'variable-persist-request',
+    VAR_SET_TEMP_REQUEST: 'variable-set-temp-request',
+    VAR_SET_LOCAL_REQUEST: 'variable-set-local-request',
+    VAR_SET_REMOTE_REQUEST: 'variable-set-remote-request',
+    VAR_SET_USERSPACE_REQUEST: 'variable-set-userspace-request',
 
     // Accounting & User
     USER_CHANGED_BROADCAST: 'user-changed-broadcast',

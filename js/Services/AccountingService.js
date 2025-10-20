@@ -167,8 +167,9 @@ class AccountingService {
         respond({ isLoggedIn: this.isLoggedIn() });
     }
 
-    #dispatchSetVariable(key, value, category) {
-        this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, { key, value, category });
+    #dispatchSetVariable(key, value) {
+        // This service only ever sets LOCAL variables.
+        this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key, value });
     }
 
     #handlePersistVariable(payload) {

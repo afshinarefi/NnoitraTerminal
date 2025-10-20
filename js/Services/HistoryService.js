@@ -71,11 +71,7 @@ class HistoryService {
 
         if (histSizeValue === undefined) {
             // If HISTSIZE is not set at all, set it to the default.
-            this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
-                key: VAR_HISTSIZE,
-                value: DEFAULT_HISTSIZE,
-                category: VAR_CATEGORIES.USERSPACE
-            });
+            this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key: VAR_HISTSIZE, value: DEFAULT_HISTSIZE });
             this.#maxSize = parseInt(DEFAULT_HISTSIZE, 10);
         } else {
             // If it is set, validate it.
@@ -90,11 +86,7 @@ class HistoryService {
         } else {
             log.warn(`Invalid HISTSIZE value "${histSizeValue}". Resetting to default: ${DEFAULT_HISTSIZE}`);
             this.#maxSize = parseInt(DEFAULT_HISTSIZE, 10);
-            this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
-                key: VAR_HISTSIZE,
-                value: DEFAULT_HISTSIZE,
-                category: VAR_CATEGORIES.USERSPACE
-            });
+            this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key: VAR_HISTSIZE, value: DEFAULT_HISTSIZE });
         }
     }
 

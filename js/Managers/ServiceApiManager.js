@@ -106,12 +106,20 @@ export class ServiceApiManager {
         return values ? values[key] : undefined;
     }
 
-    setVariable(key, value, category) {
-        this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
-            key,
-            value,
-            category
-        });
+    setTempVariable(key, value) {
+        this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value });
+    }
+
+    setLocalVariable(key, value) {
+        this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key, value });
+    }
+
+    setRemoteVariable(key, value) {
+        this.#eventBus.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key, value });
+    }
+
+    setUserspaceVariable(key, value) {
+        this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value });
     }
 
     // --- Alias Gateway Methods ---

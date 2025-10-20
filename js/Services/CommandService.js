@@ -91,8 +91,8 @@ class CommandService {
         this.register('passwd', Passwd, ['prompt', 'changePassword']);
         this.register('alias', Alias, ['getAliases', 'setAliases']);
         this.register('unalias', Unalias, ['getAliases', 'setAliases']);
-        this.register('export', Export, ['setVariable']);
-        this.register('theme', Theme, ['setTheme', 'getValidThemes']);
+        this.register('export', Export, ['setUserspaceVariable']);
+        this.register('theme', Theme, ['getValidThemes', 'setUserspaceVariable']);
         this.register('version', Version, []);
     }
 
@@ -272,7 +272,7 @@ class CommandService {
     }
 
     #handleSetAliasesRequest({ aliases }) {
-        this.#apiProvider.setVariable(VAR_ALIAS, JSON.stringify(aliases), VAR_CATEGORIES.REMOTE);
+        this.#apiProvider.setRemoteVariable(VAR_ALIAS, JSON.stringify(aliases));
     }
 
     async #handleGetCommandListRequest({ respond }) {

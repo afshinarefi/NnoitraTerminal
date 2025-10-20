@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
-import { VAR_CATEGORIES } from './Constants.js';
 import { EVENTS } from './Events.js';
 
 const log = createLogger('EnvBusService');
@@ -38,6 +37,13 @@ const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
  * @dispatches `VAR_GET_RESPONSE` - The value in response to a get request.
  */
 class EnvironmentService {
+    static VAR_CATEGORIES = {
+        TEMP: 'TEMP',
+        LOCAL: 'LOCAL',
+        REMOTE: 'REMOTE',
+        USERSPACE: 'USERSPACE'
+    };
+
     #eventBus;
 	#categorizedVariables = new Map([
 		[VAR_CATEGORIES.TEMP, new Map()],
@@ -54,8 +60,11 @@ class EnvironmentService {
 
     #registerListeners() {
         this.#eventBus.listen(EVENTS.VAR_GET_REQUEST, (payload) => this.#handleGetVariable(payload));
-        this.#eventBus.listen(EVENTS.VAR_SET_REQUEST, (payload) => this.setVariable(payload.key, payload.value, payload.category));
         this.#eventBus.listen(EVENTS.ENV_RESET_REQUEST, () => this.reset());
+        this.#eventBus.listen(EVENTS.VAR_SET_TEMP_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.TEMP));
+        this.#eventBus.listen(EVENTS.VAR_SET_LOCAL_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.LOCAL));
+        this.#eventBus.listen(EVENTS.VAR_SET_REMOTE_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.REMOTE));
+        this.#eventBus.listen(EVENTS.VAR_SET_USERSPACE_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.USERSPACE));
     }
 
 	start() {
@@ -68,7 +77,7 @@ class EnvironmentService {
 			try {
 				const localObj = JSON.parse(storedLocalVars);
 				for (const [key, value] of Object.entries(localObj)) {
-					this.#categorizedVariables.get(VAR_CATEGORIES.LOCAL).set(key, value);
+					this.#categorizedVariables.get(EnvironmentService.VAR_CATEGORIES.LOCAL).set(key, value);
 				}
 			} catch (e) {
 				log.error("Failed to parse local environment variables from localStorage:", e);
@@ -77,7 +86,7 @@ class EnvironmentService {
 	}
 
 	#persistLocalVariables() {
-		const localMap = this.#categorizedVariables.get(VAR_CATEGORIES.LOCAL);
+		const localMap = this.#categorizedVariables.get(EnvironmentService.VAR_CATEGORIES.LOCAL);
 		const localObj = Object.fromEntries(localMap);
 		localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localObj));
 	}
@@ -118,7 +127,7 @@ class EnvironmentService {
 			return;
 		}
 
-		const targetCategory = category && this.#categorizedVariables.has(category) ? category : VAR_CATEGORIES.TEMP;
+		const targetCategory = category && this.#categorizedVariables.has(category) ? category : EnvironmentService.VAR_CATEGORIES.TEMP;
 
 		for (const [cat, catMap] of this.#categorizedVariables.entries()) {
 			if (cat !== targetCategory) catMap.delete(upperKey);
@@ -126,7 +135,7 @@ class EnvironmentService {
 
 		this.#categorizedVariables.get(targetCategory).set(upperKey, value);
 
-		if (targetCategory === VAR_CATEGORIES.LOCAL) {
+		if (targetCategory === EnvironmentService.VAR_CATEGORIES.LOCAL) {
 			this.#persistLocalVariables();
 		} else if (targetCategory === VAR_CATEGORIES.REMOTE || targetCategory === VAR_CATEGORIES.USERSPACE) {
 			this.#eventBus.dispatch(EVENTS.VAR_PERSIST_REQUEST, { key: upperKey, value });
@@ -138,7 +147,7 @@ class EnvironmentService {
 	isReadOnly(key) {
 		const upperKey = key.toUpperCase();
 		for (const [category, catMap] of this.#categorizedVariables.entries()) {
-			if (category !== VAR_CATEGORIES.USERSPACE && catMap.has(upperKey)) {
+			if (category !== EnvironmentService.VAR_CATEGORIES.USERSPACE && catMap.has(upperKey)) {
 				return true;
 			}
 		}
@@ -150,7 +159,7 @@ class EnvironmentService {
 		if (this.isReadOnly(upperKey)) {
 			return false;
 		}
-		this.setVariable(key, value, VAR_CATEGORIES.USERSPACE);
+		this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.USERSPACE);
 		return true;
 	}
 
@@ -201,7 +210,7 @@ class EnvironmentService {
 			for (const [key, value] of Object.entries(data)) {
 				// Treat all loaded variables as USERSPACE. Specific variables like ALIAS
 				// are managed by their own services (e.g., CommandBusService), which will set the correct category.
-				this.setVariable(key, value, VAR_CATEGORIES.USERSPACE);
+				this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.USERSPACE);
 			}
 		}
 	}

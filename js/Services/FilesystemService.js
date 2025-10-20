@@ -77,11 +77,7 @@ class FilesystemService {
     #handleChangeDirectory({ path }) {
         // In a more complex system, this would first validate that 'path' is a real directory.
         // For now, it directly updates the PWD environment variable.
-        this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, {
-            key: 'PWD',
-            value: path,
-            category: 'TEMP' // PWD is a temporary, session-only variable.
-        });
+        this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: 'PWD', value: path });
     }
 
     /**
