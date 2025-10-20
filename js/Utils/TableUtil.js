@@ -45,3 +45,29 @@ export function createList(items) {
     }
     return ul;
 }
+
+/**
+ * Creates a formatted list specifically for directory contents.
+ * @param {object} contents - The directory contents object.
+ * @param {Array<{name: string}>} contents.directories - Array of directory objects.
+ * @param {Array<{name: string, size: number|null}>} contents.files - Array of file objects.
+ * @returns {HTMLUListElement} The generated UL element.
+ */
+export function createDirectoryList(contents) {
+    const files = Array.isArray(contents?.files) ? contents.files : [];
+    const directories = Array.isArray(contents?.directories) ? contents.directories : [];
+
+    const directoryItems = directories.map(dir => ({
+        text: `${dir.name}/`,
+        style: { color: 'var(--arefi-color-directory)' }
+    }));
+
+    const fileItems = files.map(file => {
+        const size = file.size !== null ? `(${file.size}b)` : '';
+        return `${file.name} ${size}`;
+    });
+
+    const allItems = [...directoryItems, ...fileItems];
+
+    return createList(allItems.length > 0 ? allItems : ['(empty directory)']);
+}

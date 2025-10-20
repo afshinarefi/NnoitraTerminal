@@ -23,9 +23,12 @@ const log = createLogger('TerminalService');
 
 // Define constants for environment variable keys to improve maintainability.
 const VAR_PS1 = 'PS1';
-const VAR_USER = 'USER';
 const VAR_HOST = 'HOST';
 const VAR_PWD = 'PWD';
+const VAR_USER = 'USER';
+
+const DEFAULT_PS1 = '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}';
+const DEFAULT_HOST = window.location.hostname;
 
 /**
  * @class TerminalService
@@ -66,12 +69,24 @@ class TerminalService {
     /**
      * Starts the main terminal loop by requesting the first command.
      */
-    start() {
+    async start() {
+        // Check for core variables and set defaults if they don't exist.
+        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { keys: [VAR_PS1, VAR_HOST] });
+
+        if (values[VAR_PS1] === undefined) {
+            this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: VAR_PS1, value: DEFAULT_PS1 });
+        }
+        if (values[VAR_HOST] === undefined) {
+            this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: VAR_HOST, value: DEFAULT_HOST });
+        }
+
+        // Start the main command loop.
         this.#runCommandLoop();
     }
 
     #formatHeader(vars) {
-        const format = vars[VAR_PS1] || '[{user}@{host}:{path}]';
+        // Defaults are now set in the environment, so we can expect the values to be present.
+        const format = vars[VAR_PS1] || DEFAULT_PS1;
         const timestamp = new Date();
         const replacements = {
             user: vars[VAR_USER] || 'guest',

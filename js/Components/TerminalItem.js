@@ -42,6 +42,7 @@ const CSS = `
 }
 
 [part=header],
+[part=icon],
 [part=command-container],
 [part=output] {
   display: none;
@@ -52,6 +53,7 @@ const CSS = `
 }
 
 :host(.active) [part=command-container],
+:host(.active) [part=icon],
 :host(.active) [part=output] {
   display: block;
 }

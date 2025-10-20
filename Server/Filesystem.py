@@ -20,65 +20,107 @@ import json
 import sys
 import urllib.parse
 
-def get_query_param(name):
-    # Parse QUERY_STRING from environment (for CGI)
+# --- Utility Functions ---
+
+def get_query_param(name, default=''):
+    """Safely gets a query parameter from the CGI environment."""
     query = os.environ.get('QUERY_STRING', '')
     params = urllib.parse.parse_qs(query)
-    return params.get(name, [''])[0]
+    return params.get(name, [default])[0]
 
-def list_directory(path):
+def get_safe_path(requested_path, root_dir):
+    """Validates and returns a safe, absolute path, preventing directory traversal."""
+    if not requested_path:
+        return root_dir
+    
+    # Normalize the path and join it with the root directory
+    safe_path = os.path.normpath(os.path.join(root_dir, requested_path.lstrip('/\\')))
+    
+    # Security check: ensure the resolved path is still within the root directory
+    if not os.path.commonpath([root_dir, safe_path]) == root_dir:
+        return None
+        
+    return safe_path
+
+# --- Action Handlers ---
+
+def handle_ls(path):
+    """Lists the contents of a given directory."""
     result = {"directories": [], "files": []}
-    try:
-        with os.scandir(path) as it:
-            for entry in it:
-                if entry.is_dir():
-                    # Count items in directory for metadata
-                    try:
-                        count = len(os.listdir(entry.path))
-                    except Exception:
-                        count = None
-                    result["directories"].append({
-                        "name": entry.name,
-                        "count": count
-                    })
-                elif not entry.name.endswith(".py"):
-                    try:
-                        size = os.path.getsize(entry.path)
-                    except Exception:
-                        size = None
-                    result["files"].append({
-                        "name": entry.name,
-                        "size": size
-                    })
-        # Only sort if there are entries
-        if result["directories"]:
-            result["directories"].sort(key=lambda d: d["name"])
-        if result["files"]:
-            result["files"].sort(key=lambda f: f["name"])
-    except Exception as e:
-        result["error"] = str(e)
+    with os.scandir(path) as it:
+        for entry in it:
+            if entry.name.startswith('.'):  # Hide dotfiles
+                continue
+            if entry.is_dir():
+                result["directories"].append({"name": entry.name})
+            elif not entry.name.endswith(".py"):
+                try:
+                    size = os.path.getsize(entry.path)
+                except OSError:
+                    size = None
+                result["files"].append({"name": entry.name, "size": size})
+
+    # Sort by name
+    result["directories"].sort(key=lambda x: x['name'])
+    result["files"].sort(key=lambda x: x['name'])
     return result
 
-# The root directory that this script will serve files from.
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(SCRIPT_DIR) # This will be /var/www/html
-root_dir = os.path.join(PROJECT_ROOT, 'fs') # We want to serve the /fs directory
+def handle_autocomplete(path, include_files):
+    """Provides autocomplete suggestions for a given path."""
+    suggestions = []
+    parent_dir = os.path.dirname(path)
+    base_name = os.path.basename(path)
 
+    if not os.path.exists(parent_dir):
+        return {"suggestions": []}
 
-# Get requested path from query parameter
-req_path = get_query_param('path')
-if req_path:
-    # Prevent traversal outside root
-    safe_path = os.path.normpath(os.path.join(root_dir, req_path.lstrip('/')))
-    if not safe_path.startswith(root_dir):
-        print("Status: 400 Bad Request\nContent-Type: application/json\n")
-        print(json.dumps({"error": "Invalid path"}))
-        sys.exit(0)
-else:
-    safe_path = root_dir
+    with os.scandir(parent_dir) as it:
+        for entry in it:
+            if entry.name.startswith(base_name) and not entry.name.startswith('.'):
+                # Construct the suggestion relative to the original input path's directory
+                suggestion = os.path.join(os.path.dirname(path), entry.name)
+                if entry.is_dir():
+                    suggestions.append(suggestion + '/')
+                elif include_files:
+                    suggestions.append(suggestion)
+    
+    suggestions.sort()
+    return {"suggestions": suggestions}
 
-# List contents of the requested directory
-result = list_directory(safe_path)
+# --- Main Execution ---
 
-print("Content-Type: application/json\n")
-print(json.dumps(result, indent=2))
+def main():
+    """Main CGI script execution function."""
+    print("Content-Type: application/json")
+    print() # Required blank line
+
+    response_data = {}
+    
+    try:
+        # Define the root directory for the virtual filesystem
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(script_dir)
+        fs_root = os.path.join(project_root, 'fs')
+
+        action = get_query_param('action')
+        path_param = get_query_param('path', '.')
+        
+        safe_path = get_safe_path(path_param, fs_root)
+        if safe_path is None:
+            raise ValueError("Invalid path: Directory traversal attempt detected.")
+
+        if action == 'ls':
+            response_data = handle_ls(safe_path)
+        elif action == 'autocomplete':
+            include_files = get_query_param('files', 'false').lower() == 'true'
+            response_data = handle_autocomplete(path_param, include_files)
+        else:
+            response_data = {"error": f"Unknown action: {action}"}
+
+    except Exception as e:
+        response_data = {"error": str(e)}
+
+    print(json.dumps(response_data))
+
+if __name__ == "__main__":
+    main()

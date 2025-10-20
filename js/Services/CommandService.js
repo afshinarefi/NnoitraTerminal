@@ -18,7 +18,6 @@
 import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from './Events.js';
 import { ServiceApiManager } from '../Managers/ServiceApiManager.js';
-import { OptionContext } from '../Utils/OptionContext.js';
 
 // Import all command classes
 import { Welcome } from '../Commands/welcome.js';
@@ -106,9 +105,7 @@ class CommandService {
         this.#eventBus.listen(EVENTS.GET_ALIASES_REQUEST, this.#handleGetAliasesRequest.bind(this));
         this.#eventBus.listen(EVENTS.SET_ALIASES_REQUEST, this.#handleSetAliasesRequest.bind(this));
 
-        this.#eventBus.listen(EVENTS.GET_COMMAND_LIST_REQUEST, this.#handleGetCommandListRequest.bind(this));
-        this.#eventBus.listen(EVENTS.GET_COMMAND_META_REQUEST, this.#handleGetCommandMetaRequest.bind(this));
-        this.#eventBus.listen(EVENTS.GET_AUTOCOMPLETE_CONTEXT_REQUEST, this.#handleGetAutocompleteContext.bind(this));
+        this.#eventBus.listen(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, this.#handleGetAutocompleteSuggestions.bind(this));
     }
 
     register(name, CommandClass, requiredServices = []) {
@@ -124,11 +121,6 @@ class CommandService {
             // This acts as a gateway and adheres to the principle of least privilege.
             const allProvidedFunctions = {
                 // Functions that are part of CommandService's core responsibility (now deprecated for direct use by commands)
-                getPermittedCommandNames: this.getPermittedCommandNames.bind(this),
-                getAvailableCommandNames: this.getAvailableCommandNames.bind(this),
-                getCommandClass: this.getCommandClass.bind(this),
-
-                // Functions provided by the API gateway
                 ...Object.fromEntries(
                     Object.getOwnPropertyNames(ServiceApiManager.prototype) // Get all method names from the provider
                         .filter(name => name !== 'constructor') // Get all methods
@@ -159,7 +151,7 @@ class CommandService {
         return Array.from(this.#registry.keys());
     }
 
-    async getAvailableCommandNames() {
+    async #getAvailableCommandNames() {
         const availableRegistered = await this.getPermittedCommandNames();
         // This part of autocomplete might not have access to aliases without an async call.
         const aliasNames = []; // Simplified for now. A full implementation would need an async lookup.
@@ -248,60 +240,31 @@ class CommandService {
         respond({ commands });
     }
 
-    #handleGetCommandMetaRequest({ commandName, metaKey, respond }) {
-        const CommandClass = this.getCommandClass(commandName);
-        if (!CommandClass) {
-            respond({ value: undefined });
-            return;
-        }
-
-        let value;
-        switch (metaKey) {
-            case 'description':
-                value = CommandClass.DESCRIPTION;
-                break;
-            case 'man':
-                value = CommandClass.man ? CommandClass.man() : 'No manual entry for this command.';
-                break;
-            default:
-                value = undefined;
-        }
-        respond({ value });
-    }
-
-    async #handleGetAutocompleteContext({ parts, respond }) {
+    async #handleGetAutocompleteSuggestions({ parts, respond }) {
+        let suggestions = [];
+        const input = parts[parts.length - 1] || '';
         const isCompletingCommandName = parts.length <= 1;
 
         if (isCompletingCommandName) {
-            const input = parts[0] || '';
-            const suggestions = (await this.getAvailableCommandNames()).filter(name => name.startsWith(input));
-            const context = OptionContext.command(suggestions);
-            context.input = input; // Add the input part to the context
-            respond(context);
-            return;
-        }
-
-        // It's an argument, so we need to ask the command itself.
-        let commandName = parts[0];
-        let argsForCompletion = parts.slice(1);
-        const input = argsForCompletion[argsForCompletion.length - 1] || '';
-
-        const aliases = await this.#apiProvider.getAliases();
-        if (aliases[commandName]) {
-            const aliasParts = aliases[commandName].split(/\s+/).filter(p => p);
-            commandName = aliasParts[0];
-            argsForCompletion = [...aliasParts.slice(1), ...argsForCompletion];
-        }
-
-        const CommandClass = this.getCommandClass(commandName);
-        if (CommandClass && typeof CommandClass.autocompleteArgs === 'function') {
-            const commandInstance = this.getCommand(commandName);
-            // The command will return a context object, e.g., { type: 'PATH', ... }
-            const context = await commandInstance.autocompleteArgs(argsForCompletion);
-            respond({ ...context, input: input }); // Add the current input part to the response
+            suggestions = (await this.#getAvailableCommandNames()).filter(name => name.startsWith(input));
         } else {
-            respond(OptionContext.none()); // No specific completion available
+            let commandName = parts[0];
+            let argsForCompletion = parts.slice(1);
+
+            const aliases = await this.#apiProvider.getAliases();
+            if (aliases[commandName]) {
+                const aliasParts = aliases[commandName].split(/\s+/).filter(p => p);
+                commandName = aliasParts[0];
+                argsForCompletion = [...aliasParts.slice(1), ...argsForCompletion];
+            }
+
+            const CommandClass = this.getCommandClass(commandName);
+            if (CommandClass && typeof CommandClass.autocompleteArgs === 'function') {
+                const commandInstance = this.getCommand(commandName);
+                suggestions = await commandInstance.autocompleteArgs(argsForCompletion);
+            }
         }
+        respond({ suggestions, input });
     }
 }
 

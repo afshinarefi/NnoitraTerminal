@@ -15,9 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createList } from '../Utils/TableUtil.js';
+import { createDirectoryList } from '../Utils/TableUtil.js';
 import { createLogger } from '../Managers/LogManager.js';
-import { OptionContext } from '../Utils/OptionContext.js';
 
 const log = createLogger('ls');
 /**
@@ -46,9 +45,10 @@ class Ls {
     async autocompleteArgs(currentArgs) {
         // Only provide suggestions for the first argument.
         if (currentArgs.length > 1) {
-            return OptionContext.none();
+            return [];
         }
-        return OptionContext.path({ includeFiles: true });
+        const input = currentArgs[0] || '';
+        return await this.#autocompletePath(input, true);
     }
 
     async execute(args) {
@@ -66,20 +66,8 @@ class Ls {
                 return outputDiv;
             }
 
-            // It's a directory
-            const files = Array.isArray(contents.files) ? contents.files : [];
-            const directories = Array.isArray(contents.directories) ? contents.directories : [];
-
-            const directoryItems = directories.map(dir => ({
-                text: `${dir}/`,
-                style: { color: 'var(--arefi-color-directory)' }
-            }));
-
-            const fileItems = files.map(file => file);
-
-            const allItems = [...directoryItems, ...fileItems];
-
-            const ul = createList(allItems.length > 0 ? allItems : ['(empty directory)']);
+            // Delegate all formatting and list creation to the utility.
+            const ul = createDirectoryList(contents);
             outputDiv.appendChild(ul);
 
         } catch (error) {

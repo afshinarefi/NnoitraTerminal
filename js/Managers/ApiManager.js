@@ -52,6 +52,15 @@ export class ApiManager {
             method: 'POST',
             body: formData
         });
+
+        if (!response.ok) {
+            throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Invalid response from server: Expected JSON but received ${contentType}. Is the server running with the --cgi flag?`);
+        }
         return response.json();
     }
 
@@ -70,6 +79,15 @@ export class ApiManager {
         const response = await fetch(url, {
             method: 'GET'
         });
+
+        if (!response.ok) {
+            throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Invalid response from server: Expected JSON but received ${contentType}. Is the server running with the --cgi flag?`);
+        }
         return response.json();
     }
 }

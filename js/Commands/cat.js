@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
-import { OptionContext } from '../Utils/OptionContext.js';
 const log = createLogger('cat');
 
 export class Cat {
@@ -36,9 +35,11 @@ export class Cat {
 
     async autocompleteArgs(currentArgs) {
         if (currentArgs.length > 1) {
-            return OptionContext.none();
+            return [];
         }
-        return OptionContext.path({ includeFiles: true });
+        const input = currentArgs[0] || '';
+        // For 'cat', we want to suggest files.
+        return await this.#autocompletePath(input, true);
     }
 
     async execute(args) {

@@ -17,7 +17,6 @@
  */
 import { EVENTS } from './Events.js';
 import { createLogger } from '../Managers/LogManager.js';
-import { OptionContext } from '../Utils/OptionContext.js';
 import { getLongestCommonPrefix } from '../Utils/StringUtil.js';
 
 const log = createLogger('AutocompleteService');
@@ -50,39 +49,25 @@ export class AutocompleteService {
         let completedToken = '';
 
         try {
-            // 1. Ask the CommandService for the *context* of the completion.
-            const contextResponse = await this.#eventBus.request(EVENTS.GET_AUTOCOMPLETE_CONTEXT_REQUEST, { parts });
-            const { options, suggestions: rawSuggestions, input: partToComplete } = contextResponse;
+            // 1. Ask the CommandService for the final list of suggestions.
+            // The CommandService will delegate to the specific command if necessary.
+            const response = await this.#eventBus.request(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, { parts });
+            const { suggestions: potentialOptions, input: partToComplete } = response;
 
-            let potentialOptions = [];
-
-            // 2. Based on the context type, fetch the actual suggestions.
-            if (contextResponse.isCommand() || contextResponse.isChoice()) {
-                potentialOptions = rawSuggestions || [];
-            } else if (contextResponse.isPath()) {
-                // The CommandService told us we need a path. Ask the FilesystemService.
-                const fsResponse = await this.#eventBus.request(EVENTS.FS_AUTOCOMPLETE_PATH_REQUEST, {
-                    path: partToComplete,
-                    includeFiles: options?.includeFiles || false
-                });
-                potentialOptions = fsResponse.suggestions || [];
-            }
-
-            if (potentialOptions.length > 0) {
-                // 3. Find the common prefix of the options.
+            if (potentialOptions && potentialOptions.length > 0) {
+                // 2. Find the common prefix of the options.
                 const commonPrefix = getLongestCommonPrefix(potentialOptions.filter(p => p.startsWith(partToComplete)));
 
-                // 4. The newly completed token is the original part plus the common prefix.
+                // 3. The newly completed token is the common prefix.
                 completedToken = commonPrefix;
 
-                // 5. The final suggestions are the options with the common prefix removed.
+                // 4. Determine the final suggestions and if a suffix should be added.
                 if (potentialOptions.length === 1 && potentialOptions[0] === completedToken) {
                     // A single, exact match was found.
-                    if (contextResponse.isPath() && !completedToken.endsWith('/')) {
-                        // It's a file path, add a space.
-                        completedToken += ' ';
-                    } else if (contextResponse.isCommand()) {
-                        // It's a command, add a space.
+                    if (completedToken.endsWith('/')) {
+                        // It's a directory, do nothing.
+                    } else {
+                        // It's a command or file, add a space.
                         completedToken += ' ';
                     }
                     finalSuggestions = []; // No more options to show.
@@ -97,7 +82,7 @@ export class AutocompleteService {
             log.error('Error during autocomplete request:', error);
         }
 
-        // 6. Construct the new command line parts and broadcast.
+        // 5. Construct the new command line parts and broadcast.
         const beforeCursorTokens = parts.slice(0, -1);
         if (completedToken) {
             beforeCursorTokens.push(completedToken);

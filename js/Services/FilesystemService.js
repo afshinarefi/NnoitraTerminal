@@ -51,27 +51,23 @@ class FilesystemService {
         this.#eventBus.listen(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, this.#handleChangeDirectory.bind(this));
     }
 
-    async #handleAutocompletePath({ path, includeFiles, correlationId }) {
+    async #handleAutocompletePath({ path, includeFiles, respond }) {
         const suggestions = await this.#autocompletePath(path, includeFiles);
-        this.#eventBus.dispatch(EVENTS.FS_AUTOCOMPLETE_PATH_RESPONSE, {
-            suggestions,
-            correlationId
-        });
+        respond({ suggestions });
     }
 
-    async #handleGetDirectoryContents({ path, correlationId }) {
+    async #handleGetDirectoryContents({ path, respond }) {
         try {
             const contents = await this.#getDirectoryContents(path);
-            this.#eventBus.dispatch(EVENTS.FS_GET_DIRECTORY_CONTENTS_RESPONSE, { contents, correlationId });
+            respond({ contents });
         } catch (error) {
-            this.#eventBus.dispatch(EVENTS.FS_GET_DIRECTORY_CONTENTS_RESPONSE, { error, correlationId });
+            respond({ error });
         }
     }
 
-    async #handleGetFileContents({ path, correlationId }) {
-        // This is a placeholder for fetching file content.
-        // For now, it simulates an error for non-existent files.
-        this.#eventBus.dispatch(EVENTS.FS_GET_FILE_CONTENTS_RESPONSE, { error: new Error('File not found.'), correlationId });
+    async #handleGetFileContents({ path, respond }) {
+        // This is a placeholder for fetching file content. For now, it simulates an error.
+        respond({ error: new Error('File not found.') });
     }
 
     #handleChangeDirectory({ path }) {
