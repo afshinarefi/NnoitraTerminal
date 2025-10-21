@@ -17,15 +17,13 @@
  */
 import { createLogger } from '../Managers/LogManager.js';
 import { ApiManager } from '../Managers/ApiManager.js';
+import { ENV_VARS } from '../Constants.js';
 import { EVENTS } from './Events.js';
 
 const log = createLogger('AccountingService');
 
 // Define constants for hardcoded strings to improve maintainability.
 const API_ENDPOINT = '/Server/Accounting.py';
-const VAR_USER = 'USER';
-const VAR_TOKEN = 'TOKEN';
-const VAR_TOKEN_EXPIRY = 'TOKEN_EXPIRY';
 const GUEST_USER = 'guest';
 
 /**
@@ -62,6 +60,8 @@ class AccountingService {
         this.#eventBus.listen(EVENTS.LOGIN_REQUEST, this.#handleLoginRequest.bind(this));
         this.#eventBus.listen(EVENTS.LOGOUT_REQUEST, this.#handleLogoutRequest.bind(this));
         this.#eventBus.listen(EVENTS.PASSWORD_CHANGE_REQUEST, this.#handleChangePasswordRequest.bind(this));
+        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this));
+        this.#eventBus.listen(EVENTS.VAR_LOAD_REMOTE_REQUEST, this.#handleLoadRemoteVariables.bind(this));
         this.#eventBus.listen(EVENTS.IS_LOGGED_IN_REQUEST, this.#handleIsLoggedInRequest.bind(this));
     }
 
@@ -71,16 +71,7 @@ class AccountingService {
 
     async start() {
         // Request initial state now that all services are listening.
-        try {
-            const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { keys: [VAR_USER, VAR_TOKEN] });
-            this.#handleInitialStateResponse(values);
-        } catch (error) {
-            log.error("Failed to get initial state from EnvironmentService:", error);
-            // If the request fails, proceed with default guest state.
-            this.#user = GUEST_USER;
-            this.#token = null;
-            this.#dispatchSetVariable(VAR_USER, GUEST_USER, VAR_CATEGORIES.LOCAL);
-        }
+        await this.validateSession();
     }
 
     async login(username, password) {
@@ -92,9 +83,9 @@ class AccountingService {
                 this.#eventBus.dispatch(EVENTS.ENV_RESET_REQUEST, {});
 
                 log.log('Login successful. Setting session variables.');
-                this.#dispatchSetVariable(VAR_TOKEN, result.token, VAR_CATEGORIES.LOCAL);
-                this.#dispatchSetVariable(VAR_USER, result.user, VAR_CATEGORIES.LOCAL);
-                this.#dispatchSetVariable(VAR_TOKEN_EXPIRY, result.expires_at, VAR_CATEGORIES.LOCAL);
+                this.#dispatchSetVariable(ENV_VARS.TOKEN, result.token, VAR_CATEGORIES.LOCAL);
+                this.#dispatchSetVariable(ENV_VARS.USER, result.user, VAR_CATEGORIES.LOCAL);
+                this.#dispatchSetVariable(ENV_VARS.TOKEN_EXPIRY, result.expires_at, VAR_CATEGORIES.LOCAL);
 
                 // Internally store the token for future API calls
                 this.#token = result.token;
@@ -130,8 +121,38 @@ class AccountingService {
         log.log('Clearing local session and resetting environment.');
         this.#eventBus.dispatch(EVENTS.ENV_RESET_REQUEST, {});
         this.#token = null;
-        this.#dispatchSetVariable(VAR_USER, GUEST_USER, VAR_CATEGORIES.LOCAL);
+        this.#dispatchSetVariable(ENV_VARS.USER, GUEST_USER);
         this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: GUEST_USER, isLoggedIn: false });
+    }
+
+    async validateSession() {
+        try {
+            const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { keys: [ENV_VARS.USER, ENV_VARS.TOKEN] });
+            const token = values[ENV_VARS.TOKEN];
+            const user = values[ENV_VARS.USER];
+
+            if (token && user && user !== GUEST_USER) {
+                log.log(`Found token for user "${user}". Validating session...`);
+                const result = await this.#apiManager.post('validate', { token });
+
+                if (result.status === 'success') {
+                    log.log('Session is valid. User is logged in.');
+                    this.#token = token;
+                    this.#user = user;
+                    this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: this.#user, isLoggedIn: true });
+                    return;
+                }
+                log.warn('Session validation failed or token expired. Clearing local session.');
+                this.clearLocalSession(); // This will broadcast the user change to guest.
+
+            } else {
+                log.log('No active session found. Operating as guest.');
+                this.clearLocalSession();
+            }
+        } catch (error) {
+            log.error("Error during session validation:", error);
+            this.clearLocalSession();
+        }
     }
 
     async #handleLoginRequest({ username, password, respond }) {
@@ -166,6 +187,13 @@ class AccountingService {
         respond({ isLoggedIn: this.isLoggedIn() });
     }
 
+    #handleUpdateDefaultRequest({ key, respond }) {
+        if (key === ENV_VARS.USER) {
+            this.#dispatchSetVariable(key, GUEST_USER);
+            respond({ value: GUEST_USER });
+        }
+    }
+
     #dispatchSetVariable(key, value) {
         // This service only ever sets LOCAL variables.
         this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key, value });
@@ -177,7 +205,7 @@ class AccountingService {
             return;
         }
         this.#apiManager.post('set_data', {
-            category: 'ENV',
+            category: payload.category,
             key: payload.key,
             value: payload.value
         }, this.#token);
@@ -195,32 +223,46 @@ class AccountingService {
         }, this.#token);
     }
 
-    async #handleHistoryLoad(payload) {
+    async #handleHistoryLoad({ respond }) {
         if (this.#user === GUEST_USER || !this.isLoggedIn()) {
             log.warn(`History load blocked: User is guest or not logged in.`);
+            if (respond) respond({ history: [] });
             return;
         }
-        const result = await this.#apiManager.post('get_data', {
-            category: 'HISTORY'
-        }, this.#token);
+        try {
+            const result = await this.#apiManager.post('get_data', {
+                category: 'HISTORY'
+            }, this.#token);
 
-        // Dispatch a response event that HistoryService will listen for.
-        // This part of the flow needs to be completed in HistoryService.
-        log.log("History data received from server:", result);
+            log.log("History data received from server:", result);
+            if (respond) {
+                respond({ history: result.data || [] });
+            }
+        } catch (error) {
+            log.error("Failed to load history from server:", error);
+            if (respond) respond({ history: [], error });
+        }
     }
 
-    #handleInitialStateResponse(values) {
-        // Handle USER variable
-        if (values.hasOwnProperty(VAR_USER) && values[VAR_USER]) {
-            this.#user = values[VAR_USER];
-        } else {
-            this.#user = GUEST_USER;
-            // If no user is set, explicitly set the environment to the guest user.
-            this.#dispatchSetVariable(VAR_USER, GUEST_USER, VAR_CATEGORIES.LOCAL);
+    async #handleLoadRemoteVariables({ respond }) {
+        if (this.#user === GUEST_USER || !this.isLoggedIn()) {
+            log.warn(`Remote variable load blocked: User is guest or not logged in.`);
+            if (respond) respond({ variables: {} });
+            return;
         }
+        try {
+            const result = await this.#apiManager.post('get_data', {
+                category: 'ENV' // Special category to get all env vars
+            }, this.#token);
 
-        // Handle TOKEN variable
-        this.#token = values[VAR_TOKEN] || null;
+            log.log("Remote variables received from server:", result);
+            if (respond) {
+                respond({ variables: result.data || {} });
+            }
+        } catch (error) {
+            log.error("Failed to load remote variables from server:", error);
+            if (respond) respond({ variables: {}, error });
+        }
     }
 }
 

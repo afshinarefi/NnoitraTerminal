@@ -16,6 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { EVENTS } from '../Services/Events.js';
+import { createLogger } from './LogManager.js';
+
+const log = createLogger('ServiceApiManager');
 
 /**
  * @class ServiceApiManager
@@ -123,6 +126,11 @@ export class ServiceApiManager {
 
     setUserspaceVariable(key, value) {
         this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value });
+    }
+
+    async getAllCategorizedVariables() {
+        const { categorized } = await this.#eventBus.request(EVENTS.GET_ALL_CATEGORIZED_VARS_REQUEST, {});
+        return categorized;
     }
 
     // --- Alias Gateway Methods ---

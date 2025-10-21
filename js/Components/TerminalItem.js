@@ -52,10 +52,13 @@ const CSS = `
   display: block;
 }
 
-:host(.active) [part=command-container],
-:host(.active) [part=icon],
 :host(.active) [part=output] {
   display: block;
+}
+
+:host(.active) [part=command-container],
+:host(.active) [part=icon] {
+  display: inline-block;
 }
 
 [part=command-container] {

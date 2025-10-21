@@ -17,15 +17,10 @@
  */
 import { EVENTS } from './Events.js';
 import { createLogger } from '../Managers/LogManager.js';
+import { ENV_VARS } from '../Constants.js';
 import { TerminalItem } from '../Components/TerminalItem.js';
 
 const log = createLogger('TerminalService');
-
-// Define constants for environment variable keys to improve maintainability.
-const VAR_PS1 = 'PS1';
-const VAR_HOST = 'HOST';
-const VAR_PWD = 'PWD';
-const VAR_USER = 'USER';
 
 const DEFAULT_PS1 = '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}';
 const DEFAULT_HOST = window.location.hostname;
@@ -64,6 +59,7 @@ class TerminalService {
         this.#eventBus.listen(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST, this.#runCommandLoop.bind(this));
         this.#eventBus.listen(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST, this.#handleScrollToBottom.bind(this));
         this.#eventBus.listen(EVENTS.CLEAR_SCREEN_REQUEST, this.#handleClear.bind(this));
+        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this));
     }
 
     /**
@@ -71,27 +67,31 @@ class TerminalService {
      */
     async start() {
         // Check for core variables and set defaults if they don't exist.
-        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { keys: [VAR_PS1, VAR_HOST] });
-
-        if (values[VAR_PS1] === undefined) {
-            this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: VAR_PS1, value: DEFAULT_PS1 });
-        }
-        if (values[VAR_HOST] === undefined) {
-            this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: VAR_HOST, value: DEFAULT_HOST });
-        }
-
         // Start the main command loop.
         this.#runCommandLoop();
     }
 
+    #handleUpdateDefaultRequest({ key, respond }) {
+        switch (key) {
+            case ENV_VARS.PS1:
+                this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_PS1 });
+                respond({ value: DEFAULT_PS1 });
+                break;
+            case ENV_VARS.HOST:
+                this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: DEFAULT_HOST });
+                respond({ value: DEFAULT_HOST });
+                break;
+        }
+    }
+
     #formatHeader(vars) {
         // Defaults are now set in the environment, so we can expect the values to be present.
-        const format = vars[VAR_PS1] || DEFAULT_PS1;
+        const format = vars[ENV_VARS.PS1];
         const timestamp = new Date();
         const replacements = {
-            user: vars[VAR_USER] || 'guest',
-            host: vars[VAR_HOST] || 'arefi.info',
-            path: vars[VAR_PWD] || '~',
+            user: vars[ENV_VARS.USER],
+            host: vars[ENV_VARS.HOST],
+            path: vars[ENV_VARS.PWD],
             year: timestamp.getFullYear(),
             month: String(timestamp.getMonth() + 1).padStart(2, '0'),
             day: String(timestamp.getDate()).padStart(2, '0'),
@@ -116,9 +116,14 @@ class TerminalService {
 
     async #runCommandLoop() {
         try {
-            // 1. Get environment variables to build the prompt header.
-            const response = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { keys: [VAR_PS1, VAR_USER, VAR_HOST, VAR_PWD] });
-            const headerText = this.#formatHeader(response.values);
+            // 1. Lazily get all required environment variables for the prompt.
+            // This will trigger the new default-request flow if they don't exist.
+            const { values: promptVars } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, {
+                keys: [ENV_VARS.PS1, ENV_VARS.USER, ENV_VARS.HOST, ENV_VARS.PWD]
+            });
+
+            // 2. Format and display the header.
+            const headerText = this.#formatHeader(promptVars);
             this.#createAndDisplayHeader(headerText);
 
             // 2. Request user input and wait for the response.
@@ -128,6 +133,7 @@ class TerminalService {
             if (this.#currentItem) {
                 this.#currentItem.setContent(commandString);
                 const outputContainer = { element: this.#currentItem.getOutput() };
+                log.log(`Executing command: "${commandString}"`);
                 this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTE_BROADCAST, {
                     commandString,
                     outputElement: outputContainer

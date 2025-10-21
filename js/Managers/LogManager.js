@@ -45,7 +45,7 @@ const ACTIVE_LOG_CATEGORIES = new Map([
     ['logout', false],
     ['ls', false],
     ['cat', false],
-    ['env', false],
+    ['env', true],
     ['history', false],
 ]);
 

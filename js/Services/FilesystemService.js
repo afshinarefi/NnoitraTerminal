@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { ENV_VARS } from '../Constants.js';
 import { EVENTS } from './Events.js';
 import { createLogger } from '../Managers/LogManager.js';
 import { ApiManager } from '../Managers/ApiManager.js';
@@ -49,6 +50,7 @@ class FilesystemService {
         this.#eventBus.listen(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, this.#handleGetDirectoryContents.bind(this));
         this.#eventBus.listen(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, this.#handleGetFileContents.bind(this));
         this.#eventBus.listen(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, this.#handleChangeDirectory.bind(this));
+        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this));
     }
 
     async #handleAutocompletePath({ path, includeFiles, respond }) {
@@ -73,7 +75,14 @@ class FilesystemService {
     #handleChangeDirectory({ path }) {
         // In a more complex system, this would first validate that 'path' is a real directory.
         // For now, it directly updates the PWD environment variable.
-        this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: 'PWD', value: path });
+        this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: ENV_VARS.PWD, value: path });
+    }
+
+    #handleUpdateDefaultRequest({ key, respond }) {
+        if (key === ENV_VARS.PWD) {
+            this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: '~' });
+            respond({ value: '~' });
+        }
     }
 
     /**

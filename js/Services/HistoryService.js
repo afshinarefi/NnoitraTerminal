@@ -17,11 +17,10 @@
  */
 import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from './Events.js';
+import { ENV_VARS } from '../Constants.js';
 
 const log = createLogger('HistoryBusService');
 
-// Define constants for hardcoded strings
-const VAR_HISTSIZE = 'HISTSIZE';
 const DEFAULT_HISTSIZE = '1000';
 
 /**
@@ -55,41 +54,40 @@ class HistoryService {
         this.#eventBus.listen(EVENTS.HISTORY_PREVIOUS_REQUEST, () => this.#handleGetPrevious());
         this.#eventBus.listen(EVENTS.HISTORY_NEXT_REQUEST, () => this.#handleGetNext());
         this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, (payload) => this.addCommand(payload.commandString));
-        this.#eventBus.listen(EVENTS.VAR_GET_RESPONSE, ({ values }) => this.#handleHistSizeResponse(values));
+        this.#eventBus.listen(EVENTS.USER_CHANGED_BROADCAST, this.#handleUserChanged.bind(this));
+        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this));
     }
 
-    start() {
-        // Now that all services are listening, check for HISTSIZE.
-        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { key: VAR_HISTSIZE });
+    async start() {
+        // No startup logic needed anymore. HISTSIZE will be resolved on first use.
     }
 
-    #handleHistSizeResponse(values) {
-        if (!values.hasOwnProperty(VAR_HISTSIZE)) return;
-
-        const histSizeValue = values[VAR_HISTSIZE];
-
-        if (histSizeValue === undefined) {
-            // If HISTSIZE is not set at all, set it to the default.
-            this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key: VAR_HISTSIZE, value: DEFAULT_HISTSIZE });
-            this.#maxSize = parseInt(DEFAULT_HISTSIZE, 10);
-        } else {
-            // If it is set, validate it.
-            this.#validateHistSize(histSizeValue);
+    #handleUpdateDefaultRequest({ key, respond }) {
+        if (key === ENV_VARS.HISTSIZE) {
+            this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_HISTSIZE });
+            respond({ value: DEFAULT_HISTSIZE });
         }
     }
 
-    #validateHistSize(histSizeValue) {
+    async #handleUserChanged({ isLoggedIn }) {
+        if (isLoggedIn) {
+            const { history } = await this.#eventBus.request(EVENTS.HISTORY_LOAD_REQUEST);
+            this.loadHistory(history);
+        }
+    }
+
+    #updateMaxSize(histSizeValue) {
         const parsedSize = parseInt(histSizeValue, 10);
         if (!isNaN(parsedSize) && parsedSize >= 0) {
             this.#maxSize = parsedSize;
         } else {
             log.warn(`Invalid HISTSIZE value "${histSizeValue}". Resetting to default: ${DEFAULT_HISTSIZE}`);
             this.#maxSize = parseInt(DEFAULT_HISTSIZE, 10);
-            this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key: VAR_HISTSIZE, value: DEFAULT_HISTSIZE });
+            this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key: ENV_VARS.HISTSIZE, value: String(this.#maxSize) });
         }
     }
 
-    addCommand(command) {
+    async addCommand(command) {
         const trimmedCommand = command.trim();
         if (!trimmedCommand || (this.#history.length > 0 && this.#history[0] === trimmedCommand)) {
             return;
@@ -98,8 +96,9 @@ class HistoryService {
         this.#history.unshift(trimmedCommand);
         this.#eventBus.dispatch(EVENTS.COMMAND_PERSIST_REQUEST, { command: trimmedCommand });
 
-        // Re-validate HISTSIZE in case it was changed by the user.
-        this.#eventBus.dispatch(EVENTS.VAR_GET_REQUEST, { key: VAR_HISTSIZE });
+        // Lazily get HISTSIZE and update the internal max size.
+        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HISTSIZE });
+        this.#updateMaxSize(values[ENV_VARS.HISTSIZE] || DEFAULT_HISTSIZE);
 
         if (this.#history.length > this.#maxSize) {
             this.#history.pop();
@@ -135,7 +134,9 @@ class HistoryService {
 
     loadHistory(data) {
         if (data) {
-            this.#history = Object.values(data);
+            // The backend returns an object with timestamps as keys. We want the values, sorted by key (timestamp).
+            const sortedCommands = Object.keys(data).sort().map(key => data[key]);
+            this.#history = sortedCommands;
             this.resetCursor();
             log.log(`Loaded ${this.#history.length} commands into history.`);
         }

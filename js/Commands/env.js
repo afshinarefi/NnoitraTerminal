@@ -29,15 +29,15 @@ class Env {
      */
     static DESCRIPTION = 'List current environment variables.';
 
-    /** @private {EnvironmentService} #environmentService - Reference to the EnvironmentService. */
-    #environmentService;
+    /** @private {Function} #getAllCategorizedVariables - Function to get all categorized variables. */
+    #getAllCategorizedVariables;
 
     /**
      * Creates an instance of Env.
      * @param {object} services - The object containing all services.
      */
     constructor(services) {
-        this.#environmentService = services.environment;
+        this.#getAllCategorizedVariables = services.getAllCategorizedVariables;
     }
 
     /**
@@ -49,7 +49,7 @@ class Env {
     async execute(args) {
         log.log('Executing...');
         const pre = document.createElement('pre');
-        const categorizedVars = this.#environmentService.getAllVariablesCategorized();
+        const categorizedVars = await this.#getAllCategorizedVariables();
         let output = '';
 
         const formatCategory = (title, vars) => {

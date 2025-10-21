@@ -242,18 +242,28 @@ def handle_get_data(form_data):
     if not category:
         return {'status': 'error', 'message': 'category is required.'}
 
-    order_by_clause = ""
-    if sort_order in ['ASC', 'DESC']:
-        order_by_clause = f"ORDER BY key {sort_order}"
-
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute(f"SELECT key, value FROM user_data WHERE username = ? AND category = ? {order_by_clause}", (username, category))
-    rows = cursor.fetchall()
-    conn.close()
+    data = {}
 
-    # Return data as a list of [index, value] pairs
-    data = {row[0]: row[1] for row in rows}
+    if category == 'ENV':
+        # Special case: fetch all environment-related categories
+        data = {'REMOTE': {}, 'USERSPACE': {}}
+        cursor.execute("SELECT category, key, value FROM user_data WHERE username = ? AND category IN ('REMOTE', 'USERSPACE')", (username,))
+        rows = cursor.fetchall()
+        for row in rows:
+            cat, key, value = row
+            if cat in data:
+                data[cat][key] = value
+    else:
+        # Fetch a single category
+        order_by_clause = ""
+        if sort_order in ['ASC', 'DESC']:
+            order_by_clause = f"ORDER BY key {sort_order}"
+        cursor.execute(f"SELECT key, value FROM user_data WHERE username = ? AND category = ? {order_by_clause}", (username, category))
+        rows = cursor.fetchall()
+        data = {row[0]: row[1] for row in rows}
+    conn.close()
     return {'status': 'success', 'data': data}
 
 def handle_set_data(form_data):

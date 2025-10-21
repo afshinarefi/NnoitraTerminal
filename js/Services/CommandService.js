@@ -17,6 +17,7 @@
  */
 import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from './Events.js';
+import { ENV_VARS } from '../Constants.js';
 import { ServiceApiManager } from '../Managers/ServiceApiManager.js';
 
 // Import all command classes
@@ -41,10 +42,7 @@ import { Export } from '../Commands/export.js';
 import { Theme } from '../Commands/theme.js';
 import { Version } from '../Commands/version.js';
 
-const log = createLogger('CommandBusService');
-
-// Constants
-const VAR_ALIAS = 'ALIAS';
+const log = createLogger('CommandService');
 
 /**
  * @class CommandBusService
@@ -74,8 +72,8 @@ class CommandService {
     #registerCommands() {
         // Register commands with their specific service dependencies.
         this.register('welcome', Welcome, []);
-        this.register('about', About, []);
-        this.register('env', Env, ['getVariable']); // To be refactored
+        this.register('about', About, []); 
+        this.register('env', Env, ['getAllCategorizedVariables']);
         this.register('help', Help, ['getCommandList', 'getCommandMeta']);
         this.register('man', Man, ['getCommandList', 'getCommandMeta']);
         this.register('history', History, ['getHistory']);
@@ -106,6 +104,7 @@ class CommandService {
         this.#eventBus.listen(EVENTS.SET_ALIASES_REQUEST, this.#handleSetAliasesRequest.bind(this));
 
         this.#eventBus.listen(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, this.#handleGetAutocompleteSuggestions.bind(this));
+        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this));
     }
 
     register(name, CommandClass, requiredServices = []) {
@@ -200,10 +199,11 @@ class CommandService {
             }
 
             const outputElement = outputContainer ? outputContainer.element : null;
-
+            
             if (this.#registry.has(commandName)) {
                 try {
                     const commandHandler = this.getCommand(commandName);
+                    log.log(`Executing command: "${args}"`);
                     const resultElement = await commandHandler.execute(args);
                     if (outputElement) outputElement.appendChild(resultElement);
                 } catch (e) {
@@ -223,7 +223,7 @@ class CommandService {
 
     async #handleGetAliasesRequest({ respond }) {
         try {
-            const aliasValue = await this.#apiProvider.getVariable(VAR_ALIAS) || '{}';
+            const aliasValue = await this.#apiProvider.getVariable(ENV_VARS.ALIAS) || '{}';
             respond({ aliases: JSON.parse(aliasValue) });
         } catch (error) {
             log.error("Failed to get aliases:", error);
@@ -232,7 +232,7 @@ class CommandService {
     }
 
     #handleSetAliasesRequest({ aliases }) {
-        this.#apiProvider.setRemoteVariable(VAR_ALIAS, JSON.stringify(aliases));
+        this.#apiProvider.setRemoteVariable(ENV_VARS.ALIAS, JSON.stringify(aliases));
     }
 
     async #handleGetCommandListRequest({ respond }) {
@@ -265,6 +265,15 @@ class CommandService {
             }
         }
         respond({ suggestions, input });
+    }
+
+    #handleUpdateDefaultRequest({ key, respond }) {
+        if (key === ENV_VARS.ALIAS) {
+            const defaultValue = '{}';
+            // ALIAS is a remote variable, so it should be set as such.
+            this.#eventBus.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key, value: defaultValue });
+            respond({ value: defaultValue });
+        }
     }
 }
 
