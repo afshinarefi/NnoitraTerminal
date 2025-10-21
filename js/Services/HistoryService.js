@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
-import { EVENTS } from './Events.js';
-import { ENV_VARS } from '../Constants.js';
+import { EVENTS } from '../Core/Events.js';
+import { ENV_VARS } from '../Core/Variables.js';
 
 const log = createLogger('HistoryBusService');
 

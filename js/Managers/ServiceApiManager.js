@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { EVENTS } from '../Services/Events.js';
+import { EVENTS } from '../Core/Events.js';
 import { createLogger } from './LogManager.js';
 
 const log = createLogger('ServiceApiManager');

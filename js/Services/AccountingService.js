@@ -17,13 +17,13 @@
  */
 import { createLogger } from '../Managers/LogManager.js';
 import { ApiManager } from '../Managers/ApiManager.js';
-import { ENV_VARS } from '../Constants.js';
-import { EVENTS } from './Events.js';
+import { ENV_VARS } from '../Core/Variables.js';
+import { EVENTS } from '../Core/Events.js';
 
 const log = createLogger('AccountingService');
 
 // Define constants for hardcoded strings to improve maintainability.
-const API_ENDPOINT = '/Server/Accounting.py';
+const API_ENDPOINT = '/Api/Accounting.py';
 const GUEST_USER = 'guest';
 
 /**

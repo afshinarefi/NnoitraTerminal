@@ -23,7 +23,7 @@ const log = createLogger('EventBus');
  * @class EventBusService
  * @description A simple, central event bus for decoupled communication between services.
  */
-class EventBusService {
+class EventBus {
     #listeners = new Map();
     #pendingRequests = new Map();
 
@@ -117,4 +117,4 @@ class EventBusService {
     }
 }
 
-export { EventBusService };
+export { EventBus };

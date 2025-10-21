@@ -15,9 +15,9 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { EVENTS } from './Events.js';
+import { EVENTS } from '../Core/Events.js';
 import { createLogger } from '../Managers/LogManager.js';
-import { ENV_VARS } from '../Constants.js';
+import { ENV_VARS } from '../Core/Variables.js';
 import { TerminalItem } from '../Components/TerminalItem.js';
 
 const log = createLogger('TerminalService');

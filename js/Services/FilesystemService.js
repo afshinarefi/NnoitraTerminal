@@ -15,8 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { ENV_VARS } from '../Constants.js';
-import { EVENTS } from './Events.js';
+import { ENV_VARS } from '../Core/Variables.js';
+import { EVENTS } from '../Core/Events.js';
 import { createLogger } from '../Managers/LogManager.js';
 import { ApiManager } from '../Managers/ApiManager.js';
 
@@ -40,7 +40,7 @@ class FilesystemService {
 
     constructor(eventBus) {
         this.#eventBus = eventBus;
-        this.#apiManager = new ApiManager('/Server/Filesystem.py');
+        this.#apiManager = new ApiManager('/Api/Filesystem.py');
         this.#registerListeners();
         log.log('Initializing...');
     }

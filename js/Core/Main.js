@@ -15,22 +15,23 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { Terminal } from './Components/Terminal.js';
-import { createLogger } from './Managers/LogManager.js';
+import { Terminal } from '../Components/Terminal.js';
+import { createLogger } from '../Managers/LogManager.js';
+
+import { EventBus } from './EventBus.js';
 
 // Import all new Bus-based services
-import { EventBusService } from './Services/EventBusService.js';
-import { EnvironmentService } from './Services/EnvironmentService.js';
-import { AccountingService } from './Services/AccountingService.js';
-import { HistoryService } from './Services/HistoryService.js';
-import { CommandService } from './Services/CommandService.js';
-import { FilesystemService } from './Services/FilesystemService.js';
-import { ThemeService } from './Services/ThemeService.js';
-import { InputService } from './Services/InputService.js';
-import { HintService } from './Services/HintService.js';
-import { FaviconService } from './Services/FaviconService.js';
-import { TerminalService } from './Services/TerminalService.js';
-import { AutocompleteService } from './Services/AutocompleteService.js';
+import { EnvironmentService } from '../Services/EnvironmentService.js';
+import { AccountingService } from '../Services/AccountingService.js';
+import { HistoryService } from '../Services/HistoryService.js';
+import { CommandService } from '../Services/CommandService.js';
+import { FilesystemService } from '../Services/FilesystemService.js';
+import { ThemeService } from '../Services/ThemeService.js';
+import { InputService } from '../Services/InputService.js';
+import { HintService } from '../Services/HintService.js';
+import { FaviconService } from '../Services/FaviconService.js';
+import { TerminalService } from '../Services/TerminalService.js';
+import { AutocompleteService } from '../Services/AutocompleteService.js';
 
 const log = createLogger('Main');
 
@@ -39,7 +40,7 @@ function main() {
 
     const services = {};
 
-    const bus = new EventBusService();
+    const bus = new EventBus();
     services.bus = bus;
 
     // Instantiate all the new services

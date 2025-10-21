@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
-import { EVENTS } from './Events.js';
+import { EVENTS } from '../Core/Events.js';
 const log = createLogger('EnvironmentService');
 
 // Define constants for hardcoded strings to improve maintainability.
