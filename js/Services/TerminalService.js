@@ -129,7 +129,7 @@ class TerminalService {
             // 2. Request user input and wait for the response.
             const { value: commandString } = await this.#requestInput();
 
-            // 3. Populate the command item and dispatch for execution.
+        // 3. Populate the command item and dispatch for execution.
             if (this.#currentItem) {
                 this.#currentItem.setContent(commandString);
                 const outputContainer = { element: this.#currentItem.getOutput() };

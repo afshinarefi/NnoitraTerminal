@@ -56,7 +56,7 @@ class History {
      * @param {object} services - A collection of all services.
      * @returns {string[]} An array of suggested arguments.
      */
-    static autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
         return []; // History command takes no arguments.
     }
 

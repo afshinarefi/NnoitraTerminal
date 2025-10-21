@@ -80,9 +80,9 @@ class ThemeService {
         this.#eventBus.dispatch(EVENTS.THEME_CHANGED_BROADCAST, { themeName: finalTheme });
         log.log(`Applied theme: ${finalTheme}`);
 
-        if (persist) {
-            this.#eventBus.dispatch(EVENTS.VAR_SET_REQUEST, { key: VAR_THEME, value: finalTheme, category: 'USERSPACE' });
-        }
+        // The theme command itself will handle persisting the variable.
+        // This service only applies the theme based on the variable's value.
+
         return finalTheme;
     }
 

@@ -34,7 +34,7 @@ class Ls {
      * @param {Function} funcs.autocompletePath - A function for path autocompletion.
      */
     constructor(funcs) {
-        this.#getDirectoryContents = funcs.getDirectoryContents;
+        this.#getDirectoryContents = funcs.getDirectoryContents; // This is still needed for execute
         this.#autocompletePath = funcs.autocompletePath;
     }
 

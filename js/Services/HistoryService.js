@@ -90,7 +90,7 @@ class HistoryService {
     async addCommand(command) {
         const trimmedCommand = command.trim();
         if (!trimmedCommand || (this.#history.length > 0 && this.#history[0] === trimmedCommand)) {
-            return;
+            return; // Don't add empty or duplicate consecutive commands
         }
 
         this.#history.unshift(trimmedCommand);

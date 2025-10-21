@@ -36,7 +36,7 @@ class Login {
         return `NAME\n       login - Log in to the system.\n\nSYNOPSIS\n       login [username]\n\nDESCRIPTION\n       Authenticates the user and starts a session.`;
     }
 
-    static autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
         return []; // No autocomplete for username/password.
     }
 

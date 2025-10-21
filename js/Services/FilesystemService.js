@@ -22,6 +22,8 @@ import { ApiManager } from '../Managers/ApiManager.js';
 
 const log = createLogger('FilesystemService');
 
+const DEFAULT_PWD = '/';
+
 /**
  * @class FilesystemService
  * @description Manages all interactions with the virtual filesystem via the event bus.
@@ -50,6 +52,7 @@ class FilesystemService {
         this.#eventBus.listen(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, this.#handleGetDirectoryContents.bind(this));
         this.#eventBus.listen(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, this.#handleGetFileContents.bind(this));
         this.#eventBus.listen(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, this.#handleChangeDirectory.bind(this));
+        this.#eventBus.listen(EVENTS.FS_RESOLVE_PATH_REQUEST, this.#handleResolvePathRequest.bind(this));
         this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this));
     }
 
@@ -68,20 +71,38 @@ class FilesystemService {
     }
 
     async #handleGetFileContents({ path, respond }) {
-        // This is a placeholder for fetching file content. For now, it simulates an error.
-        respond({ error: new Error('File not found.') });
+        try {
+            const contents = await this.#getFileContents(path);
+            respond({ contents });
+        } catch (error) {
+            respond({ error });
+        }
     }
 
-    #handleChangeDirectory({ path }) {
-        // In a more complex system, this would first validate that 'path' is a real directory.
-        // For now, it directly updates the PWD environment variable.
-        this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: ENV_VARS.PWD, value: path });
+    async #handleChangeDirectory({ path, respond }) {
+        try {
+            // The backend's 'resolve' action now handles path resolution relative to PWD.
+            const newPath = await this.#resolveAndValidatePath(path, true);
+            this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: ENV_VARS.PWD, value: newPath });
+            respond({ success: true });
+        } catch (error) {
+            respond({ error });
+        }
+    }
+
+    async #handleResolvePathRequest({ path, respond }) {
+        try {
+            const resolvedPath = await this.#resolveAndValidatePath(path, false);
+            respond({ path: resolvedPath });
+        } catch (error) {
+            respond({ error });
+        }
     }
 
     #handleUpdateDefaultRequest({ key, respond }) {
         if (key === ENV_VARS.PWD) {
-            this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: '~' });
-            respond({ value: '~' });
+            this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: DEFAULT_PWD });
+            respond({ value: DEFAULT_PWD });
         }
     }
 
@@ -92,13 +113,55 @@ class FilesystemService {
      * @returns {Promise<string[]>} A promise that resolves to an array of suggestions.
      */
     async #autocompletePath(inputPath, includeFiles = false) {
+        // Determine the directory to list and the part to complete.
+        let dirToList = '/';
+        let partToComplete = inputPath;
+
+        if (!inputPath) {
+            // If input is empty, we list the current directory.
+            dirToList = '.';
+            partToComplete = '';
+        } else if (inputPath.endsWith('/')) {
+            dirToList = inputPath;
+            partToComplete = '';
+        } else {
+            const lastSlashIndex = inputPath.lastIndexOf('/');
+            dirToList = (lastSlashIndex === -1) ? '.' : inputPath.substring(0, lastSlashIndex + 1);
+            partToComplete = (lastSlashIndex === -1) ? inputPath : inputPath.substring(lastSlashIndex + 1);
+        }
+
         try {
-            const data = await this.#apiManager.get({
-                action: 'autocomplete',
-                path: inputPath,
-                files: includeFiles
-            });
-            return data.suggestions || [];
+            // Use the existing 'ls' action to get directory contents.
+            const contents = await this.#getDirectoryContents(dirToList);
+            const suggestions = [];
+
+            // Filter directories
+            if (contents.directories) {
+                contents.directories.forEach(dir => {
+                    if (dir.name.startsWith(partToComplete)) {
+                        // If we are completing from the root, don't prepend the root slash.
+                        // The suggestion should be relative to the input.
+                        let prefix = (dirToList === '/' || dirToList === './' || dirToList === '.') ? '' : dirToList;
+                        // If the original input was an absolute path, ensure the suggestion is too.
+                        if (inputPath.startsWith('/') && !prefix.startsWith('/')) prefix = '/' + prefix;
+                        suggestions.push(prefix + dir.name + '/');
+                    }
+                });
+            }
+
+            // Filter files if requested
+            if (includeFiles && contents.files) {
+                contents.files.forEach(file => {
+                    if (file.name.startsWith(partToComplete)) {
+                        let prefix = (dirToList === '/' || dirToList === './' || dirToList === '.') ? '' : dirToList;
+                        // If the original input was an absolute path, ensure the suggestion is too.
+                        if (inputPath.startsWith('/') && !prefix.startsWith('/')) prefix = '/' + prefix;
+                        suggestions.push(prefix + file.name);
+                    }
+                });
+            }
+
+            return suggestions.sort();
         } catch (error) {
             log.error('Error fetching path completions:', error);
             return [];
@@ -106,19 +169,37 @@ class FilesystemService {
     }
 
     async #getDirectoryContents(path) {
+        const { values: { PWD: pwd } } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+        return this.#makeApiRequest('ls', { path, pwd });
+    }
+
+    async #getFileContents(path) {
+        const { values: { PWD: pwd } } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+        const response = await this.#makeApiRequest('cat', { path, pwd });
+        return response.content;
+    }
+
+    async #makeApiRequest(action, params = {}) {
         try {
-            const data = await this.#apiManager.get({
-                action: 'ls',
-                path: path
-            });
+            const data = await this.#apiManager.get({ action, ...params });
             if (data.error) {
                 throw new Error(data.error);
             }
             return data;
         } catch (error) {
-            log.error(`Error getting contents for path "${path}":`, error);
+            log.error(`Error during API request for action "${action}" with path "${params.path}":`, error);
             throw error;
         }
+    }
+
+    async #resolveAndValidatePath(path, mustBeDir) {
+        const { values: { PWD: pwd } } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+        const data = await this.#makeApiRequest('resolve', {
+            path,
+            pwd,
+            must_be_dir: mustBeDir
+        });
+        return data.path;
     }
 }
 

@@ -94,17 +94,35 @@ export class ServiceApiManager {
         return response.suggestions;
     }
 
+    async getPublicUrl(path) {
+        const response = await this.#eventBus.request(EVENTS.FS_GET_PUBLIC_URL_REQUEST, { path });
+        return response.url;
+    }
+
+    async resolvePath(path, mustBeDir = false) {
+        const response = await this.#eventBus.request(EVENTS.FS_RESOLVE_PATH_REQUEST, { path, mustBeDir });
+        if (response.error) {
+            throw response.error;
+        }
+        return response.path;
+    }
+
     // --- History Gateway Methods ---
 
     async getHistory() {
-        const response = await this.#eventBus.request(EVENTS.HISTORY_LOAD_REQUEST, {});
+        // This is a placeholder for fetching file content. For now, it simulates an error.
+        const response = await this.#eventBus.request(EVENTS.HISTORY_LOAD_REQUEST, {}, 0); // Timeout 0 for immediate response if available
         return response.history;
     }
 
     // --- Environment Gateway Methods ---
 
-    changeDirectory(path) {
-        this.#eventBus.dispatch(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, { path });
+    async changeDirectory(path) {
+        const response = await this.#eventBus.request(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, { path });
+        if (response.error) {
+            // The error object from the service is a standard Error, so we can re-throw it.
+            throw response.error;
+        }
     }
 
     async getVariable(key) {

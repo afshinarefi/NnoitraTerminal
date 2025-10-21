@@ -225,7 +225,7 @@ class AccountingService {
 
     async #handleHistoryLoad({ respond }) {
         if (this.#user === GUEST_USER || !this.isLoggedIn()) {
-            log.warn(`History load blocked: User is guest or not logged in.`);
+            log.warn('History load blocked: User is guest or not logged in.');
             if (respond) respond({ history: [] });
             return;
         }
@@ -246,7 +246,7 @@ class AccountingService {
 
     async #handleLoadRemoteVariables({ respond }) {
         if (this.#user === GUEST_USER || !this.isLoggedIn()) {
-            log.warn(`Remote variable load blocked: User is guest or not logged in.`);
+            log.warn('Remote variable load blocked: User is guest or not logged in.');
             if (respond) respond({ variables: {} });
             return;
         }

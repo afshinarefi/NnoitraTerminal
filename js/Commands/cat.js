@@ -33,7 +33,7 @@ export class Cat {
         return `NAME\n       cat - Concatenate and print files.\n\nSYNOPSIS\n       cat [FILE]...\n\nDESCRIPTION\n       The cat command reads files sequentially, writing them to the standard output.`;
     }
 
-    async autocompleteArgs(currentArgs) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
         if (currentArgs.length > 1) {
             return [];
         }
@@ -54,7 +54,6 @@ export class Cat {
         }
 
         try {
-            // Delegate file fetching and path resolution to the injected function.
             const content = await this.#getFileContents(filePathArg);
             output.textContent = content;
         } catch (error) {

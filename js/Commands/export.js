@@ -26,10 +26,12 @@ const log = createLogger('export');
 class Export {
     static DESCRIPTION = 'Set or display user environment variables.';
 
-    #environmentService;
+    #setUserspaceVariable;
+    #getAllCategorizedVariables;
 
     constructor(services) {
-        this.#environmentService = services.environment;
+        this.#setUserspaceVariable = services.setUserspaceVariable;
+        this.#getAllCategorizedVariables = services.getAllCategorizedVariables;
         log.log('Initializing...');
     }
 
@@ -43,15 +45,16 @@ class Export {
      * @param {object} services - A collection of all services.
      * @returns {string[]} An array of suggested variable names.
      */
-    static autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency, though not strictly needed here.
         // The export command only operates on a single argument (e.g., 'PS1=value').
         // If there's more than one argument part, we should not offer any suggestions.
         if (currentArgs.length > 1) {
             return [];
         }
 
-        const arg = currentArgs[0] || '';
-        const userSpaceVars = services.environment.getAllVariablesCategorized().USERSPACE;
+        const arg = currentArgs[0] || '';        
+        const allVars = await this.#getAllCategorizedVariables();
+        const userSpaceVars = allVars.USERSPACE;
         const userSpaceVarNames = Object.keys(userSpaceVars);
 
         const parts = arg.split('=');
@@ -82,8 +85,8 @@ class Export {
         const output = document.createElement('pre');
         const exportString = args.slice(1).join(' ');
 
-        const allVars = this.#environmentService.getAllVariablesCategorized();
-        const userSpaceVars = allVars.USERSPACE;
+        const allVars = await this.#getAllCategorizedVariables();
+        const userSpaceVars = allVars.USERSPACE || {};
 
         // If no arguments, display all USERSPACE variables
         if (!exportString) {
@@ -99,7 +102,7 @@ class Export {
         const newVar = parseAssignment(exportString);
 
         if (newVar) {
-            const success = this.#environmentService.exportVariable(newVar.name.toUpperCase(), newVar.value);
+            const success = this.#setUserspaceVariable(newVar.name.toUpperCase(), newVar.value);
             if (success) {
                 log.log(`Set variable: ${newVar.name}='${newVar.value}'`);
                 // No output on successful export, which is standard shell behavior.

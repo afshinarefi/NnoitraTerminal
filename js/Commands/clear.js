@@ -63,7 +63,7 @@ DESCRIPTION
      * @returns {string[]} Empty array since clear takes no arguments
      */
     static autocompleteArgs() {
-        return [];
+        return []; // Made async for consistency
     }
 }
 

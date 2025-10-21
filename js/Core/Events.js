@@ -53,6 +53,7 @@ export const EVENTS = {
     COMMAND_EXECUTION_FINISHED_BROADCAST: 'command-execution-finished-broadcast',
     AUTOCOMPLETE_REQUEST: 'autocomplete-request',
     AUTOCOMPLETE_BROADCAST: 'autocomplete-broadcast',
+    GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST: 'get-autocomplete-suggestions-request',
     GET_ALIASES_REQUEST: 'get-aliases-request',
     SET_ALIASES_REQUEST: 'set-aliases-request',
     GET_AUTOCOMPLETE_CONTEXT_REQUEST: 'get-autocomplete-context-request',
@@ -80,4 +81,5 @@ export const EVENTS = {
     FS_GET_DIRECTORY_CONTENTS_RESPONSE: 'fs-get-directory-contents-response',
     FS_GET_FILE_CONTENTS_REQUEST: 'fs-get-file-contents-request',
     FS_GET_FILE_CONTENTS_RESPONSE: 'fs-get-file-contents-response',
+    FS_GET_PUBLIC_URL_REQUEST: 'fs-get-public-url-request',
 };

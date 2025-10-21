@@ -31,14 +31,12 @@ class Man {
     static DESCRIPTION = 'Shows the manual page for a command.';
 
     /** @private {CommandService} #commandService - Reference to the CommandService. */
-    #commandService;
+    #getCommandList;
+    #getCommandMeta;
 
-    /**
-     * Creates an instance of Man.
-     * @param {CommandService} commandService - The CommandService instance to interact with.
-     */
     constructor(services) {
-        this.#commandService = services.command;
+        this.#getCommandList = services.getCommandList;
+        this.#getCommandMeta = services.getCommandMeta;
     }
 
     /**
@@ -57,24 +55,20 @@ class Man {
      * @param {object} services - A collection of all services.
      * @returns {string[]} An array of suggested arguments.
      */
-    static autocompleteArgs(currentArgs, services, fullParts) {
-        const commandService = services.command;
-        // If fullParts is available, use it to check argument count
-        if (fullParts && fullParts.length > 2) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
+        if (currentArgs.length > 1) {
             return [];
         }
-        // If starting the first argument, suggest all command names
-        if (currentArgs.length === 0) {
-            return commandService.getHelpCommandNames();
+
+        const commandList = await this.#getCommandList();
+        const input = currentArgs[0] || '';
+
+        // If input is already a valid command name, do not suggest anything further.
+        if (commandList.includes(input)) {
+            return [];
         }
-        // If typing the first argument, suggest matching command names
-        if (currentArgs.length === 1) {
-            const input = currentArgs[0] || '';
-            // If input is already a valid command name, do not suggest anything
-            if (commandService.getHelpCommandNames().includes(input)) {
-                return [];
-            }
-            return commandService.getHelpCommandNames().filter(cmd => cmd.startsWith(input));
+        if (input) {
+            return commandList.filter(cmd => cmd.startsWith(input));
         }
         // If typing the second or later argument, do not suggest anything
         return [];
@@ -104,20 +98,21 @@ class Man {
         }
         const lowerCmdName = cmdName.toLowerCase();
         // Debug: print all command names and lookup result
+        const commandList = await this.#getCommandList();
         log.log('Searching for command:', lowerCmdName);
-        let exactMatch = this.#commandService.getAvailableCommandNames().find(cmd => cmd.toLowerCase() === lowerCmdName);
-        let CommandClass = exactMatch ? this.#commandService.getCommandClass(exactMatch) : undefined;
+        let exactMatch = commandList.find(cmd => cmd.toLowerCase() === lowerCmdName);
+        let manContent = exactMatch ? await this.#getCommandMeta(exactMatch, 'man') : undefined;
         log.log('Exact match found:', exactMatch);
-        if (!CommandClass) {
+        if (!manContent) {
             // Try unique partial match (case-insensitive)
-            const matches = this.#commandService.getAvailableCommandNames().filter(cmd => cmd.toLowerCase().startsWith(lowerCmdName));
+            const matches = commandList.filter(cmd => cmd.toLowerCase().startsWith(lowerCmdName));
             log.log('Partial matches found:', matches);
             if (matches.length === 1) {
-                CommandClass = this.#commandService.getCommandClass(matches[0]);
+                manContent = await this.#getCommandMeta(matches[0], 'man');
                 log.log('Unique partial match found:', matches[0]);
             } else if (matches.length > 1) {
                 const p = document.createElement('p');
-                p.textContent = `Ambiguous command: '${cmdName}'. Possible matches: ${matches.join(', ')}`;
+                p.textContent = `man: ambiguous command '${cmdName}'; possibilities: ${matches.join(' ')}`;
                 outputDiv.appendChild(p);
                 log.warn('Ambiguous command:', { input: cmdName, matches });
                 return outputDiv;
@@ -128,10 +123,10 @@ class Man {
                 return outputDiv;
             }
         }
-        if (CommandClass && typeof CommandClass.man === 'function') {
+        if (manContent) {
             log.log('Displaying man page.');
             const pre = document.createElement('pre');
-            pre.innerText = CommandClass.man();
+            pre.innerText = manContent;
             outputDiv.appendChild(pre);
             return outputDiv;
         } else {

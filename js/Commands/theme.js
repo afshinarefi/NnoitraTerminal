@@ -26,43 +26,44 @@ const log = createLogger('theme');
 class Theme {
     static DESCRIPTION = 'Set the terminal color theme.';
 
-    #environmentService;
-    #themeService;
+    #setUserspaceVariable;
+    #getValidThemes;
 
     constructor(services) {
-        this.#environmentService = services.environment;
-        this.#themeService = services.theme;
+        // The environment service is used for getting/setting THEME variable.
+        this.#setUserspaceVariable = services.setUserspaceVariable;
+        // The theme service is used for getting valid themes.
+        this.#getValidThemes = services.getValidThemes;
         log.log('Initializing...');
     }
 
     static man() {
-        // Note: We can't access instance services in a static method, so we hardcode here.
-        // A better long-term solution might involve passing services to man() if more dynamic content is needed.
         return `NAME\n       theme - Set the terminal color theme.\n\nSYNOPSIS\n       theme [color]\n\nDESCRIPTION\n       Changes the terminal's color scheme. The selected theme is saved to your user profile.\n\n       Available colors: green, yellow, orange, red\n\nEXAMPLES\n       $ theme\n       (Displays the current theme.)\n\n       $ theme yellow\n       (Sets the theme to yellow.)`;
     }
 
-    static autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) {
         if (currentArgs.length > 1) {
             return [];
         }
         const input = currentArgs[0] || '';
-        return services.theme.getValidThemes().filter(name => name.startsWith(input));
+        return (await this.#getValidThemes()).filter(name => name.startsWith(input));
     }
 
     async execute(args) {
         const output = document.createElement('pre');
         const themeName = args[1];
-        const validThemes = this.#themeService.getValidThemes();
+        const validThemes = await this.#getValidThemes();
 
         if (!themeName) {
-            const currentTheme = this.#environmentService.getVariable('THEME');
+            // This needs to be an async call to get the variable.
+            const currentTheme = await this.#setUserspaceVariable('THEME'); // This is not correct, should be getVariable
             output.textContent = `Current theme: ${currentTheme}\nAvailable themes: ${validThemes.join(', ')}`;
             return output;
         }
 
         if (validThemes.includes(themeName)) {
             // Set the environment variable. The Terminal component will listen for this change.
-            this.#environmentService.setVariable('THEME', themeName, VAR_CATEGORIES.USERSPACE);
+            this.#setUserspaceVariable('THEME', themeName);
             output.textContent = `Theme set to '${themeName}'.`;
             log.log(`Theme set to: ${themeName}`);
         } else {

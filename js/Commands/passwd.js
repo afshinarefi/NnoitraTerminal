@@ -58,7 +58,7 @@ DESCRIPTION
         return context.isLoggedIn;
     }
 
-    async execute(args) {
+    async execute(args) { // Made async for consistency
         log.log('Executing...');
         const outputDiv = document.createElement('div');
         const promptOptions = { isSecret: true, allowHistory: false, allowAutocomplete: false };

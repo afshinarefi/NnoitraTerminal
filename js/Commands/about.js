@@ -30,7 +30,7 @@ class About {
         return `NAME\n       about - Display information about the author.\n\nSYNOPSIS\n       about\n\nDESCRIPTION\n       The about command displays a short bio, contact information, and a profile picture.`;
     }
 
-    static autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
         return []; // 'about' command takes no arguments.
     }
 

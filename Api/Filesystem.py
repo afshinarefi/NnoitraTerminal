@@ -20,19 +20,23 @@ import json
 import sys
 import urllib.parse
 
+# --- Constants ---
+
+FS_ROOT = os.path.join('../', 'fs') # The absolute path to the virtual filesystem root.
+
 # --- Utility Functions ---
 
-def get_query_param(name, default=''):
+def get_query_param(params, name, default=''):
     """Safely gets a query parameter from the CGI environment."""
-    query = os.environ.get('QUERY_STRING', '')
-    params = urllib.parse.parse_qs(query)
     return params.get(name, [default])[0]
 
-def get_safe_path(requested_path, root_dir):
+def get_safe_path(requested_path, pwd, root_dir):
     """Validates and returns a safe, absolute path, preventing directory traversal."""
-    if not requested_path:
-        return root_dir
-    
+    # If the requested path is not absolute, join it with the present working directory.
+    # os.path.join correctly handles joining with '/'
+    if not requested_path.startswith('/'):
+        requested_path = os.path.join(pwd, requested_path)
+
     # Normalize the path and join it with the root directory
     safe_path = os.path.normpath(os.path.join(root_dir, requested_path.lstrip('/\\')))
     
@@ -65,27 +69,32 @@ def handle_ls(path):
     result["files"].sort(key=lambda x: x['name'])
     return result
 
-def handle_autocomplete(path, include_files):
-    """Provides autocomplete suggestions for a given path."""
-    suggestions = []
-    parent_dir = os.path.dirname(path)
-    base_name = os.path.basename(path)
-
-    if not os.path.exists(parent_dir):
-        return {"suggestions": []}
-
-    with os.scandir(parent_dir) as it:
-        for entry in it:
-            if entry.name.startswith(base_name) and not entry.name.startswith('.'):
-                # Construct the suggestion relative to the original input path's directory
-                suggestion = os.path.join(os.path.dirname(path), entry.name)
-                if entry.is_dir():
-                    suggestions.append(suggestion + '/')
-                elif include_files:
-                    suggestions.append(suggestion)
+def handle_cat(path):
+    """Reads the content of a file."""
+    if not os.path.exists(path):
+        raise FileNotFoundError("No such file or directory")
+    if os.path.isdir(path):
+        raise IsADirectoryError("Is a directory")
     
-    suggestions.sort()
-    return {"suggestions": suggestions}
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    return {"content": content}
+
+def handle_resolve(path, must_be_dir):
+    """Resolves a path and checks if it's a valid directory or file."""
+    if not os.path.exists(path):
+        raise FileNotFoundError("No such file or directory")
+    if must_be_dir and not os.path.isdir(path):
+        raise NotADirectoryError("Not a directory")
+    
+    # Return the path relative to the 'fs' root, which is what the frontend expects
+    relative_path = '/' + os.path.relpath(path, FS_ROOT).replace('\\', '/')
+    return {"path": relative_path}
+
+def handle_get_public_url(path):
+    """Constructs a public-facing URL for a given virtual file path."""
+    # This is where the knowledge of the '/fs' prefix lives.
+    return {"url": f"/fs{path}"}
 
 # --- Main Execution ---
 
@@ -94,26 +103,29 @@ def main():
     print("Content-Type: application/json")
     print() # Required blank line
 
+    query = os.environ.get('QUERY_STRING', '')
+    params = urllib.parse.parse_qs(query)
     response_data = {}
     
     try:
-        # Define the root directory for the virtual filesystem
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(script_dir)
-        fs_root = os.path.join(project_root, 'fs')
-
-        action = get_query_param('action')
-        path_param = get_query_param('path', '.')
+        action = get_query_param(params, 'action')
+        path_param = get_query_param(params, 'path', '.')
+        pwd_param = get_query_param(params, 'pwd', '/')
         
-        safe_path = get_safe_path(path_param, fs_root)
+        safe_path = get_safe_path(path_param, pwd_param, FS_ROOT)
         if safe_path is None:
             raise ValueError("Invalid path: Directory traversal attempt detected.")
 
         if action == 'ls':
             response_data = handle_ls(safe_path)
-        elif action == 'autocomplete':
-            include_files = get_query_param('files', 'false').lower() == 'true'
-            response_data = handle_autocomplete(path_param, include_files)
+        elif action == 'cat':
+            response_data = handle_cat(safe_path)
+        elif action == 'resolve':
+            must_be_dir = get_query_param(params, 'must_be_dir', 'false').lower() == 'true'
+            # We use safe_path here to ensure the path is valid before resolving
+            response_data = handle_resolve(safe_path, must_be_dir)
+        elif action == 'get_public_url':
+            response_data = handle_get_public_url(path_param)
         else:
             response_data = {"error": f"Unknown action: {action}"}
 

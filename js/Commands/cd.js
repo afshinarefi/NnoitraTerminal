@@ -24,52 +24,40 @@ const log = createLogger('cd');
 class Cd {
     static DESCRIPTION = 'Change the current directory.';
 
-    #filesystemService;
-    #environmentService;
+    #changeDirectory;
+    #autocompletePath;
 
     constructor(services) {
-        this.#filesystemService = services.filesystem;
-        this.#environmentService = services.environment;
+        this.#changeDirectory = services.changeDirectory;
+        this.#autocompletePath = services.autocompletePath;
     }
 
     static man() {
         return `NAME\n       cd - Change the current directory.\n\nSYNOPSIS\n       cd [directory]\n\nDESCRIPTION\n       The cd command changes the current working directory to the specified location.\n       If no location is given, it changes to the root directory.`;
     }
 
-    static async autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) {
         // Only provide suggestions for the first argument.
         if (currentArgs.length > 1) {
             return [];
         }
         const input = currentArgs[0] || '';
         // For 'cd', we only want to suggest directories.
-        return await services.filesystem.autocompletePath(input, false);
+        // The `autocompletePath` function is injected via the constructor.
+        return await this.#autocompletePath(input, false);
     }
 
     async execute(args) {
         log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
-        let inputPath = args[1] || '/';
-        let normalizedPath;
-        if (inputPath.startsWith('/')) {
-            normalizedPath = this.#filesystemService.normalizePath(inputPath);
-        } else {
-            const currentPath = this.#filesystemService.getCurrentPath();
-            normalizedPath = this.#filesystemService.normalizePath(currentPath + '/' + inputPath);
+        const pathArg = args[1] || '/';
+
+        try {
+            await this.#changeDirectory(pathArg);
+        } catch (error) {
+            outputDiv.textContent = `cd: ${pathArg}: ${error.message}`;
         }
-        log.log(`Attempting to change to normalized path: "${normalizedPath}"`);
-        // Ensure the directory exists by fetching and caching if needed
-        const contents = await this.#filesystemService.listContents(normalizedPath);
-        if (!contents) {
-            log.warn(`Directory not found: "${normalizedPath}"`);
-            outputDiv.textContent = `cd: ${args[1] || '/'}: No such directory`;
-            return outputDiv;
-        }
-        this.#filesystemService.setCurrentPath(normalizedPath);
-        const absPath = this.#filesystemService.getCurrentPath();
-        this.#environmentService.setVariable('PWD', absPath);
-        log.log(`Successfully changed directory to: "${absPath}"`);
-        outputDiv.textContent = `Changed directory to ${absPath}`;
+
         return outputDiv;
     }
 }

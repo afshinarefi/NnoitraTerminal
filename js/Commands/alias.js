@@ -38,7 +38,7 @@ class Alias {
         return `NAME\n       alias - Define or display command aliases.\n\nSYNOPSIS\n       alias [name[=value] ...]\n\nDESCRIPTION\n       The alias command allows you to create shortcuts for longer commands.\n\n       - With no arguments, 'alias' prints the list of all current aliases.\n       - With 'name=value', it defines an alias. The value can be a string in quotes.\n\nEXAMPLES\n       $ alias\n       (Displays all aliases.)\n\n       $ alias l="ls -l"\n       (Creates an alias 'l' for 'ls -l'.)`;
     }
 
-    static autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
         // For now, no specific autocomplete for alias arguments.
         return [];
     }

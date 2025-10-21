@@ -47,6 +47,8 @@ const ACTIVE_LOG_CATEGORIES = new Map([
     ['cat', false],
     ['env', true],
     ['history', false],
+    ['history', true],
+    ['cd', true],
 ]);
 
 const noop = () => {}; // The no-operation function.

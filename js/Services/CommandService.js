@@ -78,17 +78,17 @@ class CommandService {
         this.register('man', Man, ['getCommandList', 'getCommandMeta']);
         this.register('history', History, ['getHistory']);
         this.register('ls', Ls, ['getDirectoryContents', 'autocompletePath']);
-        this.register('cd', Cd, ['isDirectory', 'changeDirectory']);
+        this.register('cd', Cd, ['changeDirectory', 'autocompletePath']);
         this.register('cat', Cat, ['getFileContents', 'autocompletePath']);
         this.register('clear', Clear, ['clearScreen']);
-        this.register('view', View, ['getFileContents', 'autocompletePath']);
+        this.register('view', View, ['autocompletePath', 'getPublicUrl']);
         this.register('adduser', AddUser, ['prompt', 'login']);
         this.register('login', Login, ['prompt', 'login']);
         this.register('logout', Logout, ['logout']);
         this.register('passwd', Passwd, ['prompt', 'changePassword']);
         this.register('alias', Alias, ['getAliases', 'setAliases']);
         this.register('unalias', Unalias, ['getAliases', 'setAliases']);
-        this.register('export', Export, ['setUserspaceVariable']);
+        this.register('export', Export, ['setUserspaceVariable', 'getAllCategorizedVariables']);
         this.register('theme', Theme, ['getValidThemes', 'setUserspaceVariable']);
         this.register('version', Version, []);
     }
@@ -259,7 +259,10 @@ class CommandService {
             }
 
             const CommandClass = this.getCommandClass(commandName);
-            if (CommandClass && typeof CommandClass.autocompleteArgs === 'function') {
+            // Check if the instance method exists on the prototype.
+            // This is the correct way to check for an instance method before instantiating the command.
+            
+            if (CommandClass && typeof CommandClass.prototype.autocompleteArgs === 'function') {
                 const commandInstance = this.getCommand(commandName);
                 suggestions = await commandInstance.autocompleteArgs(argsForCompletion);
             }

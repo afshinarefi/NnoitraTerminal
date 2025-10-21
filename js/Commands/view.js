@@ -26,10 +26,12 @@ const log = createLogger('view');
 class View {
     static DESCRIPTION = 'View a photo or video.';
 
-    #filesystemService;
+    #autocompletePath;
+    #getPublicUrl;
 
     constructor(services) {
-        this.#filesystemService = services.filesystem;
+        this.#autocompletePath = services.autocompletePath;
+        this.#getPublicUrl = services.getPublicUrl;
         log.log('Initializing...');
     }
 
@@ -37,12 +39,12 @@ class View {
         return `NAME\n       view - Display an image or video file.\n\nSYNOPSIS\n       view [file]\n\nDESCRIPTION\n       The view command displays the specified image (png, jpg, gif) or video (mp4, webm) file.\n       The path can be absolute or relative to the current directory.`;
     }
 
-    static async autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
         if (currentArgs.length > 1) {
             return [];
         }
         const input = currentArgs[0] || '';
-        const allPaths = await services.filesystem.autocompletePath(input, true);
+        const allPaths = await this.#autocompletePath(input, true);
         const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
         // Filter to only suggest supported files or directories (to allow navigation)
         return allPaths.filter(p => p.endsWith('/') || supportedFormats.test(p));
@@ -59,27 +61,13 @@ class View {
             return outputDiv;
         }
 
-        let path = filePathArg;
-        if (!path.startsWith('/')) {
-            path = this.#filesystemService.getCurrentPath().replace(/\/$/, '') + '/' + path;
-        }
-        path = this.#filesystemService.normalizePath(path);
-        log.log(`Attempting to view normalized path: "${path}"`);
-
-        if (!await this.#filesystemService.isFile(path)) {
-            log.warn(`Path is not a file or does not exist: "${path}"`);
-            outputDiv.textContent = `view: cannot access '${filePathArg}': No such file or it is a directory`;
-            return outputDiv;
-        }
-
         const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
-        if (!supportedFormats.test(path)) {
-            log.warn(`File is not a supported media type: "${path}"`);
+        if (!supportedFormats.test(filePathArg)) {
+            log.warn(`File is not a supported media type: "${filePathArg}"`);
             outputDiv.textContent = `view: ${filePathArg}: Unsupported file type.`;
             return outputDiv;
         }
-
-        const mediaSrc = `/fs${path}`;
+        const mediaSrc = this.#getPublicUrl(filePathArg);
         log.log(`Creating media element with src: "${mediaSrc}"`);
         const mediaElement = new Media();
         mediaElement.src = mediaSrc;

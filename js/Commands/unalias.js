@@ -24,12 +24,12 @@ const log = createLogger('unalias');
 class Unalias {
     static DESCRIPTION = 'Remove an alias.';
 
-    #environmentService;
-    #commandService;
+    #getAliases;
+    #setAliases;
 
     constructor(services) {
-        this.#environmentService = services.environment;
-        this.#commandService = services.command;
+        this.#getAliases = services.getAliases;
+        this.#setAliases = services.setAliases;
         log.log('Initializing...');
     }
 
@@ -37,11 +37,11 @@ class Unalias {
         return `NAME\n       unalias - Remove an alias.\n\nSYNOPSIS\n       unalias <alias_name>\n\nDESCRIPTION\n       The unalias command removes the specified alias from the list of defined aliases.\n\nEXAMPLES\n       $ unalias l\n       (Removes the alias 'l'.)`;
     }
 
-    static autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
         if (currentArgs.length > 1) {
             return [];
         }
-        const aliases = services.command.getAliases();
+        const aliases = await this.#getAliases();
         const aliasNames = Object.keys(aliases);
         const input = currentArgs[0] || '';
 
@@ -59,12 +59,12 @@ class Unalias {
             return output;
         }
 
-        const aliases = this.#commandService.getAliases();
+        const aliases = await this.#getAliases();
 
         if (aliasName in aliases) {
             log.log(`Removing alias: "${aliasName}"`);
             delete aliases[aliasName];
-            this.#commandService.setAliases(aliases);
+            this.#setAliases(aliases);
             output.textContent = `Alias '${aliasName}' removed.`;
         } else {
             log.warn(`Alias not found: "${aliasName}"`);

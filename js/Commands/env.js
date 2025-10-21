@@ -96,7 +96,7 @@ class Env {
      * @param {object} services - A collection of all services.
      * @returns {string[]} An array of suggested arguments.
      */
-    static autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
         // For 'env', we might suggest environment variable names if the user is trying to set one,
         // or options like '-i' for ignoring environment (if implemented).
         // For now, let's return an empty array as it doesn't take arguments in its current form.

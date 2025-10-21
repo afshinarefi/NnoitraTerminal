@@ -68,7 +68,7 @@ class Welcome {
      * @param {EnvironmentService} environmentService - The EnvironmentService instance.
      * @returns {string[]} An array of suggested arguments.
      */
-    static autocompleteArgs(currentArgs, commandService, environmentService) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
         return []; // Welcome command takes no arguments.
     }
 }

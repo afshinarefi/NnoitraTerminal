@@ -57,7 +57,7 @@ class Version {
         return `NAME\n       version - Show version information.\n\nDESCRIPTION\n       The version command displays the application's version and build information.`;
     }
 
-    static autocompleteArgs() { return []; }
+    async autocompleteArgs() { return []; } // Made async for consistency
 }
 
 export { Version };

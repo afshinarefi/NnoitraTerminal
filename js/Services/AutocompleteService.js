@@ -29,7 +29,7 @@ const log = createLogger('AutocompleteService');
  * @dispatches `AUTOCOMPLETE_BROADCAST` - The final list of suggestions.
  */
 export class AutocompleteService {
-    #eventBus;
+    #eventBus; // EventBus instance
 
     constructor(eventBus) {
         this.#eventBus = eventBus;
@@ -44,7 +44,13 @@ export class AutocompleteService {
     async #handleAutocompleteRequest({ beforeCursorText, afterCursorText }) {
         log.log('Autocomplete request received:', { beforeCursorText, afterCursorText });
 
-        const parts = beforeCursorText.split(/\s+/).filter(p => p !== '');
+        // Split the text by whitespace. The logic here is nuanced:
+        // - "cd ph" -> ["cd", "ph"]
+        // - "cd "   -> ["cd", ""] (The empty string is crucial for arg completion)
+        // - ""      -> [""]
+        // We can't just filter all empty strings.
+        const parts = beforeCursorText.split(/\s+/);
+
         let finalSuggestions = [];
         let completedToken = '';
 
@@ -56,7 +62,15 @@ export class AutocompleteService {
 
             if (potentialOptions && potentialOptions.length > 0) {
                 // 2. Find the common prefix of the options.
-                const commonPrefix = getLongestCommonPrefix(potentialOptions.filter(p => p.startsWith(partToComplete)));
+                const filteredOptions = potentialOptions.filter(p => {
+                    // Handle absolute vs relative path completion
+                    if (partToComplete.startsWith('/')) {
+                        return p.startsWith(partToComplete.substring(1));
+                    }
+                    return p.startsWith(partToComplete);
+                });
+
+                const commonPrefix = getLongestCommonPrefix(filteredOptions);
 
                 // 3. The newly completed token is the common prefix.
                 completedToken = commonPrefix;
@@ -74,7 +88,10 @@ export class AutocompleteService {
                 } else if (commonPrefix) {
                     finalSuggestions = potentialOptions.map(s => s.substring(commonPrefix.length));
                 } else {
-                    finalSuggestions = potentialOptions.map(s => s.substring(partToComplete.length));
+                    // If the part to complete is just a slash, it means we are listing directory contents,
+                    // not completing a partial name. In this case, the options are the full suggestions.
+                    const sliceIndex = (partToComplete === '/' || partToComplete === './') ? 0 : partToComplete.length;
+                    finalSuggestions = potentialOptions.map(s => s.substring(sliceIndex));
                 }
             }
 

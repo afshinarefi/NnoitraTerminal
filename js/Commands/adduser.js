@@ -48,7 +48,7 @@ DESCRIPTION
 `;
     }
     
-    static autocompleteArgs(currentArgs, services) {
+    async autocompleteArgs(currentArgs) { // Made async for consistency
         return []; // No autocomplete for username.
     }
 
