@@ -52,6 +52,7 @@ class FilesystemService {
         this.#eventBus.listen(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, this.#handleGetFileContents.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, this.#handleChangeDirectory.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.FS_RESOLVE_PATH_REQUEST, this.#handleResolvePathRequest.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.FS_GET_PUBLIC_URL_REQUEST, this.#handleGetPublicUrl.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
     }
 
@@ -88,6 +89,16 @@ class FilesystemService {
         try {
             const resolvedPath = await this.#resolveAndValidatePath(path, false);
             respond({ path: resolvedPath });
+        } catch (error) {
+            respond({ error });
+        }
+    }
+
+    async #handleGetPublicUrl({ path, respond }) {
+        try {
+            // Use the dedicated 'get_public_url' API action.
+            const data = await this.#makeApiRequest('get_public_url', { path });
+            respond({ url: data.url });
         } catch (error) {
             respond({ error });
         }

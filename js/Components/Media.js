@@ -50,6 +50,7 @@ mediaSpecificStyles.replaceSync(CSS);
  */
 class Media extends BaseComponent {
   #mediaElement;
+  onLoadCallback = () => {}; // Public property to hold the callback
 
   constructor() {
     // No initial template needed, it's created dynamically.
@@ -92,11 +93,7 @@ class Media extends BaseComponent {
     this.#mediaElement.src = source;
 
     const onMediaLoaded = () => {
-      // Dispatch a custom event that can bubble up and cross shadow DOM boundaries.
-      this.dispatchEvent(new CustomEvent('media-loaded', {
-        bubbles: true,
-        composed: true
-      }));
+      this.onLoadCallback();
     };
 
     if (this.#mediaElement.tagName === 'IMG') {

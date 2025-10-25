@@ -109,8 +109,6 @@ class Terminal extends BaseComponent {
    * @private
    */
   #attachEventListeners() {
-    // Listen for the custom 'media-loaded' event to handle scrolling after media loads.
-    this.refs.output.addEventListener('media-loaded', () => this.scrollToBottom());
 
     // Set tab index for focus management and add keydown listener for terminal-wide shortcuts
     this.tabIndex = 1;

@@ -59,7 +59,7 @@ class Cd {
     async execute(args) {
         log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
-        const pathArg = args[1] || '/';
+        const pathArg = args.slice(1).join('').trim() || '/';
 
         try {
             await this.#changeDirectory(pathArg);

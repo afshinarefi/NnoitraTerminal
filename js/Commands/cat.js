@@ -34,22 +34,22 @@ export class Cat {
     }
 
     async autocompleteArgs(currentArgs) { // Made async for consistency
+        // Reconstruct the path from all argument tokens.
         const pathArg = currentArgs.join('');
 
-        const lastSlashIndex = pathArg.lastIndexOf('/');
-        const dirToList = lastSlashIndex === -1 ? '.' : pathArg.substring(0, lastSlashIndex + 1) || '/';
-        const prefix = lastSlashIndex === -1 ? '' : pathArg.substring(0, lastSlashIndex + 1);
-
         try {
-            // Get all contents of the target directory.
-            const contents = await this.#getDirectoryContents(dirToList);
-            const suggestions = [];
+            // Get all contents of the target directory. If path is empty, use current dir.
+            const contents = await this.#getDirectoryContents(pathArg || '.');
+            const supportedFormats = /\.txt$/i;
 
-            // For 'cat', we suggest both files and directories.
-            (contents.directories || []).forEach(dir => suggestions.push(prefix + dir.name + '/'));
-            (contents.files || []).forEach(file => suggestions.push(prefix + file.name));
+            // Suggest all directories for navigation.
+            const directories = (contents.directories || []).map(dir => dir.name + '/');
+            // Suggest only files with supported .txt format.
+            const files = (contents.files || [])
+                .filter(file => supportedFormats.test(file.name))
+                .map(file => file.name);
 
-            return suggestions.sort();
+            return [...directories, ...files].sort();
         } catch (error) {
             log.warn(`Autocomplete failed for path "${pathArg}":`, error);
             return []; // On error, return no suggestions.
@@ -59,7 +59,7 @@ export class Cat {
     async execute(args) {
         log.log('Executing with args:', args);
         const output = document.createElement('pre');
-        const filePathArg = args[1];
+        const filePathArg = args.slice(1).join('').trim();
 
         if (!filePathArg) {
             log.warn('Missing file operand.');

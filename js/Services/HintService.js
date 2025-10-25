@@ -32,6 +32,7 @@ const log = createLogger('HintService');
 class HintService {
     #eventBus;
     #view = null; // The HintBox component instance
+    #resizeObserver;
 
     constructor(eventBus) {
         this.#eventBus = eventBus;
@@ -45,6 +46,13 @@ class HintService {
      */
     setView(view) {
         this.#view = view;
+
+        // Observe the HintBox view. Whenever its size changes (e.g., when it's
+        // shown or hidden), the observer will fire and request a scroll.
+        this.#resizeObserver = new ResizeObserver(() => {
+            this.#eventBus.dispatch(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST);
+        });
+        this.#resizeObserver.observe(this.#view);
     }
 
     #registerListeners() {

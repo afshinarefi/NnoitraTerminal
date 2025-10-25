@@ -82,7 +82,7 @@ class CommandService {
         this.register('cd', Cd, ['changeDirectory', 'getDirectoryContents']);
         this.register('cat', Cat, ['getFileContents', 'getDirectoryContents']);
         this.register('clear', Clear, ['clearScreen']);
-        this.register('view', View, ['autocompletePath', 'getPublicUrl']);
+        this.register('view', View, ['getDirectoryContents', 'getPublicUrl', 'scrollToBottom']);
         this.register('adduser', AddUser, ['prompt', 'login']);
         this.register('login', Login, ['prompt', 'login']);
         this.register('logout', Logout, ['logout']);

@@ -26,12 +26,14 @@ const log = createLogger('view');
 class View {
     static DESCRIPTION = 'View a photo or video.';
 
-    #autocompletePath;
+    #getDirectoryContents;
     #getPublicUrl;
+    #scrollToBottom;
 
     constructor(services) {
-        this.#autocompletePath = services.autocompletePath;
+        this.#getDirectoryContents = services.getDirectoryContents;
         this.#getPublicUrl = services.getPublicUrl;
+        this.#scrollToBottom = services.scrollToBottom;
         log.log('Initializing...');
     }
 
@@ -40,20 +42,35 @@ class View {
     }
 
     async autocompleteArgs(currentArgs) { // Made async for consistency
-        if (currentArgs.length > 1) {
-            return [];
+        // Reconstruct the path from all argument tokens.
+        const pathArg = currentArgs.join('');
+
+        try {
+            // Get all contents of the target directory. If path is empty, use current dir.
+            const contents = await this.#getDirectoryContents(pathArg || '.');
+            const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
+
+            // Suggest all directories.
+            const directories = (contents.directories || []).map(dir => dir.name + '/');
+            // Suggest only files with supported formats.
+            const files = (contents.files || [])
+                .filter(file => supportedFormats.test(file.name))
+                .map(file => file.name);
+
+            return [...directories, ...files].sort();
+        } catch (error) {
+            log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            return []; // On error, return no suggestions.
         }
-        const input = currentArgs[0] || '';
-        const allPaths = await this.#autocompletePath(input, true);
-        const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
-        // Filter to only suggest supported files or directories (to allow navigation)
-        return allPaths.filter(p => p.endsWith('/') || supportedFormats.test(p));
     }
 
     async execute(args) {
         log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
-        const filePathArg = args[1];
+        
+        // Reconstruct the file path from all argument tokens.
+        const commandArgs = args.slice(1);
+        const filePathArg = commandArgs.join('').trim();
 
         if (!filePathArg) {
             log.warn('Missing file operand.');
@@ -67,10 +84,11 @@ class View {
             outputDiv.textContent = `view: ${filePathArg}: Unsupported file type.`;
             return outputDiv;
         }
-        const mediaSrc = this.#getPublicUrl(filePathArg);
+        const mediaSrc = await this.#getPublicUrl(filePathArg);
         log.log(`Creating media element with src: "${mediaSrc}"`);
         const mediaElement = new Media();
         mediaElement.src = mediaSrc;
+        mediaElement.onLoadCallback = this.#scrollToBottom;
         outputDiv.appendChild(mediaElement);
 
         return outputDiv;
