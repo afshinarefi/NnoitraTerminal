@@ -43,12 +43,22 @@ class Ls {
     }
 
     async autocompleteArgs(currentArgs) {
-        // Only provide suggestions for the first argument.
-        if (currentArgs.length > 1) {
-            return [];
+        // Reconstruct the path from all non-option arguments.
+        const pathArg = currentArgs.filter(arg => !arg.trim().startsWith('-')).join('');
+
+        try {
+            // Get all contents of the target directory. If path is empty, use current dir.
+            const contents = await this.#getDirectoryContents(pathArg || '.');
+            
+            // Format the full paths for all items. AutocompleteService will handle filtering.
+            const directories = (contents.directories || []).map(dir => dir.name + '/');
+            const files = (contents.files || []).map(file => file.name);
+            
+            return [...directories, ...files].sort();
+        } catch (error) {
+            log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            return []; // On error, return no suggestions.
         }
-        const input = currentArgs[0] || '';
-        return await this.#autocompletePath(input, true);
     }
 
     async execute(args) {

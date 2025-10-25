@@ -68,14 +68,20 @@ class HintService {
     #handleShowHints(payload) {
         if (!this.#view) return;
 
-        const { beforeCursorTokens, options } = payload;
+        const { newTextBeforeCursor, options, description } = payload;
 
-        // Only show the hint box if there is more than one option,
-        // or if there is one option that is not an empty string (for partial completions).
-        if (options && options.length > 1 || (options.length === 1 && options[0] !== '')) {
-            const lastToken = beforeCursorTokens[beforeCursorTokens.length - 1] || '';
-            const fullSuggestions = options.map(suffix => lastToken + suffix);
-            this.#view.show(fullSuggestions, lastToken.length);
+        // Show hints if there are multiple options, or a single option that isn't empty,
+        // or if a description is provided.
+        if ((options && (options.length > 1 || (options.length === 1 && options[0] !== ''))) || description) {
+            if (description) {
+                // If a description is provided, show it as-is with no prefix highlighting.
+                this.#view.show([description], 0);
+            } else {
+                // For normal suggestions, calculate the prefix to highlight.
+                const lastToken = newTextBeforeCursor.split(/[\s/]/).pop() || '';
+                const fullSuggestions = options.map(suffix => lastToken + suffix);
+                this.#view.show(fullSuggestions, lastToken.length);
+            }
         } else {
             this.#view.hide();
         }

@@ -22,11 +22,11 @@ export class Cat {
     static DESCRIPTION = 'Print the content of a FILE';
 
     #getFileContents;
-    #autocompletePath;
+    #getDirectoryContents;
 
     constructor(services) {
         this.#getFileContents = services.getFileContents;
-        this.#autocompletePath = services.autocompletePath;
+        this.#getDirectoryContents = services.getDirectoryContents;
     }
 
     static man() {
@@ -34,12 +34,26 @@ export class Cat {
     }
 
     async autocompleteArgs(currentArgs) { // Made async for consistency
-        if (currentArgs.length > 1) {
-            return [];
+        const pathArg = currentArgs.join('');
+
+        const lastSlashIndex = pathArg.lastIndexOf('/');
+        const dirToList = lastSlashIndex === -1 ? '.' : pathArg.substring(0, lastSlashIndex + 1) || '/';
+        const prefix = lastSlashIndex === -1 ? '' : pathArg.substring(0, lastSlashIndex + 1);
+
+        try {
+            // Get all contents of the target directory.
+            const contents = await this.#getDirectoryContents(dirToList);
+            const suggestions = [];
+
+            // For 'cat', we suggest both files and directories.
+            (contents.directories || []).forEach(dir => suggestions.push(prefix + dir.name + '/'));
+            (contents.files || []).forEach(file => suggestions.push(prefix + file.name));
+
+            return suggestions.sort();
+        } catch (error) {
+            log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            return []; // On error, return no suggestions.
         }
-        const input = currentArgs[0] || '';
-        // For 'cat', we want to suggest files.
-        return await this.#autocompletePath(input, true);
     }
 
     async execute(args) {

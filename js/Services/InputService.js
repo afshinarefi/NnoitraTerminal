@@ -246,14 +246,12 @@ class InputService {
     #handleAutocompleteBroadcast(payload) {
         if (!this.#view) return;
 
-        const { beforeCursorTokens, afterCursorText } = payload;
+        const { newTextBeforeCursor, afterCursorText } = payload;
 
-        if (beforeCursorTokens) {
-            const newTextBeforeCursor = beforeCursorTokens.join(' ');
+        if (newTextBeforeCursor !== undefined) {
             const fullText = newTextBeforeCursor + afterCursorText;
-
             this.#view.setValue(fullText);
-            this.#view.setCursorPosition(newTextBeforeCursor.length); // This method needs to be added to CommandLine.js
+            this.#view.setCursorPosition(newTextBeforeCursor.length);
         }
     }
 }

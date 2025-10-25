@@ -19,6 +19,7 @@ import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from '../Core/Events.js';
 import { ENV_VARS } from '../Core/Variables.js';
 import { ServiceApiManager } from '../Managers/ServiceApiManager.js';
+import { tokenize } from '../Utils/Tokenizer.js';
 
 // Import all command classes
 import { Welcome } from '../Commands/welcome.js';
@@ -77,9 +78,9 @@ class CommandService {
         this.register('help', Help, ['getCommandList', 'getCommandMeta']);
         this.register('man', Man, ['getCommandList', 'getCommandMeta']);
         this.register('history', History, ['getHistory']);
-        this.register('ls', Ls, ['getDirectoryContents', 'autocompletePath']);
-        this.register('cd', Cd, ['changeDirectory', 'autocompletePath']);
-        this.register('cat', Cat, ['getFileContents', 'autocompletePath']);
+        this.register('ls', Ls, ['getDirectoryContents']);
+        this.register('cd', Cd, ['changeDirectory', 'getDirectoryContents']);
+        this.register('cat', Cat, ['getFileContents', 'getDirectoryContents']);
         this.register('clear', Clear, ['clearScreen']);
         this.register('view', View, ['autocompletePath', 'getPublicUrl']);
         this.register('adduser', AddUser, ['prompt', 'login']);
@@ -177,6 +178,32 @@ class CommandService {
         };
     }
 
+    /**
+     * Resolves the effective command name and arguments, handling aliases.
+     * @param {string[]} initialTokens - The raw tokens from the input string.
+     * @returns {Promise<{commandName: string, args: string[]}>} An object containing the resolved command name and arguments.
+     */
+    async #resolveCommandAndArgs(initialTokens) {
+        let currentTokens = [...initialTokens]; // Work with a copy
+        let commandName = (currentTokens[0] || '').trim();
+
+        if (!commandName) {
+            return { commandName: '', args: [] };
+        }
+
+        const aliases = await this.#apiProvider.getAliases();
+        if (aliases[commandName]) {
+            const aliasValue = aliases[commandName];
+            const aliasArgs = tokenize(aliasValue); // Tokenize alias value
+            const remainingUserArgs = currentTokens.slice(1);
+            
+            currentTokens = [...aliasArgs, ...remainingUserArgs];
+            commandName = (currentTokens[0] || '').trim(); // Re-evaluate commandName after alias expansion
+        }
+
+        return { commandName, args: currentTokens };
+    }
+
     async execute(cmd, outputContainer) {
         try {
             const trimmedCmd = cmd.trim();
@@ -184,18 +211,13 @@ class CommandService {
                 return; // Do nothing for an empty command.
             }
 
-            let args = trimmedCmd.split(/\s+/);
-            let commandName = args[0];
+            // Tokenize the command string. The resulting tokens include delimiters.
+            const initialTokens = tokenize(trimmedCmd);
+            if (initialTokens.length === 0) return;
 
-            // Resolve alias if it exists
-            const aliases = await this.#apiProvider.getAliases();
-            if (aliases[commandName]) {
-                const aliasValue = aliases[commandName];
-                const aliasArgs = aliasValue.split(/\s+/);
-                const remainingUserArgs = args.slice(1);
-                const newCmd = [...aliasArgs, ...remainingUserArgs].join(' ');
-                args = newCmd.split(/\s+/);
-                commandName = args[0];
+            const { commandName, args: resolvedArgs } = await this.#resolveCommandAndArgs(initialTokens);
+            if (!commandName) { // Command is only whitespace after alias resolution
+                return;
             }
 
             const outputElement = outputContainer ? outputContainer.element : null;
@@ -203,8 +225,8 @@ class CommandService {
             if (this.#registry.has(commandName)) {
                 try {
                     const commandHandler = this.getCommand(commandName);
-                    log.log(`Executing command: "${args}"`);
-                    const resultElement = await commandHandler.execute(args);
+                    log.log(`Executing command: "${resolvedArgs}"`);
+                    const resultElement = await commandHandler.execute(resolvedArgs);
                     if (outputElement) outputElement.appendChild(resultElement);
                 } catch (e) {
                     if (outputElement) outputElement.textContent = `Error executing ${commandName}: ${e.message}`;
@@ -242,32 +264,30 @@ class CommandService {
 
     async #handleGetAutocompleteSuggestions({ parts, respond }) {
         let suggestions = [];
+        let description = '';
         const input = parts[parts.length - 1] || '';
         const isCompletingCommandName = parts.length <= 1;
 
         if (isCompletingCommandName) {
             suggestions = (await this.#getAvailableCommandNames()).filter(name => name.startsWith(input));
         } else {
-            let commandName = parts[0];
-            let argsForCompletion = parts.slice(1);
-
-            const aliases = await this.#apiProvider.getAliases();
-            if (aliases[commandName]) {
-                const aliasParts = aliases[commandName].split(/\s+/).filter(p => p);
-                commandName = aliasParts[0];
-                argsForCompletion = [...aliasParts.slice(1), ...argsForCompletion];
-            }
-
-            const CommandClass = this.getCommandClass(commandName);
+            const { commandName: resolvedCommandName, args: resolvedArgsForCompletion } = await this.#resolveCommandAndArgs(parts);
+            const CommandClass = this.getCommandClass(resolvedCommandName);
             // Check if the instance method exists on the prototype.
             // This is the correct way to check for an instance method before instantiating the command.
             
-            if (CommandClass && typeof CommandClass.prototype.autocompleteArgs === 'function') {
-                const commandInstance = this.getCommand(commandName);
-                suggestions = await commandInstance.autocompleteArgs(argsForCompletion);
+            if (CommandClass && typeof CommandClass.prototype.autocompleteArgs === 'function') { // Check against resolvedCommandName
+                const commandInstance = this.getCommand(resolvedCommandName);
+                const result = await commandInstance.autocompleteArgs(resolvedArgsForCompletion.slice(1)); // Pass args excluding the command name
+                if (Array.isArray(result)) {
+                    suggestions = result;
+                } else if (typeof result === 'object' && result !== null) {
+                    suggestions = result.suggestions || [];
+                    description = result.description || '';
+                }
             }
         }
-        respond({ suggestions, input });
+        respond({ suggestions, description });
     }
 
     #handleUpdateDefaultRequest({ key, respond }) {

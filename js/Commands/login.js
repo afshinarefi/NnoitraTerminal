@@ -37,7 +37,14 @@ class Login {
     }
 
     async autocompleteArgs(currentArgs) { // Made async for consistency
-        return []; // No autocomplete for username/password.
+        // Only provide a hint for the first argument (the username).
+        if (currentArgs.length > 1) {
+            return [];
+        }
+        return {
+            suggestions: [],
+            description: '<USERNAME>'
+        };
     }
 
     /**

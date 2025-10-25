@@ -22,14 +22,14 @@ const log = createLogger('cd');
  * @description Implements the 'cd' command, which changes the current working directory using FilesystemService.
  */
 class Cd {
-    static DESCRIPTION = 'Change the current directory.';
+    static DESCRIPTION = 'Change the current working directory.';
 
     #changeDirectory;
-    #autocompletePath;
+    #getDirectoryContents;
 
     constructor(services) {
         this.#changeDirectory = services.changeDirectory;
-        this.#autocompletePath = services.autocompletePath;
+        this.#getDirectoryContents = services.getDirectoryContents;
     }
 
     static man() {
@@ -37,14 +37,23 @@ class Cd {
     }
 
     async autocompleteArgs(currentArgs) {
-        // Only provide suggestions for the first argument.
-        if (currentArgs.length > 1) {
-            return [];
+        const pathArg = currentArgs.join('');
+
+        const lastSlashIndex = pathArg.lastIndexOf('/');
+        const dirToList = lastSlashIndex === -1 ? '.' : pathArg.substring(0, lastSlashIndex + 1) || '/';
+        const prefix = lastSlashIndex === -1 ? '' : pathArg.substring(0, lastSlashIndex + 1);
+
+        try {
+            // Get all contents of the target directory.
+            const contents = await this.#getDirectoryContents(dirToList);
+            const suggestions = [];
+
+            // For 'cd', we only suggest directories. AutocompleteService will handle filtering.
+            return (contents.directories || []).map(dir => dir.name + '/').sort();
+        } catch (error) {
+            log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            return []; // On error, return no suggestions.
         }
-        const input = currentArgs[0] || '';
-        // For 'cd', we only want to suggest directories.
-        // The `autocompletePath` function is injected via the constructor.
-        return await this.#autocompletePath(input, false);
     }
 
     async execute(args) {

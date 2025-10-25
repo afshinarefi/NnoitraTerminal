@@ -18,6 +18,7 @@
 import { EVENTS } from '../Core/Events.js';
 import { createLogger } from '../Managers/LogManager.js';
 import { getLongestCommonPrefix } from '../Utils/StringUtil.js';
+import { tokenize } from '../Utils/Tokenizer.js';
 
 const log = createLogger('AutocompleteService');
 
@@ -44,31 +45,28 @@ export class AutocompleteService {
     async #handleAutocompleteRequest({ beforeCursorText, afterCursorText }) {
         log.log('Autocomplete request received:', { beforeCursorText, afterCursorText });
 
-        // Split the text by whitespace. The logic here is nuanced:
-        // - "cd ph" -> ["cd", "ph"]
-        // - "cd "   -> ["cd", ""] (The empty string is crucial for arg completion)
-        // - ""      -> [""]
-        // We can't just filter all empty strings.
-        const parts = beforeCursorText.split(/\s+/);
+        const tokenizedParts = tokenize(beforeCursorText);
+        // The new tokenizer preserves delimiters, so we pass the raw tokens.
+        const parts = tokenizedParts;
+
+        // The token to complete is the last one. The rest are the preceding arguments.
+        const incompleteToken = parts.pop() || '';
 
         let finalSuggestions = [];
         let completedToken = '';
+        let description = '';
 
         try {
             // 1. Ask the CommandService for the final list of suggestions.
             // The CommandService will delegate to the specific command if necessary.
-            const response = await this.#eventBus.request(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, { parts });
-            const { suggestions: potentialOptions, input: partToComplete } = response;
+            const response = await this.#eventBus.request(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, { parts: [...parts, ''] });
+            const { suggestions: potentialOptions } = response;
+            description = response.description;
 
             if (potentialOptions && potentialOptions.length > 0) {
+
                 // 2. Find the common prefix of the options.
-                const filteredOptions = potentialOptions.filter(p => {
-                    // Handle absolute vs relative path completion
-                    if (partToComplete.startsWith('/')) {
-                        return p.startsWith(partToComplete.substring(1));
-                    }
-                    return p.startsWith(partToComplete);
-                });
+                const filteredOptions = potentialOptions.filter(p => p.startsWith(incompleteToken));
 
                 const commonPrefix = getLongestCommonPrefix(filteredOptions);
 
@@ -78,21 +76,18 @@ export class AutocompleteService {
                 // 4. Determine the final suggestions and if a suffix should be added.
                 if (potentialOptions.length === 1 && potentialOptions[0] === completedToken) {
                     // A single, exact match was found.
-                    if (completedToken.endsWith('/')) {
-                        // It's a directory, do nothing.
-                    } else {
-                        // It's a command or file, add a space.
-                        completedToken += ' ';
-                    }
+                    // The suggestion provider is responsible for adding any trailing space or slash.
                     finalSuggestions = []; // No more options to show.
                 } else if (commonPrefix) {
-                    finalSuggestions = potentialOptions.map(s => s.substring(commonPrefix.length));
+                    finalSuggestions = filteredOptions.map(s => s.substring(commonPrefix.length));
                 } else {
-                    // If the part to complete is just a slash, it means we are listing directory contents,
-                    // not completing a partial name. In this case, the options are the full suggestions.
-                    const sliceIndex = (partToComplete === '/' || partToComplete === './') ? 0 : partToComplete.length;
-                    finalSuggestions = potentialOptions.map(s => s.substring(sliceIndex));
+                    finalSuggestions = filteredOptions; // No common prefix, but still options to show.
                 }
+            } else if (description) {
+                // If there are no suggestions, but there is a description, pass it along.
+                // This is for hinting arguments like usernames.
+                completedToken = incompleteToken;   // Keep what the user typed.
+                finalSuggestions = [];              // No actual suggestions to complete.
             }
 
         } catch (error) {
@@ -100,13 +95,12 @@ export class AutocompleteService {
         }
 
         // 5. Construct the new command line parts and broadcast.
-        const beforeCursorTokens = parts.slice(0, -1);
-        if (completedToken) {
-            beforeCursorTokens.push(completedToken);
-        } else {
-            beforeCursorTokens.push(parts[parts.length - 1] || '');
-        }
+        // Reconstruct the string before the cursor using the original tokenized parts.
+        // The most robust way to create the new text is to append the "newly completed"
+        // part of the token to the original text.
+        const completionSuffix = completedToken.substring(incompleteToken.length);
+        const newTextBeforeCursor = beforeCursorText + completionSuffix;
 
-        this.#eventBus.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, { beforeCursorTokens, options: finalSuggestions, afterCursorText });
+        this.#eventBus.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, { newTextBeforeCursor, options: finalSuggestions, afterCursorText, description });
     }
 }
