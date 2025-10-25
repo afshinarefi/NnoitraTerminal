@@ -19,6 +19,7 @@ import { EVENTS } from '../Core/Events.js';
 import { createLogger } from '../Managers/LogManager.js';
 import { ENV_VARS } from '../Core/Variables.js';
 import { TerminalItem } from '../Components/TerminalItem.js';
+import { fetchTextFile } from '../Utils/FileUtil.js';
 
 const log = createLogger('TerminalService');
 
@@ -66,8 +67,19 @@ class TerminalService {
      * Starts the main terminal loop by requesting the first command.
      */
     async start() {
-        // Check for core variables and set defaults if they don't exist.
-        // Start the main command loop.
+        // Load the Message of the Day into the welcome area.
+        if (this.#view && this.#view.welcomeOutputView) {
+            try {
+                const motdText = await fetchTextFile('/data/motd.txt');
+                console.log(motdText);
+                // Use white-space to preserve formatting without needing a <pre> tag.
+                this.#view.welcomeOutputView.style.whiteSpace = 'pre-wrap';
+                this.#view.welcomeOutputView.textContent = motdText;
+            } catch (error) {
+                log.error('Failed to load motd.dat:', error);
+            }
+        }
+        // Start the main command input loop.
         this.#runCommandLoop();
     }
 

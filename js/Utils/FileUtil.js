@@ -17,13 +17,29 @@
  */
 
 /**
- * Fetches the content of a text file from a given path.
- * @param {string} path - The path to the text file.
- * @returns {Promise<string>} A promise that resolves with the text content of the file.
- * @throws {Error} If the fetch request fails or the response is not ok.
+ * Fetches and parses a JSON file from a given URL.
+ * @param {string} url - The URL of the JSON file to fetch.
+ * @returns {Promise<object>} A promise that resolves with the parsed JSON object.
+ * @throws {Error} Throws an error if the network response is not ok.
  */
-export async function fetchTextFile(path) {
-    const response = await fetch(path);
-    if (!response.ok) throw new Error(`Failed to load file from ${path}: ${response.statusText}`);
+export async function fetchJsonFile(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status} for url: ${url}`);
+    }
+    return response.json();
+}
+
+/**
+ * Fetches a text file from a given URL.
+ * @param {string} url - The URL of the text file to fetch.
+ * @returns {Promise<string>} A promise that resolves with the text content.
+ * @throws {Error} Throws an error if the network response is not ok.
+ */
+export async function fetchTextFile(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status} for url: ${url}`);
+    }
     return response.text();
 }

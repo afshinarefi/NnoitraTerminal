@@ -104,6 +104,10 @@ class Terminal extends BaseComponent {
     return this.refs.hint;
   }
 
+  get welcomeOutputView() {
+    return this.refs['welcome-output'];
+  }
+
   /**
    * Attaches all necessary event listeners for the terminal component.
    * @private
