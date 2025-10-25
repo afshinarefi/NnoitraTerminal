@@ -47,6 +47,11 @@ export class ServiceApiManager {
         this.#eventBus.dispatch(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST);
     }
 
+    async requestMedia(src) {
+        const response = await this.#eventBus.request(EVENTS.MEDIA_REQUEST, { src });
+        return response.mediaElement;
+    }
+
     // --- User/Accounting Gateway Methods ---
 
     async login(username, password) {

@@ -70,6 +70,7 @@ export const EVENTS = {
     UI_SCROLL_TO_BOTTOM_REQUEST: 'ui-scroll-to-bottom-request',
     SET_THEME_REQUEST: 'set-theme-request',
     GET_VALID_THEMES_REQUEST: 'get-valid-themes-request',
+    MEDIA_REQUEST: 'media-request',
 
     // Filesystem
     FS_CHANGE_DIRECTORY_REQUEST: 'fs-change-directory-request',

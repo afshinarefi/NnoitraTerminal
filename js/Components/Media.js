@@ -50,7 +50,6 @@ mediaSpecificStyles.replaceSync(CSS);
  */
 class Media extends BaseComponent {
   #mediaElement;
-  onLoadCallback = () => {}; // Public property to hold the callback
 
   constructor() {
     // No initial template needed, it's created dynamically.
@@ -91,17 +90,6 @@ class Media extends BaseComponent {
 
     this.#mediaElement.classList.add('media');
     this.#mediaElement.src = source;
-
-    const onMediaLoaded = () => {
-      this.onLoadCallback();
-    };
-
-    if (this.#mediaElement.tagName === 'IMG') {
-      this.#mediaElement.onload = onMediaLoaded;
-      this.#mediaElement.onerror = () => log.error(`Failed to load image ${source}`);
-    } else if (this.#mediaElement.tagName === 'VIDEO') {
-      this.#mediaElement.oncanplaythrough = onMediaLoaded;
-    }
 
     this.shadowRoot.appendChild(this.#mediaElement);
   }

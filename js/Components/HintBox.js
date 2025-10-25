@@ -36,8 +36,10 @@ const CSS = `
   flex-wrap: wrap;
   list-style: none;     /* Removes the bullet points */
   width: 100%;
-  padding: 0;
   margin: 0;
+  /* Add a border and padding for better visual separation */
+  border-left: 3px solid var(--arefi-color-highlight); /* VAR */
+  padding: 5px 0 0 10px;
 }
 
 [part=box] li {

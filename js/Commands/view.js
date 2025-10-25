@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { Media } from '../Components/Media.js';
 import { createLogger } from '../Managers/LogManager.js';
 
 const log = createLogger('view');
@@ -28,12 +27,12 @@ class View {
 
     #getDirectoryContents;
     #getPublicUrl;
-    #scrollToBottom;
+    #requestMedia;
 
     constructor(services) {
         this.#getDirectoryContents = services.getDirectoryContents;
         this.#getPublicUrl = services.getPublicUrl;
-        this.#scrollToBottom = services.scrollToBottom;
+        this.#requestMedia = services.requestMedia;
         log.log('Initializing...');
     }
 
@@ -85,10 +84,7 @@ class View {
             return outputDiv;
         }
         const mediaSrc = await this.#getPublicUrl(filePathArg);
-        log.log(`Creating media element with src: "${mediaSrc}"`);
-        const mediaElement = new Media();
-        mediaElement.src = mediaSrc;
-        mediaElement.onLoadCallback = this.#scrollToBottom;
+        const mediaElement = await this.#requestMedia(mediaSrc);
         outputDiv.appendChild(mediaElement);
 
         return outputDiv;
