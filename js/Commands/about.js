@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { Media } from '../Components/Media.js';
 import { createLogger } from '../Managers/LogManager.js';
 /**
  * @class About
@@ -25,6 +24,13 @@ class About {
     static DATA_FILE = '/data/about.json';
     static DESCRIPTION = 'A short introduction.';
     static #log = createLogger('about'); // Keep static for static methods
+    #requestMedia;
+
+    constructor(services) {
+        if (services) {
+            this.#requestMedia = services.requestMedia;
+        }
+    }
 
     static man() {
         return `NAME\n       about - Display information about the author.\n\nSYNOPSIS\n       about\n\nDESCRIPTION\n       The about command displays a short bio, contact information, and a profile picture.`;
@@ -67,9 +73,8 @@ class About {
                         element.appendChild(document.createTextNode(item.Value));
                     }
                 } else if (item.Type === 'Image') {
-                    element = new Media();
+                    element = await this.#requestMedia(item.Source);
                     element.id = item.Id;
-                    element.src = item.Source;
                 }
 
                 if (element) {

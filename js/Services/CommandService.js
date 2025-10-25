@@ -73,7 +73,7 @@ class CommandService {
     #registerCommands() {
         // Register commands with their specific service dependencies.
         this.register('welcome', Welcome, []);
-        this.register('about', About, []); 
+        this.register('about', About, ['requestMedia']); 
         this.register('env', Env, ['getAllCategorizedVariables']);
         this.register('help', Help, ['getCommandList', 'getCommandMeta']);
         this.register('man', Man, ['getCommandList', 'getCommandMeta']);

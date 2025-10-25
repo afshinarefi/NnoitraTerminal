@@ -44,8 +44,15 @@ export class MediaService {
 
         // Observe the media element. When it loads and its size changes,
         // automatically request a scroll to keep the prompt in view.
-        const observer = new ResizeObserver(() => {
-            this.#eventBus.dispatch(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST);
+        const observer = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            // The first resize event might be when the element is added with 0 height.
+            // We only act when we see a meaningful height, which indicates the media has loaded.
+            if (entry.contentRect.height > 1) {
+                this.#eventBus.dispatch(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST);
+                // Now that the media has its final size, we can stop observing.
+                observer.disconnect();
+            }
         });
         observer.observe(mediaElement);
 
