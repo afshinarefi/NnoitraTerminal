@@ -56,10 +56,10 @@ class TerminalService {
     }
 
     #registerListeners() {
-        this.#eventBus.listen(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST, this.#runCommandLoop.bind(this));
-        this.#eventBus.listen(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST, this.#handleScrollToBottom.bind(this));
-        this.#eventBus.listen(EVENTS.CLEAR_SCREEN_REQUEST, this.#handleClear.bind(this));
-        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this));
+        this.#eventBus.listen(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST, this.#runCommandLoop.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST, this.#handleScrollToBottom.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.CLEAR_SCREEN_REQUEST, this.#handleClear.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
     }
 
     /**

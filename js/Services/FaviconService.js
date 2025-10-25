@@ -43,7 +43,7 @@ class FaviconService {
     }
 
     #registerListeners() {
-        this.#eventBus.listen(EVENTS.THEME_CHANGED_BROADCAST, this.#handleThemeChanged.bind(this));
+        this.#eventBus.listen(EVENTS.THEME_CHANGED_BROADCAST, this.#handleThemeChanged.bind(this), this.constructor.name);
     }
 
     #handleThemeChanged() {

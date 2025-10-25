@@ -89,11 +89,6 @@ export class ServiceApiManager {
         return response.contents;
     }
 
-    async autocompletePath(path, includeFiles) {
-        const response = await this.#eventBus.request(EVENTS.FS_AUTOCOMPLETE_PATH_REQUEST, { path, includeFiles });
-        return response.suggestions;
-    }
-
     async getPublicUrl(path) {
         const response = await this.#eventBus.request(EVENTS.FS_GET_PUBLIC_URL_REQUEST, { path });
         return response.url;

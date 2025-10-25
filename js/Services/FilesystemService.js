@@ -48,17 +48,11 @@ class FilesystemService {
     }
 
     #registerListeners() {
-        this.#eventBus.listen(EVENTS.FS_AUTOCOMPLETE_PATH_REQUEST, this.#handleAutocompletePath.bind(this));
-        this.#eventBus.listen(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, this.#handleGetDirectoryContents.bind(this));
-        this.#eventBus.listen(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, this.#handleGetFileContents.bind(this));
-        this.#eventBus.listen(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, this.#handleChangeDirectory.bind(this));
-        this.#eventBus.listen(EVENTS.FS_RESOLVE_PATH_REQUEST, this.#handleResolvePathRequest.bind(this));
-        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this));
-    }
-
-    async #handleAutocompletePath({ path, includeFiles, respond }) {
-        const suggestions = await this.#autocompletePath(path, includeFiles);
-        respond({ suggestions });
+        this.#eventBus.listen(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, this.#handleGetDirectoryContents.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, this.#handleGetFileContents.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, this.#handleChangeDirectory.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.FS_RESOLVE_PATH_REQUEST, this.#handleResolvePathRequest.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
     }
 
     async #handleGetDirectoryContents({ path, respond }) {
@@ -103,68 +97,6 @@ class FilesystemService {
         if (key === ENV_VARS.PWD) {
             this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: DEFAULT_PWD });
             respond({ value: DEFAULT_PWD });
-        }
-    }
-
-    /**
-     * Provides autocomplete suggestions for a given path.
-     * @param {string} inputPath - The partial path to autocomplete.
-     * @param {boolean} includeFiles - Whether to include files in the suggestions.
-     * @returns {Promise<string[]>} A promise that resolves to an array of suggestions.
-     */
-    async #autocompletePath(inputPath, includeFiles = false) {
-        // Determine the directory to list and the part to complete.
-        let dirToList = '/';
-        let partToComplete = inputPath;
-
-        if (!inputPath) {
-            // If input is empty, we list the current directory.
-            dirToList = '.';
-            partToComplete = '';
-        } else if (inputPath.endsWith('/')) {
-            dirToList = inputPath;
-            partToComplete = '';
-        } else {
-            const lastSlashIndex = inputPath.lastIndexOf('/');
-            dirToList = (lastSlashIndex === -1) ? '.' : inputPath.substring(0, lastSlashIndex + 1);
-            partToComplete = (lastSlashIndex === -1) ? inputPath : inputPath.substring(lastSlashIndex + 1);
-        }
-
-        try {
-            // Use the existing 'ls' action to get directory contents.
-            const contents = await this.#getDirectoryContents(dirToList);
-            const suggestions = [];
-
-            // Filter directories
-            if (contents.directories) {
-                contents.directories.forEach(dir => {
-                    if (dir.name.startsWith(partToComplete)) {
-                        // If we are completing from the root, don't prepend the root slash.
-                        // The suggestion should be relative to the input.
-                        let prefix = (dirToList === '/' || dirToList === './' || dirToList === '.') ? '' : dirToList;
-                        // If the original input was an absolute path, ensure the suggestion is too.
-                        if (inputPath.startsWith('/') && !prefix.startsWith('/')) prefix = '/' + prefix;
-                        suggestions.push(prefix + dir.name + '/');
-                    }
-                });
-            }
-
-            // Filter files if requested
-            if (includeFiles && contents.files) {
-                contents.files.forEach(file => {
-                    if (file.name.startsWith(partToComplete)) {
-                        let prefix = (dirToList === '/' || dirToList === './' || dirToList === '.') ? '' : dirToList;
-                        // If the original input was an absolute path, ensure the suggestion is too.
-                        if (inputPath.startsWith('/') && !prefix.startsWith('/')) prefix = '/' + prefix;
-                        suggestions.push(prefix + file.name);
-                    }
-                });
-            }
-
-            return suggestions.sort();
-        } catch (error) {
-            log.error('Error fetching path completions:', error);
-            return [];
         }
     }
 

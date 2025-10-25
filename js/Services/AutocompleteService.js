@@ -39,7 +39,7 @@ export class AutocompleteService {
     }
 
     #registerListeners() {
-        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_REQUEST, this.#handleAutocompleteRequest.bind(this));
+        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_REQUEST, this.#handleAutocompleteRequest.bind(this), this.constructor.name);
     }
 
     async #handleAutocompleteRequest({ beforeCursorText, afterCursorText }) {

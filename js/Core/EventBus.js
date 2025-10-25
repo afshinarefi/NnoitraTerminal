@@ -35,12 +35,13 @@ class EventBus {
      * Registers a listener for an event.
      * @param {string} eventName - The name of the event to listen for.
      * @param {Function} callback - The function to execute when the event is dispatched.
+     * @param {string} [listenerName='anonymous'] - The name of the service or component listening.
      */
-    listen(eventName, callback) {
+    listen(eventName, callback, listenerName = 'anonymous') {
         if (!this.#listeners.has(eventName)) {
             this.#listeners.set(eventName, []);
         }
-        this.#listeners.get(eventName).push(callback);
+        this.#listeners.get(eventName).push({ callback, name: listenerName });
     }
 
     /**
@@ -58,12 +59,12 @@ class EventBus {
                 const listeners = this.#listeners.get(eventName);
                 if (listeners) {
                     // Execute each listener in its own asynchronous microtask.
-                    // This prevents one listener from blocking another.
-                    listeners.forEach(callback => {
+                    // This prevents one listener from blocking another.                    
+                    listeners.forEach(listener => {
                         // We don't await here. This ensures each listener is
                         // invoked independently.
-                        log.log(`Dispatching event "${eventName}" to listener with payload: ${JSON.stringify(payload)}`);
-                        Promise.resolve().then(() => callback(payload));
+                        log.log(`Dispatching event "${eventName}" to listener "${listener.name}"`);
+                        Promise.resolve().then(() => listener.callback(payload));
                     });
                 }
             });

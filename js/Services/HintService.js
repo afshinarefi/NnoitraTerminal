@@ -49,14 +49,14 @@ class HintService {
 
     #registerListeners() {
         // Listen for autocomplete suggestions to display them
-        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_BROADCAST, (payload) => {
+        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_BROADCAST, (payload) => { // eslint-disable-line no-unused-vars
             this.#handleShowHints(payload);
-        });
+        }, this.constructor.name);
 
         // Listen for command submission to hide the hints
-        this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, () => {
+        this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, () => { // eslint-disable-line no-unused-vars
             this.#handleHideHints();
-        });
+        }, this.constructor.name);
     }
 
     /**

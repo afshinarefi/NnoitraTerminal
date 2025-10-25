@@ -99,13 +99,13 @@ class CommandService {
     }
 
     #registerListeners() {
-        this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, (payload) => this.execute(payload.commandString, payload.outputElement));
+        this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, (payload) => this.execute(payload.commandString, payload.outputElement), this.constructor.name);
 
-        this.#eventBus.listen(EVENTS.GET_ALIASES_REQUEST, this.#handleGetAliasesRequest.bind(this));
-        this.#eventBus.listen(EVENTS.SET_ALIASES_REQUEST, this.#handleSetAliasesRequest.bind(this));
+        this.#eventBus.listen(EVENTS.GET_ALIASES_REQUEST, this.#handleGetAliasesRequest.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.SET_ALIASES_REQUEST, this.#handleSetAliasesRequest.bind(this), this.constructor.name);
 
-        this.#eventBus.listen(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, this.#handleGetAutocompleteSuggestions.bind(this));
-        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this));
+        this.#eventBus.listen(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, this.#handleGetAutocompleteSuggestions.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
     }
 
     register(name, CommandClass, requiredServices = []) {
@@ -265,11 +265,11 @@ class CommandService {
     async #handleGetAutocompleteSuggestions({ parts, respond }) {
         let suggestions = [];
         let description = '';
-        const input = parts[parts.length - 1] || '';
         const isCompletingCommandName = parts.length <= 1;
 
         if (isCompletingCommandName) {
-            suggestions = (await this.#getAvailableCommandNames()).filter(name => name.startsWith(input));
+            const commandNames = await this.#getAvailableCommandNames();
+            suggestions = commandNames.map(name => name + ' ');
         } else {
             const { commandName: resolvedCommandName, args: resolvedArgsForCompletion } = await this.#resolveCommandAndArgs(parts);
             const CommandClass = this.getCommandClass(resolvedCommandName);

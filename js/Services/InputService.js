@@ -76,9 +76,9 @@ class InputService {
     }
 
     #registerListeners() {
-        this.#eventBus.listen(EVENTS.INPUT_REQUEST, this.#handleInputRequest.bind(this));
-        this.#eventBus.listen(EVENTS.HISTORY_INDEXED_RESPONSE, this.#handleHistoryResponse.bind(this));
-        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_BROADCAST, this.#handleAutocompleteBroadcast.bind(this));
+        this.#eventBus.listen(EVENTS.INPUT_REQUEST, this.#handleInputRequest.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.HISTORY_INDEXED_RESPONSE, this.#handleHistoryResponse.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_BROADCAST, this.#handleAutocompleteBroadcast.bind(this), this.constructor.name);
     }
 
     // --- Event Handlers ---
