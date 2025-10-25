@@ -29,15 +29,16 @@ class Help {
      */
     static DESCRIPTION = 'Lists available commands.';
 
-    /** @private {CommandService} #commandService - Reference to the CommandService. */
-    #commandService;
+    #getCommandList;
+    #getCommandMeta;
 
     /**
      * Creates an instance of Help.
      * @param {CommandService} commandService - The CommandService instance to interact with.
      */
     constructor(services) {
-        this.#commandService = services.command;
+        this.#getCommandList = services.getCommandList;
+        this.#getCommandMeta = services.getCommandMeta;
     }
 
     /**
@@ -69,26 +70,29 @@ class Help {
     async execute(args) {
         log.log('Executing...');
         const outputDiv = document.createElement('div');
-        const commands = this.#commandService.getHelpCommandNames();
+        // Use the injected service function to get the list of commands.
+        const commands = await this.#getCommandList();
 
         if (commands.length === 0) {
-            const p = document.createElement('p');
-            p.textContent = 'No commands available.';
-            outputDiv.appendChild(p);
+            outputDiv.textContent = 'No commands available.';
             return outputDiv;
         }
 
-        const pre = document.createElement('pre');
+        // Find the length of the longest command name for alignment.
+        const maxLength = Math.max(...commands.map(cmd => cmd.length));
+        const padding = maxLength + 4;
+
+        // Use CSS to preserve whitespace, avoiding the need for a <pre> tag.
+        outputDiv.style.whiteSpace = 'pre-wrap';
         let helpText = '';
 
-        commands.forEach(cmdName => {
-            const CommandClass = this.#commandService.getCommandClass(cmdName); // Assuming CommandService has this method
-            const description = CommandClass ? CommandClass.DESCRIPTION || 'No description available.' : 'No description available.';
-            helpText += `${cmdName.padEnd(15)} : ${description}\n`;
-        });
+        // Asynchronously fetch the description for each command.
+        for (const cmdName of commands) {
+            const description = await this.#getCommandMeta(cmdName, 'DESCRIPTION') || 'No description available.';
+            helpText += `${cmdName.padEnd(padding)} : ${description}\n`;
+        }
 
-        pre.innerText = helpText.trim();
-        outputDiv.appendChild(pre);
+        outputDiv.textContent = helpText.trim();
         return outputDiv;
     }
 }

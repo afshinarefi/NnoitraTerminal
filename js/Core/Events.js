@@ -46,6 +46,7 @@ export const EVENTS = {
     HISTORY_NEXT_REQUEST: 'history-next-request',
     HISTORY_INDEXED_RESPONSE: 'history-indexed-response',
     HISTORY_LOAD_REQUEST: 'history-load-request',
+    HISTORY_GET_ALL_REQUEST: 'history-get-all-request',
     COMMAND_PERSIST_REQUEST: 'command-persist-request',
 
     // Command & Execution

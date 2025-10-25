@@ -103,6 +103,8 @@ class CommandService {
 
         this.#eventBus.listen(EVENTS.GET_ALIASES_REQUEST, this.#handleGetAliasesRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.SET_ALIASES_REQUEST, this.#handleSetAliasesRequest.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.GET_COMMAND_LIST_REQUEST, this.#handleGetCommandListRequest.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.GET_COMMAND_META_REQUEST, this.#handleGetCommandMetaRequest.bind(this), this.constructor.name);
 
         this.#eventBus.listen(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, this.#handleGetAutocompleteSuggestions.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
@@ -260,6 +262,16 @@ class CommandService {
     async #handleGetCommandListRequest({ respond }) {
         const commands = await this.getPermittedCommandNames();
         respond({ commands });
+    }
+
+    #handleGetCommandMetaRequest({ commandName, metaKey, respond }) {
+        const CommandClass = this.getCommandClass(commandName);
+        if (CommandClass && CommandClass[metaKey] !== undefined) {
+            respond({ value: CommandClass[metaKey] });
+        } else {
+            // Respond with undefined if the command or meta key doesn't exist.
+            respond({ value: undefined });
+        }
     }
 
     async #handleGetAutocompleteSuggestions({ parts, respond }) {

@@ -29,15 +29,13 @@ class History {
      */
     static DESCRIPTION = 'Shows the command history.';
 
-    /** @private {HistoryService} #historyService - Reference to the HistoryService. */
-    #historyService;
+    #getHistory;
 
     /**
      * Creates an instance of History.
-     * @param {HistoryService} historyService - The HistoryService instance to interact with.
      */
     constructor(services) {
-        this.#historyService = services.history;
+        this.#getHistory = services.getHistory;
     }
 
     /**
@@ -69,18 +67,22 @@ class History {
     async execute(args) {
         log.log('Executing...');
         const outputDiv = document.createElement('div');
-        const history = this.#historyService.getFullHistory();
-        if (!history || history.length === 0) {
-            const p = document.createElement('p');
-            p.textContent = 'No history available.';
-            outputDiv.appendChild(p);
+        const historyData = await this.#getHistory();
+
+        if (!historyData || historyData.length === 0) {
+            outputDiv.textContent = 'No history available.';
             return outputDiv;
         }
-        const pre = document.createElement('pre');
-        // Reverse the history to show the oldest commands first (largest index to smallest).
-        const reversedHistory = history.slice().reverse();
-        pre.innerText = reversedHistory.map(item => `${item.index}: ${item.command}`).join('\n');
-        outputDiv.appendChild(pre);
+
+        // Calculate the padding needed for the line numbers based on the total number of history items.
+        const padding = String(historyData.length).length;
+
+        // Use CSS to preserve whitespace, avoiding the need for a <pre> tag.
+        outputDiv.style.whiteSpace = 'pre-wrap';
+        // Display in chronological order (oldest to newest), but number from newest to oldest.
+        const historyText = historyData.map((item, index) => ` ${String(historyData.length - index).padStart(padding)}:  ${item}`).join('\n');
+        outputDiv.textContent = historyText;
+
         return outputDiv;
     }
 }

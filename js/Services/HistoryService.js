@@ -55,6 +55,7 @@ class HistoryService {
         this.#eventBus.listen(EVENTS.HISTORY_NEXT_REQUEST, () => this.#handleGetNext(), this.constructor.name);
         this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, (payload) => this.addCommand(payload.commandString), this.constructor.name);
         this.#eventBus.listen(EVENTS.USER_CHANGED_BROADCAST, this.#handleUserChanged.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.HISTORY_GET_ALL_REQUEST, this.#handleGetAllHistory.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
     }
 
@@ -130,6 +131,13 @@ class HistoryService {
             index: this.#cursorIndex
         };
         this.#eventBus.dispatch(EVENTS.HISTORY_INDEXED_RESPONSE, response);
+    }
+
+    #handleGetAllHistory({ respond }) {
+        // The history is stored with the most recent command at index 0.
+        // For display, we reverse it to show oldest to newest.
+        const displayHistory = this.#history.slice().reverse();
+        respond({ history: displayHistory });
     }
 
     loadHistory(data) {

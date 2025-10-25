@@ -110,8 +110,7 @@ export class ServiceApiManager {
     // --- History Gateway Methods ---
 
     async getHistory() {
-        // This is a placeholder for fetching file content. For now, it simulates an error.
-        const response = await this.#eventBus.request(EVENTS.HISTORY_LOAD_REQUEST, {}, 0); // Timeout 0 for immediate response if available
+        const response = await this.#eventBus.request(EVENTS.HISTORY_GET_ALL_REQUEST, {});
         return response.history;
     }
 
