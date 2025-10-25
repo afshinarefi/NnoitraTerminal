@@ -227,7 +227,7 @@ class CommandLine extends BaseComponent {
    */
   setDisabled(disabled) {
     this.refs.prompt.disabled = disabled;
-    this.refs.icon.busy(); // Set icon to busy state.
+    this.setBusyIcon(); // Set icon to busy state.
     this.refs.prompt.placeholder = 'Running Command ...'; // Provide feedback to the user.
   }
 
@@ -236,7 +236,7 @@ class CommandLine extends BaseComponent {
    */
   enable() {
     this.refs.prompt.placeholder = ''; // Clear the temporary message.
-    this.refs.icon.ready(); // Set icon back to ready state.
+    this.setReadyIcon(); // Set icon back to ready state.
     this.refs.prompt.disabled = false; // Enable the input field.
     this.focus(); // Set focus back to the prompt.
   }
@@ -249,14 +249,32 @@ class CommandLine extends BaseComponent {
     this.refs.prompt.placeholder = text;
   }
 
-  /**
-   * Sets the icon for the prompt.
-   * @param {'ready'|'busy'|'key'|'history'} type - The type of icon.
-   * @param {number} [value] - Optional value for history icon.
-   */
-  setIcon(type, value) {
-    this.refs.icon[type](value);
+  setReadyIcon() {
+    if (this.refs.icon) this.refs.icon.ready();
   }
+
+  /**
+   * Sets the icon to the busy state.
+   */
+  setBusyIcon() {
+    if (this.refs.icon) this.refs.icon.busy();
+  }
+
+  /**
+   * Sets the icon to the key state for password prompts.
+   */
+  setKeyIcon() {
+    if (this.refs.icon) this.refs.icon.key();
+  }
+
+  /**
+   * Sets the icon to display a history index.
+   * @param {number} index - The history index to display.
+   */
+  setHistoryIcon(index) {
+    if (this.refs.icon) this.refs.icon.history(index);
+  }
+
 
   /**
    * Configures the component for secret (password) input mode.

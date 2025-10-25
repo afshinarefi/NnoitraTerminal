@@ -60,7 +60,6 @@ const CSS = `
 }
 
 .prefix {
-  font-style: italic;
   color: var(--arefi-color-muted);
 }
 

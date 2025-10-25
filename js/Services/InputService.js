@@ -50,6 +50,7 @@ class InputService {
     // State properties for the current input mode
     #allowHistory = false;
     #allowAutocomplete = false;
+    #isNavigatingHistory = false;
 
     constructor(eventBus) {
         this.#eventBus = eventBus;
@@ -96,17 +97,20 @@ class InputService {
             case 'ArrowUp':
                 if (this.#allowHistory) {
                     event.preventDefault();
-                    if (this.#inputBuffer === '') {
+                    if (!this.#isNavigatingHistory) {
                         this.#inputBuffer = this.#view.getValue();
+                        this.#isNavigatingHistory = true;
                     }
+                    this.#view.setDisabled(true);
                     this.#eventBus.dispatch(EVENTS.HISTORY_PREVIOUS_REQUEST);
                 }
                 break;
 
             case 'ArrowDown':
                 log.log('ArrowDown key pressed - requesting next history if allowed.');
-                if (this.#allowHistory) {
+                if (this.#allowHistory && this.#isNavigatingHistory) {
                     event.preventDefault();
+                    this.#view.setDisabled(true);
                     this.#eventBus.dispatch(EVENTS.HISTORY_NEXT_REQUEST);
                 }
                 break;
@@ -138,12 +142,14 @@ class InputService {
         // This handles both normal commands and interactive prompts consistently.
         if (this.respond) {
             this.#finishRead();
+            this.#isNavigatingHistory = false; // Reset on command submission
             this.#view.clear();
         }
     }
 
     #onAutocompleteRequest(value) {
         if (this.#allowAutocomplete) {
+            this.#view.setDisabled(true); // Disable input during the request.
             const cursorPosition = this.#view.getCursorPosition(); // This method needs to be added to CommandLine.js
             const beforeCursorText = value.substring(0, cursorPosition);
             const afterCursorText = value.substring(cursorPosition);
@@ -194,6 +200,7 @@ class InputService {
         this.#allowAutocomplete = options.allowAutocomplete || false; // e.g. shell prompt
         this.#secretValue = '';
         this.#inputBuffer = '';
+        this.#isNavigatingHistory = false;
 
         this.#view.clear();
         this.#view.enable();
@@ -217,6 +224,7 @@ class InputService {
         this.#allowAutocomplete = true; // Normal prompt allows autocomplete
         this.#secretValue = '';
         this.#inputBuffer = '';
+        this.#isNavigatingHistory = false;
 
         this.#view.clear();
         this.#view.enable();
@@ -230,28 +238,45 @@ class InputService {
         const { prompt, options, respond } = payload;
         this.#startRead(prompt, options);
         if (options?.isSecret) {
-            this.#view.setIcon('key');
+            this.#view.setKeyIcon();
         }
         // Store the respond function to be called later in #finishRead
         this.respond = respond;
     }
 
     #handleHistoryResponse(payload) {
-        if (this.#view) {
-            this.#view.setValue(payload.command);
-            // This logic could be expanded to show the history index icon
+        if (!this.#view) return;
+        this.#view.enable();
+    
+        if (payload.command !== undefined) {
+            if (payload.index > 0) {
+                this.#view.setValue(payload.command);
+                console.log(payload.index);
+                this.#view.setHistoryIcon(payload.index);
+            } else {
+                // Index 0 means we've returned to the current, un-submitted command.
+                this.#view.setValue(this.#inputBuffer);
+                this.#isNavigatingHistory = false;
+                this.#inputBuffer = '';
+                this.#view.setReadyIcon();
+            }
         }
     }
 
     #handleAutocompleteBroadcast(payload) {
         if (!this.#view) return;
 
-        const { newTextBeforeCursor, afterCursorText } = payload;
+        try {
+            const { newTextBeforeCursor, afterCursorText } = payload;
 
-        if (newTextBeforeCursor !== undefined) {
-            const fullText = newTextBeforeCursor + afterCursorText;
-            this.#view.setValue(fullText);
-            this.#view.setCursorPosition(newTextBeforeCursor.length);
+            if (newTextBeforeCursor !== undefined) {
+                const fullText = newTextBeforeCursor + afterCursorText;
+                this.#view.setValue(fullText);
+                this.#view.setCursorPosition(newTextBeforeCursor.length);
+            }
+        } finally {
+            // Always re-enable the prompt after an autocomplete attempt.
+            this.#view.enable();
         }
     }
 }
