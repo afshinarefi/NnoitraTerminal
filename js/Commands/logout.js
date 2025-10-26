@@ -24,10 +24,10 @@ const log = createLogger('logout');
 class Logout {
     static DESCRIPTION = 'Log out of the current session.';
 
-    #loginService;
+    #logout;
 
     constructor(services) {
-        this.#loginService = services.login;
+        this.#logout = services.logout;
     }
 
     static man() {
@@ -52,7 +52,7 @@ class Logout {
         log.log('Executing...');
         const outputDiv = document.createElement('div');
         try {
-            const result = await this.#loginService.logout();
+            const result = await this.#logout();
             outputDiv.textContent = result.message;
         } catch (error) {
             log.error('Network or parsing error during logout:', error);

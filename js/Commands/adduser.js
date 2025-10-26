@@ -26,11 +26,11 @@ class AddUser {
     static DESCRIPTION = 'Add a new user.';
 
     #prompt;
-    #loginService;
+    #addUser;
 
     constructor(services) {
         this.#prompt = services.prompt;
-        this.#loginService = services.login;
+        this.#addUser = services.addUser;
         log.log('Initializing...');
     }
 
@@ -49,7 +49,10 @@ DESCRIPTION
     }
     
     async autocompleteArgs(currentArgs) { // Made async for consistency
-        return []; // No autocomplete for username.
+        return {
+            suggestions: [],
+            description: '<USERNAME>'
+        };
     }
 
     async execute(args) {
@@ -70,14 +73,14 @@ DESCRIPTION
 
         try {
             // Prompt for password
-            const password = await this.#prompt.read('Password', true);
+            const password = await this.#prompt('Password: ', { isSecret: true, allowHistory: false });
             if (password === null) { // User cancelled with Ctrl+C
                 outputDiv.textContent = 'adduser: Operation cancelled.';
                 return outputDiv;
             }
 
             // Prompt for password confirmation
-            const confirmPassword = await this.#prompt.read('Confirm password', true);
+            const confirmPassword = await this.#prompt('Confirm password: ', { isSecret: true, allowHistory: false });
             if (confirmPassword === null) { // User cancelled with Ctrl+C
                 outputDiv.textContent = 'adduser: Operation cancelled.';
                 return outputDiv;
@@ -90,7 +93,7 @@ DESCRIPTION
 
             outputDiv.textContent = 'Creating user...';
 
-            const result = await this.#loginService.addUser(username, password);
+            const result = await this.#addUser(username, password);
 
             if (result.status === 'success') {
                 outputDiv.textContent = `User '${username}' created successfully.`;

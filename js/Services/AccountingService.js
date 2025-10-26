@@ -60,6 +60,7 @@ class AccountingService {
         this.#eventBus.listen(EVENTS.LOGIN_REQUEST, this.#handleLoginRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.LOGOUT_REQUEST, this.#handleLogoutRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.PASSWORD_CHANGE_REQUEST, this.#handleChangePasswordRequest.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.ADD_USER_REQUEST, this.#handleAddUserRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_LOAD_REMOTE_REQUEST, this.#handleLoadRemoteVariables.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.IS_LOGGED_IN_REQUEST, this.#handleIsLoggedInRequest.bind(this), this.constructor.name);
@@ -83,10 +84,9 @@ class AccountingService {
                 this.#eventBus.dispatch(EVENTS.ENV_RESET_REQUEST, {});
 
                 log.log('Login successful. Setting session variables.');
-                this.#dispatchSetVariable(ENV_VARS.TOKEN, result.token, VAR_CATEGORIES.LOCAL);
-                this.#dispatchSetVariable(ENV_VARS.USER, result.user, VAR_CATEGORIES.LOCAL);
-                this.#dispatchSetVariable(ENV_VARS.TOKEN_EXPIRY, result.expires_at, VAR_CATEGORIES.LOCAL);
-
+                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: result.token });
+                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: result.user });
+                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN_EXPIRY, value: result.expires_at });
                 // Internally store the token for future API calls
                 this.#token = result.token;
 
@@ -121,7 +121,7 @@ class AccountingService {
         log.log('Clearing local session and resetting environment.');
         this.#eventBus.dispatch(EVENTS.ENV_RESET_REQUEST, {});
         this.#token = null;
-        this.#dispatchSetVariable(ENV_VARS.USER, GUEST_USER);
+        this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: GUEST_USER });
         this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: GUEST_USER, isLoggedIn: false });
     }
 
@@ -165,6 +165,21 @@ class AccountingService {
         respond(result);
     }
 
+    async #addUser(username, password) {
+        try {
+            const result = await this.#apiManager.post('add_user', { username, password });
+            return result;
+        } catch (error) {
+            log.error('Network or parsing error during user creation:', error);
+            return { status: 'error', message: `Error: ${error.message}` };
+        }
+    }
+
+    async #handleAddUserRequest({ username, password, respond }) {
+        const result = await this.#addUser(username, password);
+        respond(result);
+    }
+
     async #changePassword(oldPassword, newPassword) {
         if (!this.isLoggedIn()) {
             return { status: 'error', message: 'Not logged in.' };
@@ -190,19 +205,14 @@ class AccountingService {
     #handleUpdateDefaultRequest({ key, respond }) {
         switch (key) {
             case ENV_VARS.USER:
-                this.#dispatchSetVariable(key, GUEST_USER);
+                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key, value: GUEST_USER });
                 respond({ value: GUEST_USER });
                 break;
             case ENV_VARS.TOKEN:
-                this.#dispatchSetVariable(key, '');
+                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key, value: '' });
                 respond({ value: '' });
                 break;
         }
-    }
-
-    #dispatchSetVariable(key, value) {
-        // This service only ever sets LOCAL variables.
-        this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key, value });
     }
 
     #handlePersistVariable(payload) {

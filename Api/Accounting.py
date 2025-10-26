@@ -358,7 +358,7 @@ def main():
             response = {'status': 'success', 'message': 'Session is valid.'}
         else:
             response = {'status': 'error', 'message': 'Invalid or expired session.'}
-    elif action == 'useradd':
+    elif action == 'add_user':
         response = handle_useradd(form_data)
     elif action == 'login':
         response = handle_login(form_data)

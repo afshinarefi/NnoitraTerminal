@@ -39,6 +39,7 @@ export const EVENTS = {
     LOGIN_REQUEST: 'login-request',
     LOGOUT_REQUEST: 'logout-request',
     PASSWORD_CHANGE_REQUEST: 'password-change-request',
+    ADD_USER_REQUEST: 'add-user-request',
     IS_LOGGED_IN_REQUEST: 'is-logged-in-request',
 
     // History

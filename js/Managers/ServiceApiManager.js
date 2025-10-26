@@ -66,6 +66,10 @@ export class ServiceApiManager {
         return await this.#eventBus.request(EVENTS.PASSWORD_CHANGE_REQUEST, { oldPassword, newPassword });
     }
 
+    async addUser(username, password) {
+        return await this.#eventBus.request(EVENTS.ADD_USER_REQUEST, { username, password });
+    }
+
     async isLoggedIn() {
         const response = await this.#eventBus.request(EVENTS.IS_LOGGED_IN_REQUEST, {});
         return response.isLoggedIn;

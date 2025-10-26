@@ -137,7 +137,7 @@ class EnvironmentService {
         // 3. If the variable is still not found after all lazy-loading, it's a new variable.
         // Trigger the update-default flow to get its default value from its owner.
         log.log(`Variable "${upperKey}" is undefined, requesting its default value from its owner.`);
-        const { value } = await this.#eventBus.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey }, 0); // Timeout 0 for immediate response if available
+        const { value } = await this.#eventBus.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
         return value;
 	}
 
