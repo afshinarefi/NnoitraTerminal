@@ -54,6 +54,7 @@ class ThemeService {
     #registerListeners() {
         this.#eventBus.listen(EVENTS.VAR_CHANGED_BROADCAST, this.#handleVarChanged.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.SET_THEME_REQUEST, this.#handleSetThemeRequest.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.GET_VALID_THEMES_REQUEST, this.#handleGetValidThemesRequest.bind(this), this.constructor.name);
     }
 
@@ -67,6 +68,13 @@ class ThemeService {
     #handleSetThemeRequest({ themeName, respond }) {
         const finalTheme = this.applyTheme(themeName);
         respond({ theme: finalTheme });
+    }
+
+    #handleUpdateDefaultRequest({ key, respond }) {
+        if (key === VAR_THEME) {
+            this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_THEME });
+            respond({ value: DEFAULT_THEME });
+        }
     }
 
     #handleGetValidThemesRequest({ respond }) {

@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
-import { parseAssignment } from '../Utils/ParseUtil.js';
 const log = createLogger('alias');
 /**
  * @class Alias
@@ -25,12 +24,12 @@ const log = createLogger('alias');
 class Alias {
     static DESCRIPTION = 'Define or display aliases.';
 
-    #environmentService;
-    #commandService;
+    #getAliases;
+    #setAliases;
 
     constructor(services) {
-        this.#environmentService = services.environment;
-        this.#commandService = services.command;
+        this.#getAliases = services.getAliases;
+        this.#setAliases = services.setAliases;
         log.log('Initializing...');
     }
 
@@ -45,13 +44,13 @@ class Alias {
 
     async execute(args) {
         log.log('Executing with args:', args);
-        const output = document.createElement('pre');
-        const aliasString = args.slice(1).join(' ');
+        const output = document.createElement('div');
+        output.style.whiteSpace = 'pre-wrap';
 
-        const aliases = this.#commandService.getAliases();
+        const aliases = await this.#getAliases();
 
         // If no arguments, display all aliases
-        if (!aliasString) {
+        if (args.length <= 1) {
             if (Object.keys(aliases).length === 0) {
                 log.log('No aliases found to display.');
                 output.textContent = 'No aliases defined.';
@@ -66,17 +65,30 @@ class Alias {
             return output;
         }
 
-        // If arguments are provided, define a new alias
-        const newAlias = parseAssignment(aliasString);
+        // Reconstruct the full argument string from the tokens to parse it.
+        const aliasString = args.slice(1).join('');
+        const assignmentIndex = aliasString.indexOf('=');
 
-        if (newAlias) {
-            aliases[newAlias.name] = newAlias.value;
-            this.#commandService.setAliases(aliases);
-            log.log(`Created alias: ${newAlias.name}='${newAlias.value}'`);
-            output.textContent = `Alias '${newAlias.name}' created.`;
+        if (assignmentIndex === -1) {
+            output.textContent = 'alias: usage: alias [name[=value] ...]'
+            return output;
+        }
+
+        const name = aliasString.substring(0, assignmentIndex).trim();
+        let value = aliasString.substring(assignmentIndex + 1).trim();
+
+        // If the value was quoted, unwrap the quotes.
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+        }
+
+        if (name) {
+            aliases[name] = value;
+            this.#setAliases(aliases);
+            log.log(`Created alias: ${name}='${value}'`);
         } else {
             log.warn('Invalid alias format:', aliasString);
-            output.textContent = `alias: invalid format. Use name="value"`;
+            output.textContent = `alias: invalid alias name`;
         }
 
         return output;

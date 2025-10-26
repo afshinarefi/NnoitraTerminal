@@ -90,7 +90,7 @@ class CommandService {
         this.register('alias', Alias, ['getAliases', 'setAliases']);
         this.register('unalias', Unalias, ['getAliases', 'setAliases']);
         this.register('export', Export, ['setUserspaceVariable', 'getAllCategorizedVariables']);
-        this.register('theme', Theme, ['getValidThemes', 'setUserspaceVariable']);
+        this.register('theme', Theme, ['getValidThemes', 'setUserspaceVariable', 'getVariable']);
         this.register('version', Version, []);
     }
 
@@ -267,7 +267,13 @@ class CommandService {
     #handleGetCommandMetaRequest({ commandName, metaKey, respond }) {
         const CommandClass = this.getCommandClass(commandName);
         if (CommandClass && CommandClass[metaKey] !== undefined) {
-            respond({ value: CommandClass[metaKey] });
+            const metaValue = CommandClass[metaKey];
+            // If the metadata is a function (like man()), call it to get the value.
+            if (typeof metaValue === 'function') {
+                respond({ value: metaValue() });
+            } else {
+                respond({ value: metaValue });
+            }
         } else {
             // Respond with undefined if the command or meta key doesn't exist.
             respond({ value: undefined });

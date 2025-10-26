@@ -188,9 +188,15 @@ class AccountingService {
     }
 
     #handleUpdateDefaultRequest({ key, respond }) {
-        if (key === ENV_VARS.USER) {
-            this.#dispatchSetVariable(key, GUEST_USER);
-            respond({ value: GUEST_USER });
+        switch (key) {
+            case ENV_VARS.USER:
+                this.#dispatchSetVariable(key, GUEST_USER);
+                respond({ value: GUEST_USER });
+                break;
+            case ENV_VARS.TOKEN:
+                this.#dispatchSetVariable(key, '');
+                respond({ value: '' });
+                break;
         }
     }
 

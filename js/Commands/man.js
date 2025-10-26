@@ -83,10 +83,8 @@ class Man {
     async execute(args) {
         log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
-        if (!args || args.length === 0 || !args[0]) {
-            const p = document.createElement('p');
-            p.textContent = 'Usage: man <command>\nPlease specify a command name.';
-            outputDiv.appendChild(p);
+        if (args.length <= 1) {
+            outputDiv.textContent = 'Usage: man <command>\nPlease specify a command name.';
             return outputDiv;
         }
         const cmdName = args[1];
@@ -111,29 +109,22 @@ class Man {
                 manContent = await this.#getCommandMeta(matches[0], 'man');
                 log.log('Unique partial match found:', matches[0]);
             } else if (matches.length > 1) {
-                const p = document.createElement('p');
-                p.textContent = `man: ambiguous command '${cmdName}'; possibilities: ${matches.join(' ')}`;
-                outputDiv.appendChild(p);
+                outputDiv.textContent = `man: ambiguous command '${cmdName}'; possibilities: ${matches.join(' ')}`;
                 log.warn('Ambiguous command:', { input: cmdName, matches });
                 return outputDiv;
             } else {
-                const p = document.createElement('p');
-                p.textContent = `No manual entry for '${cmdName}'.`;
-                outputDiv.appendChild(p);
+                outputDiv.textContent = `No manual entry for '${cmdName}'.`;
                 return outputDiv;
             }
         }
         if (manContent) {
             log.log('Displaying man page.');
-            const pre = document.createElement('pre');
-            pre.innerText = manContent;
-            outputDiv.appendChild(pre);
+            outputDiv.style.whiteSpace = 'pre-wrap';
+            outputDiv.textContent = manContent;
             return outputDiv;
         } else {
             log.warn(`No man page function found for command: "${cmdName}"`);
-            const p = document.createElement('p');
-            p.textContent = `No manual entry for '${cmdName}'.`;
-            outputDiv.appendChild(p);
+            outputDiv.textContent = `No manual entry for '${cmdName}'.`;
             return outputDiv;
         }
     }

@@ -79,7 +79,7 @@ class EventBus {
      * @param {number} [timeout=5000] - Timeout in milliseconds.
      * @returns {Promise<any>} A promise that resolves with the response payload.
      */
-    request(eventName, payload = {}, timeout = 60000) {
+    request(eventName, payload = {}, timeout = 6000) {
         const correlationId = `${eventName}-${Date.now()}-${Math.random()}`;
 
         return new Promise((resolve, reject) => {
@@ -91,7 +91,7 @@ class EventBus {
             if (timeout > 0) {
                 timeoutId = setTimeout(() => {
                     if (this.#pendingRequests.has(correlationId)) {
-                        this.#pendingRequests.get(correlationId).reject(new Error(`Request timed out for event "${eventName}"`));
+                        this.#pendingRequests.get(correlationId).reject(new Error(`Request timed out for event "${eventName} with payload: ${JSON.stringify(payload)}"`));
                         this.#pendingRequests.delete(correlationId);
                     }
                 }, timeout);

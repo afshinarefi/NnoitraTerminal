@@ -28,12 +28,14 @@ class Theme {
 
     #setUserspaceVariable;
     #getValidThemes;
+    #getVariable;
 
     constructor(services) {
         // The environment service is used for getting/setting THEME variable.
         this.#setUserspaceVariable = services.setUserspaceVariable;
         // The theme service is used for getting valid themes.
         this.#getValidThemes = services.getValidThemes;
+        this.#getVariable = services.getVariable;
         log.log('Initializing...');
     }
 
@@ -50,13 +52,13 @@ class Theme {
     }
 
     async execute(args) {
-        const output = document.createElement('pre');
+        const output = document.createElement('div');
         const themeName = args[1];
         const validThemes = await this.#getValidThemes();
 
         if (!themeName) {
-            // This needs to be an async call to get the variable.
-            const currentTheme = await this.#setUserspaceVariable('THEME'); // This is not correct, should be getVariable
+            // Correctly get the current theme variable.
+            const currentTheme = await this.#getVariable('THEME');
             output.textContent = `Current theme: ${currentTheme}\nAvailable themes: ${validThemes.join(', ')}`;
             return output;
         }
