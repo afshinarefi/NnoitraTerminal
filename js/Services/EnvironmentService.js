@@ -45,6 +45,8 @@ class EnvironmentService {
 
     #eventBus;
 	#categorizedVariables = new Map();
+    #pendingFetches = new Set(); // Tracks variables currently being fetched to prevent recursion.
+    #isLazyLoading = false; // A global lock to prevent re-entry into the lazy-load process.
     
 	constructor(eventBus) {
         this.#eventBus = eventBus;
@@ -70,16 +72,17 @@ class EnvironmentService {
 
 	#loadFromStorage() {
         log.log('Lazily loading variables from localStorage...');
-        this.#categorizedVariables.set(EnvironmentService.VAR_CATEGORIES.LOCAL, new Map());
+        const localMap = new Map();
+        this.#categorizedVariables.set(EnvironmentService.VAR_CATEGORIES.LOCAL, localMap);
 		const storedLocalVars = localStorage.getItem(LOCAL_STORAGE_KEY);
 		if (storedLocalVars) {
 			try {
 				const localObj = JSON.parse(storedLocalVars);
 				for (const [key, value] of Object.entries(localObj)) {
-					this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.LOCAL, false); // Don't re-persist on load
+					localMap.set(key.toUpperCase(), value);
 				}
 			} catch (e) {
-				log.error("Failed to parse local environment variables from localStorage:", e);
+				log.error('Failed to parse local environment variables from localStorage:', e);
 			}
 		}
 	}
@@ -111,36 +114,63 @@ class EnvironmentService {
 	async getVariable(key) {
 		const upperKey = key.toUpperCase();
 
+        // Prevent recursive calls for the same variable.
+        // If we are already fetching this key, return undefined to break the loop.
+        if (this.#pendingFetches.has(upperKey)) {
+            log.warn(`Recursive call detected for variable "${upperKey}". Breaking loop.`);
+            return undefined;
+        }
+
         // 1. Check all currently loaded categories.
         let existingValue = this.#getVariableSync(upperKey);
         if (existingValue !== undefined) {
             return existingValue;
         }
 
-        // 2. If not found, try lazy-loading categories that haven't been loaded yet.
-        if (!this.#categorizedVariables.has(EnvironmentService.VAR_CATEGORIES.LOCAL)) {
-            this.#loadFromStorage();
-            if (this.#categorizedVariables.get(EnvironmentService.VAR_CATEGORIES.LOCAL).has(upperKey)) {
-                return this.#categorizedVariables.get(EnvironmentService.VAR_CATEGORIES.LOCAL).get(upperKey);
-            }
-        }
-
-        if (!this.#categorizedVariables.has(EnvironmentService.VAR_CATEGORIES.REMOTE)) {
-            // This will populate both REMOTE and USERSPACE maps.
-            await this.#loadRemoteVariables();
-            // After loading, check again.
-            existingValue = this.#getVariableSync(upperKey);
-            if (existingValue !== undefined) {
-                return existingValue;
-            }
+        // 2. If not found, perform a one-time lazy load of all categories that haven't been loaded yet.
+        await this.#lazyLoadAllCategories();
+        existingValue = this.#getVariableSync(upperKey);
+        if (existingValue !== undefined) {
+            return existingValue;
         }
 
         // 3. If the variable is still not found after all lazy-loading, it's a new variable.
         // Trigger the update-default flow to get its default value from its owner.
         log.log(`Variable "${upperKey}" is undefined, requesting its default value from its owner.`);
-        const { value } = await this.#eventBus.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
-        return value;
+        
+        try {
+            this.#pendingFetches.add(upperKey); // Lock this key
+            const { value } = await this.#eventBus.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
+            return value;
+        } finally {
+            this.#pendingFetches.delete(upperKey); // Unlock this key
+        }
 	}
+
+    async #lazyLoadAllCategories() {
+        // If a lazy-load is already in progress, do not start another one.
+        // This is the key to breaking the recursive loop.
+        if (this.#isLazyLoading) {
+            return;
+        }
+        this.#isLazyLoading = true;
+
+        try {
+            const loadPromises = [];
+
+            if (!this.#categorizedVariables.has(EnvironmentService.VAR_CATEGORIES.LOCAL)) {
+                this.#loadFromStorage(); // This is synchronous
+            }
+
+            if (!this.#categorizedVariables.has(EnvironmentService.VAR_CATEGORIES.REMOTE)) {
+                loadPromises.push(this.#loadRemoteVariables());
+            }
+
+            await Promise.all(loadPromises);
+        } finally {
+            this.#isLazyLoading = false; // Always release the lock
+        }
+    }
 
     #getVariableSync(upperKey) {
 		for (const categoryMap of this.#categorizedVariables.values()) {
@@ -178,7 +208,7 @@ class EnvironmentService {
         }
 		this.#categorizedVariables.get(targetCategory).set(upperKey, value);
 
-		if (targetCategory === EnvironmentService.VAR_CATEGORIES.LOCAL) {
+		if (persist && targetCategory === EnvironmentService.VAR_CATEGORIES.LOCAL) {
 			this.#persistLocalVariables();
 		} else if (persist && (targetCategory === EnvironmentService.VAR_CATEGORIES.REMOTE || targetCategory === EnvironmentService.VAR_CATEGORIES.USERSPACE)) {
 			this.#eventBus.dispatch(EVENTS.VAR_PERSIST_REQUEST, { key: upperKey, value, category: targetCategory });
@@ -287,6 +317,8 @@ class EnvironmentService {
 		log.log('Resetting environment service completely...');
 		localStorage.removeItem(LOCAL_STORAGE_KEY);
         this.#categorizedVariables.clear();
+        this.#pendingFetches.clear();
+        this.#isLazyLoading = false;
 	}
 
     resetRemoteVariables() {
