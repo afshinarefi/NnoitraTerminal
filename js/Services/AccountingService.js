@@ -42,8 +42,6 @@ const GUEST_USER = 'guest';
 class AccountingService {
     #eventBus;
     #apiManager;
-    #user = GUEST_USER;
-    #token = null;
 
     constructor(eventBus) {
         this.#eventBus = eventBus;
@@ -66,8 +64,9 @@ class AccountingService {
         this.#eventBus.listen(EVENTS.IS_LOGGED_IN_REQUEST, this.#handleIsLoggedInRequest.bind(this), this.constructor.name);
     }
 
-    isLoggedIn() {
-        return !!this.#token;
+    async isLoggedIn() {
+        const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
+        return !!token;
     }
 
     async start() {
@@ -87,8 +86,6 @@ class AccountingService {
                 this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: result.token });
                 this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: result.user });
                 this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN_EXPIRY, value: result.expires_at });
-                // Internally store the token for future API calls
-                this.#token = result.token;
 
                 this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: result.user, isLoggedIn: true });
             }
@@ -100,15 +97,17 @@ class AccountingService {
     }
 
     async logout() {
-        if (!this.isLoggedIn()) {
+        if (!(await this.isLoggedIn())) {
             this.clearLocalSession();
             return { status: 'success', message: 'Already logged out.' };
         }
 
         try {
-            const result = await this.#apiManager.post('logout', {}, this.#token);
+            const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
+            const result = await this.#apiManager.post('logout', {}, token);
             if (result.status === 'success' || (result.status === 'error' && result.message.includes('expired'))) {
-                this.clearLocalSession();
+                // Clear local session regardless of backend response if token is expired or logout is successful
+                this.clearLocalSession(); 
             }
             return result;
         } catch (error) {
@@ -120,28 +119,30 @@ class AccountingService {
     clearLocalSession() {
         log.log('Clearing local session and resetting environment.');
         this.#eventBus.dispatch(EVENTS.ENV_RESET_REQUEST, {});
-        this.#token = null;
+        this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: '' });
+        this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN_EXPIRY, value: '' });
         this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: GUEST_USER });
         this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: GUEST_USER, isLoggedIn: false });
     }
 
     async validateSession() {
         try {
-            const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { keys: [ENV_VARS.USER, ENV_VARS.TOKEN] });
-            const token = values[ENV_VARS.TOKEN];
-            const user = values[ENV_VARS.USER];
+            const user = await this.#getEnvVariable(ENV_VARS.USER);
+            const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
 
             if (token && user && user !== GUEST_USER) {
                 log.log(`Found token for user "${user}". Validating session...`);
-                const result = await this.#apiManager.post('validate', { token });
+                const result = await this.#apiManager.post('validate', { token }, token); // Pass token for auth
 
                 if (result.status === 'success') {
                     log.log('Session is valid. User is logged in.');
-                    this.#token = token;
-                    this.#user = user;
-                    this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: this.#user, isLoggedIn: true });
+                    // Ensure environment variables are set (they should be if we fetched them)
+                    this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: token });
+                    this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: user });
+                    this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: user, isLoggedIn: true });
                     return;
                 }
+                // If validation fails, clear the session.
                 log.warn('Session validation failed or token expired. Clearing local session.');
                 this.clearLocalSession(); // This will broadcast the user change to guest.
 
@@ -155,6 +156,11 @@ class AccountingService {
         }
     }
 
+    async #getEnvVariable(key) {
+        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key });
+        return values ? values[key] : undefined;
+    }
+    
     async #handleLoginRequest({ username, password, respond }) {
         const result = await this.login(username, password);
         respond(result);
@@ -181,11 +187,12 @@ class AccountingService {
     }
 
     async #changePassword(oldPassword, newPassword) {
-        if (!this.isLoggedIn()) {
+        const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
+        if (!token) {
             return { status: 'error', message: 'Not logged in.' };
         }
         try {
-            const result = await this.#apiManager.post('change_password', { old_password: oldPassword, new_password: newPassword }, this.#token);
+            const result = await this.#apiManager.post('change_password', { old_password: oldPassword, new_password: newPassword }, token);
             return result;
         } catch (error) {
             log.error('Network or parsing error during password change:', error);
@@ -198,57 +205,64 @@ class AccountingService {
         respond(result);
     }
 
-    #handleIsLoggedInRequest({ respond }) {
-        respond({ isLoggedIn: this.isLoggedIn() });
+    async #handleIsLoggedInRequest({ respond }) {
+        const loggedIn = await this.isLoggedIn();
+        respond({ isLoggedIn: loggedIn });
     }
 
     #handleUpdateDefaultRequest({ key, respond }) {
         switch (key) {
             case ENV_VARS.USER:
-                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key, value: GUEST_USER });
+                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: GUEST_USER });
                 respond({ value: GUEST_USER });
                 break;
             case ENV_VARS.TOKEN:
-                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key, value: '' });
+                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: '' });
                 respond({ value: '' });
                 break;
         }
     }
 
-    #handlePersistVariable(payload) {
-        if (this.#user === GUEST_USER || !this.isLoggedIn()) {
+    async #handlePersistVariable(payload) {
+        const user = await this.#getEnvVariable(ENV_VARS.USER);
+        if (user === GUEST_USER || !(await this.isLoggedIn())) {
             log.warn(`Persistence for variable "${payload.key}" blocked: User is guest or not logged in.`);
             return;
         }
+        const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
         this.#apiManager.post('set_data', {
             category: payload.category,
             key: payload.key,
             value: payload.value
-        }, this.#token);
+        }, token);
     }
 
-    #handlePersistCommand(payload) {
-        if (this.#user === GUEST_USER || !this.isLoggedIn()) {
+    async #handlePersistCommand(payload) {
+        const user = await this.#getEnvVariable(ENV_VARS.USER);
+        if (user === GUEST_USER || !(await this.isLoggedIn())) {
             log.warn(`Persistence for command "${payload.command}" blocked: User is guest or not logged in.`);
             return;
         }
+        const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
         this.#apiManager.post('set_data', {
             category: 'HISTORY',
             key: Date.now(),
             value: payload.command
-        }, this.#token);
+        }, token);
     }
 
     async #handleHistoryLoad({ respond }) {
-        if (this.#user === GUEST_USER || !this.isLoggedIn()) {
+        const user = await this.#getEnvVariable(ENV_VARS.USER);
+        if (user === GUEST_USER || !(await this.isLoggedIn())) {
             log.warn('History load blocked: User is guest or not logged in.');
             if (respond) respond({ history: [] });
             return;
         }
         try {
+            const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
             const result = await this.#apiManager.post('get_data', {
                 category: 'HISTORY'
-            }, this.#token);
+            }, token);
 
             log.log("History data received from server:", result);
             if (respond) {
@@ -261,15 +275,17 @@ class AccountingService {
     }
 
     async #handleLoadRemoteVariables({ respond }) {
-        if (this.#user === GUEST_USER || !this.isLoggedIn()) {
+        const user = await this.#getEnvVariable(ENV_VARS.USER);
+        if (user === GUEST_USER || !(await this.isLoggedIn())) {
             log.warn('Remote variable load blocked: User is guest or not logged in.');
             if (respond) respond({ variables: {} });
             return;
         }
         try {
+            const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
             const result = await this.#apiManager.post('get_data', {
                 category: 'ENV' // Special category to get all env vars
-            }, this.#token);
+            }, token);
 
             log.log("Remote variables received from server:", result);
             if (respond) {

@@ -74,6 +74,8 @@ class HistoryService {
         if (isLoggedIn) {
             const { history } = await this.#eventBus.request(EVENTS.HISTORY_LOAD_REQUEST);
             this.loadHistory(history);
+        } else {
+            this.clearHistory();
         }
     }
 

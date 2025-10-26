@@ -146,6 +146,7 @@ class TerminalService {
                 this.#currentItem.setContent(commandString);
                 const outputContainer = { element: this.#currentItem.getOutput() };
                 log.log(`Executing command: "${commandString}"`);
+                this.#view.scrollToBottom();
                 this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTE_BROADCAST, {
                     commandString,
                     outputElement: outputContainer
