@@ -98,46 +98,49 @@ class CommandLine extends BaseComponent {
   }
 
   /**
-   * Handles the input event to manually mask characters for secret input.
+   * Handles the input event to manually mask characters for secret (password) input.
+   * This implementation correctly handles insertions, deletions, and replacements
+   * at any position within the input field.
    * @private
    * @param {InputEvent} event - The input event.
    */
   #onInput(event) {
-      if (!this.#isSecret) {
-          this.#dispatch('input', { realValue: this.refs.prompt.value });
-          return; // Do nothing if not in secret mode.
-      }
+    if (!this.#isSecret) {
+      this.#dispatch('input', { realValue: this.refs.prompt.value });
+      return;
+    }
 
-      const input = this.refs.prompt;
-      const realValue = this.#secretValue;
-      const displayValue = input.value;
-      const selectionStart = input.selectionStart;
+    const input = this.refs.prompt;
+    const oldRealValue = this.#secretValue;
+    const newDisplayValue = input.value;
+    const newCursorPos = input.selectionStart;
 
-      // Find the difference between the real value and what's displayed
-      let diff = '';
-      if (displayValue.length > realValue.length) {
-          // Character(s) were added
-          const start = selectionStart - (displayValue.length - realValue.length);
-          diff = displayValue.substring(start, selectionStart);
-      } else if (displayValue.length < realValue.length) {
-          // Character(s) were deleted (e.g., backspace)
-          // This is a simplification; robust handling is complex.
-          // We assume deletion happens at the end for this logic.
-      }
+    // The number of characters deleted or replaced.
+    const deletedCount = oldRealValue.length - (newDisplayValue.length - (event.data ? event.data.length : 0));
 
-      // Reconstruct the real value based on the change
-      const before = realValue.slice(0, selectionStart - diff.length);
-      const after = realValue.slice(selectionStart - diff.length + (realValue.length - displayValue.length) + diff.length);
-      this.#secretValue = before + diff + after;
+    // The position where the change started.
+    const changeStartPos = newCursorPos - (event.data ? event.data.length : 0);
 
-      // Update the display to be all asterisks again, preserving cursor position
-      const newDisplay = '●'.repeat(this.#secretValue.length);
-      input.value = newDisplay;
-      // Restore the cursor position
-      input.setSelectionRange(selectionStart, selectionStart);
+    // Slice the old real value to get the parts before and after the change.
+    const before = oldRealValue.slice(0, changeStartPos);
+    const after = oldRealValue.slice(changeStartPos + deletedCount);
 
-      // Dispatch the real value to the presenter
-      this.#dispatch('input', { realValue: this.#secretValue });
+    // Construct the new real value. event.data is null for deletions.
+    const newRealValue = before + (event.data || '') + after;
+    this.#secretValue = newRealValue;
+
+    // Update the display to be all masked characters.
+    // We do this inside a requestAnimationFrame to avoid potential race
+    // conditions with the browser's rendering of the input value,
+    // especially on mobile browsers or with IMEs.
+    requestAnimationFrame(() => {
+      input.value = '●'.repeat(this.#secretValue.length);
+      // Restore the cursor position.
+      input.setSelectionRange(newCursorPos, newCursorPos);
+    });
+
+    // Dispatch the real value for external listeners.
+    this.#dispatch('input', { realValue: this.#secretValue });
   }
 
   /**
@@ -190,6 +193,14 @@ class CommandLine extends BaseComponent {
   }
 
   /**
+   * Retrieves the current secret value when in secret mode.
+   * @returns {string} The current secret value.
+   */
+  getSecretValue() {
+    return this.#secretValue;
+  }
+
+  /**
    * Sets the value of the command prompt input field.
    * @param {string} value - The string to set as the input's value.
    */
@@ -222,27 +233,25 @@ class CommandLine extends BaseComponent {
   }
 
   /**
-   * Disables the command prompt.
-   * @param {boolean} disabled - True to disable, false to enable.
+   * Sets the enabled or disabled state of the command prompt.
+   * @param {boolean} isEnabled - True to enable, false to disable.
    */
-  setDisabled(disabled) {
-    this.refs.prompt.disabled = disabled;
-    this.setBusyIcon(); // Set icon to busy state.
-    this.refs.prompt.placeholder = 'Running Command ...'; // Provide feedback to the user.
-  }
-
-  /**
-   * Enables the command prompt, clearing any temporary messages and setting focus.
-   */
-  enable() {
-    this.refs.prompt.placeholder = ''; // Clear the temporary message.
-    this.setReadyIcon(); // Set icon back to ready state.
-    this.refs.prompt.disabled = false; // Enable the input field.
-    this.focus(); // Set focus back to the prompt.
+  setEnabled(isEnabled) {
+    this.refs.prompt.disabled = !isEnabled;
+    if (isEnabled) {
+      this.refs.prompt.placeholder = ''; // Clear any temporary message.
+      this.setReadyIcon(); // Set icon back to ready state.
+      this.focus(); // Set focus back to the prompt.
+    } else {
+      this.setBusyIcon(); // Set icon to busy state.
+      this.refs.prompt.placeholder = 'Running Command ...'; // Provide feedback to the user.
+    }
   }
 
   /**
    * Sets the placeholder text of the input field.
+   * Note: This is used for prompts like 'Password:', not for status messages
+   * like 'Running Command...'.
    * @param {string} text - The placeholder text.
    */
   setPlaceholder(text) {

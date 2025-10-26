@@ -362,7 +362,7 @@ def main():
         response = handle_useradd(form_data)
     elif action == 'login':
         response = handle_login(form_data)
-    elif action == 'passwd':
+    elif action == 'change_password':
         response = handle_passwd(form_data)
     elif action == 'logout':
         response = handle_logout(form_data)

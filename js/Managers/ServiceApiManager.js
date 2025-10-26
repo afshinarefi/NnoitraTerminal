@@ -35,7 +35,7 @@ export class ServiceApiManager {
     // --- UI Gateway Methods ---
 
     async prompt(promptText, options = {}) {
-        const response = await this.#eventBus.request(EVENTS.INPUT_REQUEST, { prompt: promptText, options });
+        const response = await this.#eventBus.request(EVENTS.INPUT_REQUEST, { prompt: promptText, options }, 0);
         return response.value;
     }
 

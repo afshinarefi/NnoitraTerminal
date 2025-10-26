@@ -192,6 +192,9 @@ class AccountingService {
             return { status: 'error', message: 'Not logged in.' };
         }
         try {
+            log.log('Attempting password change...');
+            log.log('Old password:', oldPassword);
+            log.log('New password:', newPassword);
             const result = await this.#apiManager.post('change_password', { old_password: oldPassword, new_password: newPassword }, token);
             return result;
         } catch (error) {

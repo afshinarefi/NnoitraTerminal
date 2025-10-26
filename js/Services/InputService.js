@@ -41,7 +41,6 @@ class InputService {
     #view = null; // The CommandLine component instance
     #inputBuffer = '';
     #isSecret = false;
-    #secretValue = '';
 
     // Properties for swipe gesture detection
     #touchStartX = 0;
@@ -66,14 +65,13 @@ class InputService {
         this.#view = view;
         // The view delegates its raw user interaction events to this service.
         this.#view.addEventListener('keydown', (e) => this.#onKeyDown(e.detail));
-        this.#view.addEventListener('input', (e) => this.#onInput(e.detail));
         this.#view.addEventListener('command-submit', (e) => this.#onCommandSubmit(e.detail));
         this.#view.addEventListener('autocomplete-request', (e) => this.#onAutocompleteRequest(e.detail));
         this.#view.addEventListener('touchstart', (e) => this.#onTouchStart(e.detail));
         this.#view.addEventListener('touchend', (e) => this.#onTouchEnd(e.detail));
 
         // Set the initial state to disabled. The prompt is not usable until the main loop requests input.
-        this.#view.setDisabled(true);
+        this.#view.setEnabled(false);
     }
 
     #registerListeners() {
@@ -101,7 +99,7 @@ class InputService {
                         this.#inputBuffer = this.#view.getValue();
                         this.#isNavigatingHistory = true;
                     }
-                    this.#view.setDisabled(true);
+                    this.#view.setEnabled(false);
                     this.#eventBus.dispatch(EVENTS.HISTORY_PREVIOUS_REQUEST);
                 }
                 break;
@@ -110,7 +108,7 @@ class InputService {
                 log.log('ArrowDown key pressed - requesting next history if allowed.');
                 if (this.#allowHistory && this.#isNavigatingHistory) {
                     event.preventDefault();
-                    this.#view.setDisabled(true);
+                    this.#view.setEnabled(false);
                     this.#eventBus.dispatch(EVENTS.HISTORY_NEXT_REQUEST);
                 }
                 break;
@@ -125,18 +123,6 @@ class InputService {
         }
     }
 
-    /**
-     * Handles the input event from the view, primarily for masking secret input.
-     * @param {InputEvent} event
-     */
-    #onInput(event) {
-        if (!this.#isSecret || !this.#view) return; // Only act in secret mode
-
-        // The view's #handleInput logic is now responsible for updating the display
-        // and providing the real value here.
-        this.#secretValue = event.realValue;
-    }
-
     #onCommandSubmit(value) {
         // For any input, finish the read operation, which uses the `respond` function.
         // This handles both normal commands and interactive prompts consistently.
@@ -149,7 +135,7 @@ class InputService {
 
     #onAutocompleteRequest(value) {
         if (this.#allowAutocomplete) {
-            this.#view.setDisabled(true); // Disable input during the request.
+            this.#view.setEnabled(false); // Disable input during the request.
             const cursorPosition = this.#view.getCursorPosition(); // This method needs to be added to CommandLine.js
             const beforeCursorText = value.substring(0, cursorPosition);
             const afterCursorText = value.substring(cursorPosition);
@@ -198,23 +184,22 @@ class InputService {
         // By default, a read operation should not allow history or autocomplete
         this.#allowHistory = options.allowHistory || false; // e.g. login prompt
         this.#allowAutocomplete = options.allowAutocomplete || false; // e.g. shell prompt
-        this.#secretValue = '';
         this.#inputBuffer = '';
         this.#isNavigatingHistory = false;
 
         this.#view.clear();
-        this.#view.enable();
+        this.#view.setEnabled(true);
         this.#view.setPlaceholder(prompt);
         this.#view.setSecret(this.#isSecret);
         this.#view.focus();
     }
 
     #finishRead() {
-        const value = this.#isSecret ? this.#secretValue : this.#view.getValue();
+        const value = this.#isSecret ? this.#view.getSecretValue() : this.#view.getValue();
 
         // The `respond` function is attached by the event bus's `request` method.
         this.respond({ value });
-        this.#view.setDisabled(true); // Disable prompt after responding.
+        this.#view.setEnabled(false); // Disable prompt after responding.
     }
 
     #resetState() {
@@ -222,12 +207,11 @@ class InputService {
         this.#isSecret = false;
         this.#allowHistory = true; // Normal prompt allows history
         this.#allowAutocomplete = true; // Normal prompt allows autocomplete
-        this.#secretValue = '';
         this.#inputBuffer = '';
         this.#isNavigatingHistory = false;
 
         this.#view.clear();
-        this.#view.enable();
+        this.#view.setEnabled(true);
         this.#view.setPlaceholder('');
         this.#view.setSecret(false);
     }
@@ -246,7 +230,7 @@ class InputService {
 
     #handleHistoryResponse(payload) {
         if (!this.#view) return;
-        this.#view.enable();
+        this.#view.setEnabled(true);
     
         if (payload.command !== undefined) {
             if (payload.index > 0) {
@@ -276,7 +260,7 @@ class InputService {
             }
         } finally {
             // Always re-enable the prompt after an autocomplete attempt.
-            this.#view.enable();
+            this.#view.setEnabled(true);
         }
     }
 }
