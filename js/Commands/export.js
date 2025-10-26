@@ -26,11 +26,11 @@ const log = createLogger('export');
 class Export {
     static DESCRIPTION = 'Set or display user environment variables.';
 
-    #setUserspaceVariable;
+    #exportVariable;
     #getAllCategorizedVariables;
 
     constructor(services) {
-        this.#setUserspaceVariable = services.setUserspaceVariable;
+        this.#exportVariable = services.exportVariable;
         this.#getAllCategorizedVariables = services.getAllCategorizedVariables;
         log.log('Initializing...');
     }
@@ -102,7 +102,7 @@ class Export {
         const newVar = parseAssignment(exportString);
 
         if (newVar) {
-            const success = this.#setUserspaceVariable(newVar.name.toUpperCase(), newVar.value);
+            const success = await this.#exportVariable(newVar.name.toUpperCase(), newVar.value);
             if (success) {
                 log.log(`Set variable: ${newVar.name}='${newVar.value}'`);
                 // No output on successful export, which is standard shell behavior.

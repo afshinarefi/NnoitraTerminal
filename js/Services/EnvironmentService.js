@@ -59,6 +59,7 @@ class EnvironmentService {
         this.#eventBus.listen(EVENTS.VAR_SET_LOCAL_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.LOCAL), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_SET_REMOTE_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.REMOTE), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_SET_USERSPACE_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.USERSPACE), this.constructor.name);
+        this.#eventBus.listen(EVENTS.VAR_EXPORT_REQUEST, this.#handleExportVariable.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.USER_CHANGED_BROADCAST, this.#handleUserChanged.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.GET_ALL_CATEGORIZED_VARS_REQUEST, this.#handleGetAllCategorized.bind(this), this.constructor.name);
     }
@@ -204,6 +205,11 @@ class EnvironmentService {
 		this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.USERSPACE);
 		return true;
 	}
+
+    #handleExportVariable({ key, value, respond }) {
+        const success = this.exportVariable(key, value);
+        respond({ success });
+    }
 
     async #handleUserChanged({ isLoggedIn }) {
         if (!isLoggedIn) {

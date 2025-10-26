@@ -56,6 +56,7 @@ class ThemeService {
         this.#eventBus.listen(EVENTS.SET_THEME_REQUEST, this.#handleSetThemeRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.GET_VALID_THEMES_REQUEST, this.#handleGetValidThemesRequest.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.USER_CHANGED_BROADCAST, this.#handleUserChanged.bind(this), this.constructor.name);
     }
 
     #handleVarChanged(payload) {
@@ -68,6 +69,15 @@ class ThemeService {
     #handleSetThemeRequest({ themeName, respond }) {
         const finalTheme = this.applyTheme(themeName);
         respond({ theme: finalTheme });
+    }
+
+    async #handleUserChanged() {
+        log.log('User changed, re-evaluating theme.');
+        // This will trigger the lazy-loading of remote variables if a user logged in,
+        // or fall back to defaults if logged out, because the environment state has changed.
+        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: VAR_THEME });
+        const theme = values[VAR_THEME] || DEFAULT_THEME;
+        this.applyTheme(theme, false); // Don't persist, just apply the current state.
     }
 
     #handleUpdateDefaultRequest({ key, respond }) {

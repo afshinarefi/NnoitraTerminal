@@ -32,6 +32,7 @@ export const EVENTS = {
     VAR_SET_LOCAL_REQUEST: 'variable-set-local-request',
     VAR_SET_REMOTE_REQUEST: 'variable-set-remote-request',
     VAR_SET_USERSPACE_REQUEST: 'variable-set-userspace-request',
+    VAR_EXPORT_REQUEST: 'variable-export-request',
     GET_ALL_CATEGORIZED_VARS_REQUEST: 'get-all-categorized-vars-request',
 
     // Accounting & User

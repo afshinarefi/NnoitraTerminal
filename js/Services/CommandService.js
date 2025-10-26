@@ -89,7 +89,7 @@ class CommandService {
         this.register('passwd', Passwd, ['prompt', 'changePassword']);
         this.register('alias', Alias, ['getAliases', 'setAliases']);
         this.register('unalias', Unalias, ['getAliases', 'setAliases']);
-        this.register('export', Export, ['setUserspaceVariable', 'getAllCategorizedVariables']);
+        this.register('export', Export, ['exportVariable', 'getAllCategorizedVariables']);
         this.register('theme', Theme, ['getValidThemes', 'setUserspaceVariable', 'getVariable']);
         this.register('version', Version, []);
     }

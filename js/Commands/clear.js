@@ -23,23 +23,22 @@ import { createLogger } from '../Managers/LogManager.js';
 const log = createLogger('clear');
 class Clear {
     static DESCRIPTION = 'Clear the terminal output.';
-    static dependencies = [];
+    #clearScreen;
 
-    constructor() {
-        // No dependencies needed
+    constructor(services) {
+        this.#clearScreen = services.clearScreen;
     }
 
     /**
      * Executes the clear command by dispatching a terminal-clear event
      * @param {string[]} args - Command arguments (not used)
-     * @returns {HTMLElement} The output div
+     * @returns {HTMLElement} An empty div, as this command produces no visible output.
      */
     execute(args) {
-        log.log('Dispatching terminal-clear event.');
+        log.log('Executing clear command.');
+        this.#clearScreen();
         const outputDiv = document.createElement('div');
-        // Dispatch a custom event that the Terminal component will listen for
-        const clearEvent = new CustomEvent('terminal-clear');
-        document.dispatchEvent(clearEvent);
+        // The command itself produces no output, so we return an empty element.
         return outputDiv;
     }
 
@@ -62,8 +61,8 @@ DESCRIPTION
      * Returns array of possible argument completions
      * @returns {string[]} Empty array since clear takes no arguments
      */
-    static autocompleteArgs() {
-        return []; // Made async for consistency
+    async autocompleteArgs(currentArgs) {
+        return []; // Clear command takes no arguments.
     }
 }
 
