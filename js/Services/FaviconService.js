@@ -37,18 +37,47 @@ class FaviconService {
         log.log('Initializing...');
     }
 
+    /**
+     * Waits for the primary application font to be ready, then renders the favicon.
+     * This is more reliable than `document.fonts.ready` as it targets a specific font.
+     * @private
+     */
+    async #loadFontAndRender() {
+        // Define the font properties directly in JavaScript to avoid CSS race conditions.
+        const fontName = 'Ubuntu Mono'; // Use a unique name for our loaded font.
+        const fontUrl = '/css/fonts/ubuntu/UbuntuMono-B.ttf';
+
+        try {
+            // Check if we've already loaded this font to avoid redundant work.
+            if (!document.fonts.check(`1em "${fontName}"`)) {
+                log.log(`Loading font "${fontName}" directly from ${fontUrl}...`);
+                const fontFace = new FontFace(fontName, `url(${fontUrl})`, {
+                    weight: 'bold', // This is the bold variant.
+                });
+                const loadedFace = await fontFace.load();
+                document.fonts.add(loadedFace);
+                log.log(`Font "${fontName}" loaded successfully.`);
+            } else {
+                log.log(`Font "${fontName}" was already loaded.`);
+            }
+            this.#renderFavicon(fontName);
+        } catch (error) {
+            log.error(`Failed to load font "${fontName}". Rendering favicon with fallback.`, error);
+            this.#renderFavicon(); // Render anyway with a fallback font.
+        }
+    }
+
     start() {
-        // Render the initial favicon on startup.
-        this.#renderFavicon();
+        this.#loadFontAndRender();
     }
 
     #registerListeners() {
-        this.#eventBus.listen(EVENTS.THEME_CHANGED_BROADCAST, this.#handleThemeChanged.bind(this), this.constructor.name);
+        this.#eventBus.listen(EVENTS.THEME_CHANGED_BROADCAST, this.#handleThemeChanged.bind(this));
     }
 
-    #handleThemeChanged() {
-        log.log('Theme changed, rerendering favicon.');
-        this.#renderFavicon();
+    async #handleThemeChanged() {
+        log.log('Theme changed, ensuring font is loaded before rerendering favicon.');
+        this.#loadFontAndRender();
     }
 
     /**
@@ -76,11 +105,11 @@ class FaviconService {
         ctx.strokeStyle = borderColor;
         ctx.stroke();
 
-        ctx.font = `bold ${Math.floor(size * 0.8)}px ${fontFamily}`;
+        ctx.font = `bold ${Math.floor(size * 0.85)}px ${fontFamily}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = symbolColor;
-        ctx.fillText(symbol, size / 2, size / 2 + (size * 0.05));
+        ctx.fillText(symbol, size / 2 + 0.1, size / 2);
 
         return c.toDataURL('image/png');
     }
@@ -88,14 +117,15 @@ class FaviconService {
     /**
      * Renders and sets the favicon by reading current CSS custom properties.
      * @private
+     * @param {string} [fontOverride] - The name of a specific font family to use.
      */
-    #renderFavicon() {
+    #renderFavicon(fontOverride = null) {
         const styles = getComputedStyle(document.documentElement);
         const drawOptions = {
             bgColor: styles.getPropertyValue('--arefi-color-theme').trim() || 'green',
             symbol: '>',
             symbolColor: styles.getPropertyValue('--arefi-color-text-highlight').trim() || '#000',
-            fontFamily: styles.getPropertyValue('--arefi-font-family').trim() || 'monospace',
+            fontFamily: fontOverride || styles.getPropertyValue('--arefi-font-family').trim() || 'monospace',
             borderColor: styles.getPropertyValue('--arefi-color-text-highlight').trim() || '#000',
             borderWidth: 1
         };
