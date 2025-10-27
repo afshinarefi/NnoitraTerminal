@@ -36,12 +36,22 @@ const DEFAULT_THEME = 'green';
 class ThemeService extends BaseService{
     static VALID_THEMES = ['green', 'yellow', 'orange', 'red'];
     #eventBus;
+    #view = null; // The Terminal component instance
 
     constructor(eventBus) {
         super(eventBus);
         this.#eventBus = eventBus;
         this.#registerListeners();
         this.log.log('Initializing...');
+    }
+
+    /**
+     * Connects this presenter service to its view component.
+     * @param {object} view - The instance of the Terminal component.
+     */
+    setView(view) {
+        this.#view = view;
+        this.log.log('View connected.');
     }
 
     async start() {
@@ -93,8 +103,14 @@ class ThemeService extends BaseService{
 
     applyTheme(themeName, persist = true) {
         const finalTheme = ThemeService.VALID_THEMES.includes(themeName) ? themeName : DEFAULT_THEME;
-        const themeColor = `var(--arefi-color-${finalTheme})`;
-        document.documentElement.style.setProperty('--arefi-color-theme', themeColor);
+
+        if (this.#view) {
+            const themeColor = `var(--arefi-color-${finalTheme})`;
+            // Set the CSS variable directly on the host component, not the global document.
+            // This ensures each terminal instance can have its own independent theme.
+            this.#view.style.setProperty('--arefi-color-theme', themeColor);
+        }
+
         this.dispatch(EVENTS.THEME_CHANGED_BROADCAST, { themeName: finalTheme });
         this.log.log(`Applied theme: ${finalTheme}`);
 

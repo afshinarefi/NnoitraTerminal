@@ -16,9 +16,5 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// This is the main entry point for the application.
-// Its sole purpose is to import the top-level Terminal component.
-// The import statement triggers the registration of the <arefi-terminal> custom element.
-// Once registered, the browser will automatically instantiate it for any such tag in the HTML.
-// The component itself is now responsible for its entire setup and lifecycle.
+// By importing the Terminal component, we ensure its custom element is defined.
 import { Terminal } from './Components/Terminal.js';
