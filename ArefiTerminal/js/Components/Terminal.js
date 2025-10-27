@@ -177,6 +177,7 @@ class Terminal extends BaseComponent {
     this.#services.hint.setView(this.hintView);
     this.#services.terminal.setView(this);
     this.#services.theme.setView(this);
+    this.#services.favicon.setView(this);
 
     // 3. Attach UI event listeners.
     this.#attachEventListeners();

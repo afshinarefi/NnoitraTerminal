@@ -29,6 +29,7 @@ import { BaseService } from '../Core/BaseService.js';
 class FaviconService extends BaseService{
     static #SIZES = [16, 32, 64, 128, 180]; // 180 for apple-touch-icon
     #eventBus;
+    #view = null; // The Terminal component instance
 
     constructor(eventBus) {
         super(eventBus);
@@ -37,8 +38,18 @@ class FaviconService extends BaseService{
         this.log.log('Initializing...');
     }
 
+    /**
+     * Connects this service to its view component.
+     * @param {object} view - The instance of the Terminal component.
+     */
+    setView(view) {
+        this.#view = view;
+        this.log.log('View connected.');
+    }
+
     start() {
-        this.#renderFavicon();
+        // The theme service will apply the initial theme, which will trigger the broadcast
+        // that this service listens to. No need to call renderFavicon() directly.
     }
 
     #registerListeners() {
@@ -96,7 +107,12 @@ class FaviconService extends BaseService{
      * @private
      */
     #renderFavicon() {
-        const styles = getComputedStyle(document.documentElement);
+        if (!this.#view) {
+            this.log.warn('Cannot render favicon, view is not connected.');
+            return;
+        }
+
+        const styles = getComputedStyle(this.#view);
         const drawOptions = {
             bgColor: styles.getPropertyValue('--arefi-color-theme').trim() || 'green',
             symbolColor: styles.getPropertyValue('--arefi-color-text-highlight').trim() || '#000',
