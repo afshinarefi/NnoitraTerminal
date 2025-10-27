@@ -42,8 +42,8 @@ class BaseService {
      * @param {EventBus} eventBus The application's event bus.
      * @returns {this} A new, initialized instance of the service.
      */
-    static create(eventBus) {
-        const instance = new this(eventBus);
+    static create(eventBus, config = {}) {
+        const instance = new this(eventBus, config);
         instance.#registerListeners();
         return instance;
     }

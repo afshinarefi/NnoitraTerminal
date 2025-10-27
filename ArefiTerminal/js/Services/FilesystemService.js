@@ -39,10 +39,10 @@ class FilesystemService extends BaseService{
     #eventBus;
     #apiManager;
 
-    constructor(eventBus) {
+    constructor(eventBus, config = {}) {
         super(eventBus);
         this.#eventBus = eventBus;
-        this.#apiManager = new ApiManager('/Api/Filesystem.py');
+        this.#apiManager = new ApiManager(config.apiUrl);
         this.#registerListeners();
         this.log.log('Initializing...');
     }

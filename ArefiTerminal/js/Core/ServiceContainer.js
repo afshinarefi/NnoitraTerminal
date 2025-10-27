@@ -35,12 +35,12 @@ import { MediaService } from '../Services/MediaService.js';
  * independent set of services.
  */
 export class ServiceContainer {
-    constructor() {
+    constructor(config = {}) {
         const bus = new EventBus();
         this.services = {
             bus,
             environment: EnvironmentService.create(bus),
-            accounting: AccountingService.create(bus),
+            accounting: AccountingService.create(bus, { apiUrl: config.accountingApi }),
             history: HistoryService.create(bus),
             command: CommandService.create(bus),
             theme: ThemeService.create(bus),
@@ -48,7 +48,7 @@ export class ServiceContainer {
             hint: HintService.create(bus),
             favicon: FaviconService.create(bus),
             terminal: TerminalService.create(bus),
-            filesystem: FilesystemService.create(bus),
+            filesystem: FilesystemService.create(bus, { apiUrl: config.filesystemApi }),
             autocomplete: AutocompleteService.create(bus),
             media: MediaService.create(bus)
         };

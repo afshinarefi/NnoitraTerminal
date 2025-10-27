@@ -17,4 +17,4 @@
  */
 
 // By importing the Terminal component, we ensure its custom element is defined.
-import { Terminal } from './Components/Terminal.js';
+import { Terminal } from './js/Components/Terminal.js';

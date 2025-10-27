@@ -38,73 +38,51 @@ const TEMPLATE = `
 /**
  * @constant {string} CSS - CSS styles for the Terminal component's shadow DOM.
  */
-const CSS = `
-  /*
-   * Load the component's required font directly within the Shadow DOM.
-   * This ensures the component is fully self-contained and does not rely on
-   * globally loaded fonts. The paths are relative to the document root.
-   */
-  @font-face {
-    font-family: 'Ubuntu Mono';
-    src: url('/fonts/ubuntu/UbuntuMono-R.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-  }
-  @font-face {
-    font-family: 'Ubuntu Mono';
-    src: url('/fonts/ubuntu/UbuntuMono-B.ttf') format('truetype');
-    font-weight: bold;
-    font-style: normal;
-    font-display: swap;
-  }
-  @font-face {
-    font-family: 'Ubuntu Mono';
-    src: url('/fonts/ubuntu/UbuntuMono-RI.ttf') format('truetype');
-    font-weight: normal;
-    font-style: italic;
-    font-display: swap;
-  }
-  @font-face {
-    font-family: 'Ubuntu Mono';
-    src: url('/fonts/ubuntu/UbuntuMono-BI.ttf') format('truetype');
-    font-weight: bold;
-    font-style: italic;
-    font-display: swap;
-  }
-  /*
-   * Define default theme variables and fonts on the host element.
-   * This ensures the component works out-of-the-box.
-   * A user can override these by defining them on a parent element (like :root or body).
-   */
-  :host {
-    --arefi-color-green: #5CB338;
-    --arefi-color-yellow: #ECE852;
-    --arefi-color-orange: #FFC145;
-    --arefi-color-red: #FB4141;
-    --arefi-color-black: #000000;
-    --arefi-color-white: #FFFFFF;
-    --arefi-color-theme: var(--arefi-color-green);
-    --arefi-color-muted: color-mix(in srgb, var(--arefi-color-theme), black 40%);
-    --arefi-color-placeholder: var(--arefi-color-muted);
-    --arefi-color-output: var(--arefi-color-white);
-    --arefi-color-highlight: var(--arefi-color-theme);
-    --arefi-color-text-highlight: var(--arefi-color-black);
-    --arefi-font-family: 'Ubuntu Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  }
-  :host {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-  /* Apply a default background to the host if the user hasn't styled the body */
-  :host {
-    background-color: var(--arefi-color-black);
-    color: var(--arefi-color-theme);
-    font-size: clamp(0.8rem, 3vw, 1.1rem);
-  }
+const FONT_STYLES = `
+@font-face {
+  font-family: 'Ubuntu Mono'; src: url('/fonts/ubuntu/UbuntuMono-R.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Ubuntu Mono'; src: url('/fonts/ubuntu/UbuntuMono-B.ttf') format('truetype'); font-weight: bold; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Ubuntu Mono'; src: url('/fonts/ubuntu/UbuntuMono-RI.ttf') format('truetype'); font-weight: normal; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Ubuntu Mono'; src: url('/fonts/ubuntu/UbuntuMono-BI.ttf') format('truetype'); font-weight: bold; font-style: italic; font-display: swap;
+}
+`;
+
+const HOST_STYLES = `
+:host {
+  /* Default Theme & Font Variables */
+  --arefi-color-green: #5CB338;
+  --arefi-color-yellow: #ECE852;
+  --arefi-color-orange: #FFC145;
+  --arefi-color-red: #FB4141;
+  --arefi-color-black: #000000;
+  --arefi-color-white: #FFFFFF;
+  --arefi-color-theme: var(--arefi-color-green);
+  --arefi-color-muted: color-mix(in srgb, var(--arefi-color-theme), black 40%);
+  --arefi-color-placeholder: var(--arefi-color-muted);
+  --arefi-color-output: var(--arefi-color-white);
+  --arefi-color-highlight: var(--arefi-color-theme);
+  --arefi-color-text-highlight: var(--arefi-color-black);
+  --arefi-font-family: 'Ubuntu Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+  /* Default Layout & Appearance */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--arefi-color-black);
+  color: var(--arefi-color-theme);
+  font-size: clamp(0.8rem, 3vw, 1.1rem);
+}
+`;
+
+const COMPONENT_STYLES = `
 [part=terminal] {
   flex: 1;
   overflow-y: auto;
@@ -121,6 +99,8 @@ const CSS = `
 }
 
 `;
+
+const CSS = FONT_STYLES + HOST_STYLES + COMPONENT_STYLES;
 
 // Define component-specific styles (now much smaller)
 const terminalSpecificStyles = new CSSStyleSheet();
@@ -159,7 +139,7 @@ class Terminal extends BaseComponent {
    * Observe the 'autofocus' attribute for changes.
    */
   static get observedAttributes() {
-    return ['autofocus'];
+    return ['autofocus', 'filesystem-api', 'accounting-api'];
   }
 
   // --- Public Getters for Views ---
@@ -181,8 +161,14 @@ class Terminal extends BaseComponent {
    * @private
    */
   #bootstrap() {
+    // Read API configuration from component attributes
+    const config = {
+      filesystemApi: this.getAttribute('filesystem-api'),
+      accountingApi: this.getAttribute('accounting-api')
+    };
+
     // 1. Create a new, independent set of services for this terminal instance.
-    const container = new ServiceContainer();
+    const container = new ServiceContainer(config);
     this.#services = container.services;
 
     // 2. Connect this component's views to its dedicated services.

@@ -22,7 +22,6 @@ import { EVENTS } from '../Core/Events.js';
 import { BaseService } from '../Core/BaseService.js';
 
 // Define constants for hardcoded strings to improve maintainability.
-const API_ENDPOINT = '/Api/Accounting.py';
 const GUEST_USER = 'guest';
 
 /**
@@ -42,10 +41,10 @@ class AccountingService extends BaseService {
     #eventBus;
     #apiManager;
 
-    constructor(eventBus) {
+    constructor(eventBus, config = {}) {
         super(eventBus);
         this.#eventBus = eventBus;
-        this.#apiManager = new ApiManager(API_ENDPOINT);
+        this.#apiManager = new ApiManager(config.apiUrl);
         this.#registerListeners();
         this.log.log('Initializing...');
     }

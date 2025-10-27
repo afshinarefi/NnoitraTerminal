@@ -27,12 +27,18 @@
     be styled to fill the viewport.
   -->
   <style>
-    html, body { height: 100%; width: 100%; margin: 0; padding: 0; background-color: #000000; }
+    html, body { height: 100%; width: 100%; margin: 0; padding: 0; background-color: #000; touch-action: pan-y; }
   </style>
 </head>
 <body>  
-  <!-- The single script below handles style injection and component registration. -->
-  <script type="module" src="./js/ArefiTerminal.js"></script>
-  <arefi-terminal autofocus></arefi-terminal>
+  <!-- The script below registers the <arefi-terminal> custom element. -->
+  <script type="module" src="./ArefiTerminal/ArefiTerminal.js"></script>
+
+  <!-- The terminal component is used declaratively. -->
+  <arefi-terminal 
+    autofocus
+    filesystem-api="/Api/Filesystem.py"
+    accounting-api="/Api/Accounting.py">
+  </arefi-terminal>
 </body>
 </html>
