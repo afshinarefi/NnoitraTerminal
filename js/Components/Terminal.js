@@ -94,6 +94,13 @@ class Terminal extends BaseComponent {
     this.#attachEventListeners();
   }
 
+  /**
+   * Observe the 'autofocus' attribute for changes.
+   */
+  static get observedAttributes() {
+    return ['autofocus'];
+  }
+
   // --- Public Getters for Views ---
 
   get promptView() {
@@ -114,11 +121,17 @@ class Terminal extends BaseComponent {
    */
   #attachEventListeners() {
 
-    // Set tab index for focus management and add keydown listener for terminal-wide shortcuts
-    this.tabIndex = 1;
+    // Make the terminal component itself focusable by adding it to the tab order.
+    // A value of 0 is standard for including an element in the natural tab sequence.
+    this.tabIndex = 0;
 
-    // Add focus listener to ensure prompt is always focused when terminal is focused
+    // When the terminal component receives focus (e.g., via tabbing),
+    // delegate that focus to the internal command prompt.
     this.addEventListener('focus', this.setFocus);
+
+    // If the user clicks anywhere in the main terminal area that isn't other
+    // content, focus the prompt. This makes the whole component feel interactive.
+    this.refs.terminal.addEventListener('click', this.#handleClick.bind(this));
   }
 
   /**
@@ -136,8 +149,6 @@ class Terminal extends BaseComponent {
     this.#mutationObserver = new MutationObserver(() => this.scrollToBottom());
     this.#mutationObserver.observe(this.refs.terminal, { childList: true, subtree: true });
 
-    // Set initial focus to the command prompt
-    this.setFocus();
   }
 
   /**
@@ -145,7 +156,6 @@ class Terminal extends BaseComponent {
    * Cleans up event listeners and observers to prevent memory leaks.
    */
   disconnectedCallback() {
-    this.removeEventListener('focus', this.setFocus);
     if (this.#resizeObserver) {
       this.#resizeObserver.disconnect();
     }
@@ -154,6 +164,31 @@ class Terminal extends BaseComponent {
     }
   }
 
+  /**
+   * Handles changes to observed attributes.
+   * @param {string} name - The name of the attribute that changed.
+   */
+  attributeChangedCallback(name) {
+    // This handles the case where the autofocus attribute is added dynamically
+    // after the component is already in the DOM.
+    if (name === 'autofocus' && this.hasAttribute('autofocus')) {
+      this.setFocus();
+    }
+  }
+
+  /**
+   * Handles click events on the terminal area to focus the prompt.
+   * This ensures that clicking the "background" of the terminal focuses the input.
+   * @param {MouseEvent} event - The click event.
+   * @private
+   */
+  #handleClick(event) {
+    // If the click target is the terminal container itself (and not text or other elements inside),
+    // then we should focus the prompt.
+    if (event.target === this.refs.terminal) {
+      this.setFocus();
+    }
+  }
   /**
    * Appends a child element (like a TerminalItem) to the main output area.
    * @param {HTMLElement} child - The element to append.

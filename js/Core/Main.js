@@ -60,6 +60,9 @@ function main() {
 
     // Create the main terminal component and add it to the DOM
     const terminalComponent = new Terminal();
+    // Since the terminal is the primary and only UI element on the page,
+    // we give it the autofocus attribute to ensure it's ready for input on load.
+    terminalComponent.setAttribute('autofocus', '');
     document.body.appendChild(terminalComponent);
 
     // Connect presenter services to their views
