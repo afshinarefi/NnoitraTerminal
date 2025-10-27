@@ -18,8 +18,7 @@
 import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from '../Core/Events.js';
 import { ENV_VARS } from '../Core/Variables.js';
-
-const log = createLogger('HistoryBusService');
+import { BaseService } from '../Core/BaseService.js';
 
 const DEFAULT_HISTSIZE = '1000';
 
@@ -38,16 +37,17 @@ const DEFAULT_HISTSIZE = '1000';
  * @dispatches `VAR_GET_REQUEST` - To get the HISTSIZE variable.
  * @dispatches `VAR_SET_REQUEST` - To set the HISTSIZE variable.
  */
-class HistoryService {
+class HistoryService extends BaseService{
     #eventBus;
     #history = [];
     #cursorIndex = 0;
     #maxSize = parseInt(DEFAULT_HISTSIZE, 10);
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     #registerListeners() {
@@ -65,14 +65,14 @@ class HistoryService {
 
     #handleUpdateDefaultRequest({ key, respond }) {
         if (key === ENV_VARS.HISTSIZE) {
-            this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_HISTSIZE });
+            this.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_HISTSIZE });
             respond({ value: DEFAULT_HISTSIZE });
         }
     }
 
     async #handleUserChanged({ isLoggedIn }) {
         if (isLoggedIn) {
-            const { history } = await this.#eventBus.request(EVENTS.HISTORY_LOAD_REQUEST);
+            const { history } = await this.request(EVENTS.HISTORY_LOAD_REQUEST);
             this.loadHistory(history);
         } else {
             this.clearHistory();
@@ -84,9 +84,9 @@ class HistoryService {
         if (!isNaN(parsedSize) && parsedSize >= 0) {
             this.#maxSize = parsedSize;
         } else {
-            log.warn(`Invalid HISTSIZE value "${histSizeValue}". Resetting to default: ${DEFAULT_HISTSIZE}`);
+            this.log.warn(`Invalid HISTSIZE value "${histSizeValue}". Resetting to default: ${DEFAULT_HISTSIZE}`);
             this.#maxSize = parseInt(DEFAULT_HISTSIZE, 10);
-            this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key: ENV_VARS.HISTSIZE, value: String(this.#maxSize) });
+            this.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key: ENV_VARS.HISTSIZE, value: String(this.#maxSize) });
         }
     }
 
@@ -97,10 +97,10 @@ class HistoryService {
         }
 
         this.#history.unshift(trimmedCommand);
-        this.#eventBus.dispatch(EVENTS.COMMAND_PERSIST_REQUEST, { command: trimmedCommand });
+        this.dispatch(EVENTS.COMMAND_PERSIST_REQUEST, { command: trimmedCommand });
 
         // Lazily get HISTSIZE and update the internal max size.
-        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HISTSIZE });
+        const { values } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HISTSIZE });
         this.#updateMaxSize(values[ENV_VARS.HISTSIZE] || DEFAULT_HISTSIZE);
 
         if (this.#history.length > this.#maxSize) {
@@ -121,7 +121,7 @@ class HistoryService {
             command: this.#history[this.#cursorIndex - 1] || '',
             index: this.#cursorIndex
         };
-        this.#eventBus.dispatch(EVENTS.HISTORY_INDEXED_RESPONSE, response);
+        this.dispatch(EVENTS.HISTORY_INDEXED_RESPONSE, response);
     }
 
     #handleGetNext() {
@@ -132,7 +132,7 @@ class HistoryService {
             command: this.#history[this.#cursorIndex - 1] || '',
             index: this.#cursorIndex
         };
-        this.#eventBus.dispatch(EVENTS.HISTORY_INDEXED_RESPONSE, response);
+        this.dispatch(EVENTS.HISTORY_INDEXED_RESPONSE, response);
     }
 
     #handleGetAllHistory({ respond }) {
@@ -148,7 +148,7 @@ class HistoryService {
             const sortedCommands = Object.keys(data).sort().map(key => data[key]);
             this.#history = sortedCommands;
             this.resetCursor();
-            log.log(`Loaded ${this.#history.length} commands into history.`);
+            this.log.log(`Loaded ${this.#history.length} commands into history.`);
         }
     }
 

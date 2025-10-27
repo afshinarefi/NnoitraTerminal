@@ -19,8 +19,7 @@ import { ENV_VARS } from '../Core/Variables.js';
 import { EVENTS } from '../Core/Events.js';
 import { createLogger } from '../Managers/LogManager.js';
 import { ApiManager } from '../Managers/ApiManager.js';
-
-const log = createLogger('FilesystemService');
+import { BaseService } from '../Core/BaseService.js';
 
 const DEFAULT_PWD = '/';
 
@@ -36,15 +35,16 @@ const DEFAULT_PWD = '/';
  * @dispatches `FS_GET_DIRECTORY_CONTENTS_RESPONSE` - The directory contents.
  * @dispatches `FS_GET_FILE_CONTENTS_RESPONSE` - The file contents.
  */
-class FilesystemService {
+class FilesystemService extends BaseService{
     #eventBus;
     #apiManager;
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#apiManager = new ApiManager('/Api/Filesystem.py');
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     #registerListeners() {
@@ -78,7 +78,7 @@ class FilesystemService {
         try {
             // The backend's 'resolve' action now handles path resolution relative to PWD.
             const newPath = await this.#resolveAndValidatePath(path, true);
-            this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: ENV_VARS.PWD, value: newPath });
+            this.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: ENV_VARS.PWD, value: newPath });
             respond({ success: true });
         } catch (error) {
             respond({ error });
@@ -106,18 +106,18 @@ class FilesystemService {
 
     #handleUpdateDefaultRequest({ key, respond }) {
         if (key === ENV_VARS.PWD) {
-            this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: DEFAULT_PWD });
+            this.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: DEFAULT_PWD });
             respond({ value: DEFAULT_PWD });
         }
     }
 
     async #getDirectoryContents(path) {
-        const { values: { PWD: pwd } } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+        const { values: { PWD: pwd } } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
         return this.#makeApiRequest('ls', { path, pwd });
     }
 
     async #getFileContents(path) {
-        const { values: { PWD: pwd } } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+        const { values: { PWD: pwd } } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
         const response = await this.#makeApiRequest('cat', { path, pwd });
         return response.content;
     }
@@ -130,13 +130,13 @@ class FilesystemService {
             }
             return data;
         } catch (error) {
-            log.error(`Error during API request for action "${action}" with path "${params.path}":`, error);
+            this.log.error(`Error during API request for action "${action}" with path "${params.path}":`, error);
             throw error;
         }
     }
 
     async #resolveAndValidatePath(path, mustBeDir) {
-        const { values: { PWD: pwd } } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+        const { values: { PWD: pwd } } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
         const data = await this.#makeApiRequest('resolve', {
             path,
             pwd,

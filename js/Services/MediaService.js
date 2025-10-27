@@ -18,20 +18,20 @@
 import { EVENTS } from '../Core/Events.js';
 import { createLogger } from '../Managers/LogManager.js';
 import { Media } from '../Components/Media.js';
-
-const log = createLogger('MediaService');
+import { BaseService } from '../Core/BaseService.js';
 
 /**
  * @class MediaService
  * @description A service responsible for creating media elements and managing their side effects, like scrolling.
  */
-export class MediaService {
+export class MediaService extends BaseService{
     #eventBus;
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     #registerListeners() {
@@ -49,7 +49,7 @@ export class MediaService {
             // The first resize event might be when the element is added with 0 height.
             // We only act when we see a meaningful height, which indicates the media has loaded.
             if (entry.contentRect.height > 1) {
-                this.#eventBus.dispatch(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST);
+                this.dispatch(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST);
                 // Now that the media has its final size, we can stop observing.
                 observer.disconnect();
             }

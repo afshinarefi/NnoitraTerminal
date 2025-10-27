@@ -45,18 +45,18 @@ function main() {
     services.bus = bus;
 
     // Instantiate all the new services
-    services.environment = new EnvironmentService(bus);
-    services.accounting = new AccountingService(bus);
-    services.history = new HistoryService(bus);
-    services.command = new CommandService(bus);
-    services.theme = new ThemeService(bus);
-    services.input = new InputService(bus);
-    services.hint = new HintService(bus);
-    services.favicon = new FaviconService(bus);
-    services.terminal = new TerminalService(bus);
-    services.filesystem = new FilesystemService(bus);
-    services.autocomplete = new AutocompleteService(bus);
-    services.media = new MediaService(bus);
+    services.environment = EnvironmentService.create(bus);
+    services.accounting = AccountingService.create(bus);
+    services.history = HistoryService.create(bus);
+    services.command = CommandService.create(bus);
+    services.theme = ThemeService.create(bus);
+    services.input = InputService.create(bus);
+    services.hint = HintService.create(bus);
+    services.favicon = FaviconService.create(bus);
+    services.terminal = TerminalService.create(bus);
+    services.filesystem = FilesystemService.create(bus);
+    services.autocomplete = AutocompleteService.create(bus);
+    services.media = MediaService.create(bus);
 
     // Create the main terminal component and add it to the DOM
     const terminalComponent = new Terminal();

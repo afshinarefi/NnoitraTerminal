@@ -17,8 +17,7 @@
  */
 import { EVENTS } from '../Core/Events.js';
 import { createLogger } from '../Managers/LogManager.js';
-
-const log = createLogger('HintService');
+import { BaseService } from '../Core/BaseService.js';
 
 /**
  * @class HintService
@@ -29,15 +28,16 @@ const log = createLogger('HintService');
  * @listens for `autocomplete-broadcast` - Shows the hint box with suggestions.
  * @listens for `command-execute-broadcast` - Hides the hint box.
  */
-class HintService {
+class HintService extends BaseService{
     #eventBus;
     #view = null; // The HintBox component instance
     #resizeObserver;
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     /**
@@ -50,7 +50,7 @@ class HintService {
         // Observe the HintBox view. Whenever its size changes (e.g., when it's
         // shown or hidden), the observer will fire and request a scroll.
         this.#resizeObserver = new ResizeObserver(() => {
-            this.#eventBus.dispatch(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST);
+            this.dispatch(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST);
         });
         this.#resizeObserver.observe(this.#view);
     }

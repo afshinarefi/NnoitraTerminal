@@ -17,7 +17,7 @@
  */
 import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from '../Core/Events.js';
-const log = createLogger('EnvironmentService');
+import { BaseService } from '../Core/BaseService.js';
 
 // Define constants for hardcoded strings to improve maintainability.
 const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
@@ -35,7 +35,7 @@ const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
  * @dispatches `VAR_CHANGED_BROADCAST` - When any variable's value changes.
  * @dispatches `VAR_GET_RESPONSE` - The value in response to a get request.
  */
-class EnvironmentService {
+class EnvironmentService extends BaseService{
     static VAR_CATEGORIES = {
         TEMP: 'TEMP',
         LOCAL: 'LOCAL',
@@ -49,9 +49,10 @@ class EnvironmentService {
     #isLazyLoading = false; // A global lock to prevent re-entry into the lazy-load process.
     
 	constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#registerListeners();
-		log.log('Initializing...');
+		this.log.log('Initializing...');
 	}
 
     #registerListeners() {
@@ -71,7 +72,7 @@ class EnvironmentService {
 	}
 
 	#loadFromStorage() {
-        log.log('Lazily loading variables from localStorage...');
+        this.log.log('Lazily loading variables from localStorage...');
         const localMap = new Map();
         this.#categorizedVariables.set(EnvironmentService.VAR_CATEGORIES.LOCAL, localMap);
 		const storedLocalVars = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -82,7 +83,7 @@ class EnvironmentService {
 					localMap.set(key.toUpperCase(), value);
 				}
 			} catch (e) {
-				log.error('Failed to parse local environment variables from localStorage:', e);
+				this.log.error('Failed to parse local environment variables from localStorage:', e);
 			}
 		}
 	}
@@ -107,7 +108,7 @@ class EnvironmentService {
         }
         const wasSent = respond({ values });
         if (!wasSent) {
-            log.warn('Attempted to respond to a request that has already timed out.');
+            this.log.warn('Attempted to respond to a request that has already timed out.');
         }
     }
 
@@ -117,7 +118,7 @@ class EnvironmentService {
         // Prevent recursive calls for the same variable.
         // If we are already fetching this key, return undefined to break the loop.
         if (this.#pendingFetches.has(upperKey)) {
-            log.warn(`Recursive call detected for variable "${upperKey}". Breaking loop.`);
+            this.log.warn(`Recursive call detected for variable "${upperKey}". Breaking loop.`);
             return undefined;
         }
 
@@ -136,11 +137,11 @@ class EnvironmentService {
 
         // 3. If the variable is still not found after all lazy-loading, it's a new variable.
         // Trigger the update-default flow to get its default value from its owner.
-        log.log(`Variable "${upperKey}" is undefined, requesting its default value from its owner.`);
+        this.log.log(`Variable "${upperKey}" is undefined, requesting its default value from its owner.`);
         
         try {
             this.#pendingFetches.add(upperKey); // Lock this key
-            const { value } = await this.#eventBus.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
+            const { value } = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
             return value;
         } finally {
             this.#pendingFetches.delete(upperKey); // Unlock this key
@@ -189,7 +190,7 @@ class EnvironmentService {
 		}
 
 		if (!upperKey || (value !== null && typeof value !== 'string')) {
-			log.error("Invalid key or value provided to setVariable:", { key, value, type: typeof value });
+			this.log.error("Invalid key or value provided to setVariable:", { key, value, type: typeof value });
 			return;
 		}
 
@@ -211,10 +212,10 @@ class EnvironmentService {
 		if (persist && targetCategory === EnvironmentService.VAR_CATEGORIES.LOCAL) {
 			this.#persistLocalVariables();
 		} else if (persist && (targetCategory === EnvironmentService.VAR_CATEGORIES.REMOTE || targetCategory === EnvironmentService.VAR_CATEGORIES.USERSPACE)) {
-			this.#eventBus.dispatch(EVENTS.VAR_PERSIST_REQUEST, { key: upperKey, value, category: targetCategory });
+			this.dispatch(EVENTS.VAR_PERSIST_REQUEST, { key: upperKey, value, category: targetCategory });
 		}
 
-		this.#eventBus.dispatch(EVENTS.VAR_CHANGED_BROADCAST, { key: upperKey, value });
+		this.dispatch(EVENTS.VAR_CHANGED_BROADCAST, { key: upperKey, value });
 	}
 
 	isReadOnly(key) {
@@ -292,9 +293,9 @@ class EnvironmentService {
     }
 
 	async #loadRemoteVariables() {
-        log.log('Lazily loading remote environment variables...');
-        const { variables: data } = await this.#eventBus.request(EVENTS.VAR_LOAD_REMOTE_REQUEST);
-        log.log('Loading remote variables into environment:', data);
+        this.log.log('Lazily loading remote environment variables...');
+        const { variables: data } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST);
+        this.log.log('Loading remote variables into environment:', data);
 
 		if (data) {
             // Load variables into their correct categories
@@ -310,11 +311,11 @@ class EnvironmentService {
             }
 		}
         // Broadcast that variables have changed.
-        this.#eventBus.dispatch(EVENTS.VAR_CHANGED_BROADCAST, { key: '*', value: null });
+        this.dispatch(EVENTS.VAR_CHANGED_BROADCAST, { key: '*', value: null });
 	}
 
 	reset() {
-		log.log('Resetting environment service completely...');
+		this.log.log('Resetting environment service completely...');
 		localStorage.removeItem(LOCAL_STORAGE_KEY);
         this.#categorizedVariables.clear();
         this.#pendingFetches.clear();
@@ -322,7 +323,7 @@ class EnvironmentService {
 	}
 
     resetRemoteVariables() {
-        log.log('Clearing remote and userspace variables.');
+        this.log.log('Clearing remote and userspace variables.');
         this.#categorizedVariables.delete(EnvironmentService.VAR_CATEGORIES.REMOTE);
         this.#categorizedVariables.delete(EnvironmentService.VAR_CATEGORIES.USERSPACE);
     }

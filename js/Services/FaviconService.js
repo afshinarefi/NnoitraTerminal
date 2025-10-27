@@ -17,8 +17,7 @@
  */
 import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from '../Core/Events.js';
-
-const log = createLogger('FaviconService');
+import { BaseService } from '../Core/BaseService.js';
 
 /**
  * @class FaviconService
@@ -27,14 +26,15 @@ const log = createLogger('FaviconService');
  *
  * @listens for `theme-changed-broadcast` - To trigger a favicon re-render.
  */
-class FaviconService {
+class FaviconService extends BaseService{
     static #SIZES = [16, 32, 64, 128, 180]; // 180 for apple-touch-icon
     #eventBus;
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     start() {

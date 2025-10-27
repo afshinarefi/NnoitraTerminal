@@ -19,8 +19,7 @@ import { createLogger } from '../Managers/LogManager.js';
 import { ApiManager } from '../Managers/ApiManager.js';
 import { ENV_VARS } from '../Core/Variables.js';
 import { EVENTS } from '../Core/Events.js';
-
-const log = createLogger('AccountingService');
+import { BaseService } from '../Core/BaseService.js';
 
 // Define constants for hardcoded strings to improve maintainability.
 const API_ENDPOINT = '/Api/Accounting.py';
@@ -39,15 +38,16 @@ const GUEST_USER = 'guest';
  * @dispatches `variable-get-request` - To get session-related environment variables.
  * @dispatches `environment-reset-request` - To reset the environment service.
  */
-class AccountingService {
+class AccountingService extends BaseService {
     #eventBus;
     #apiManager;
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#apiManager = new ApiManager(API_ENDPOINT);
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     #registerListeners() {
@@ -76,22 +76,22 @@ class AccountingService {
 
     async login(username, password) {
         try {
-            log.log(`Attempting login for user: "${username}"`);
+            this.log.log(`Attempting login for user: "${username}"`);
             const result = await this.#apiManager.post('login', { username, password }, null);
 
             if (result.status === 'success') {
-                this.#eventBus.dispatch(EVENTS.ENV_RESET_REQUEST, {});
+                this.dispatch(EVENTS.ENV_RESET_REQUEST, {});
 
-                log.log('Login successful. Setting session variables.');
-                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: result.token });
-                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: result.user });
-                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN_EXPIRY, value: result.expires_at });
+                this.log.log('Login successful. Setting session variables.');
+                this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: result.token });
+                this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: result.user });
+                this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN_EXPIRY, value: result.expires_at });
 
-                this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: result.user, isLoggedIn: true });
+                this.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: result.user, isLoggedIn: true });
             }
             return result;
         } catch (error) {
-            log.error('Network or parsing error during login:', error);
+            this.log.error('Network or parsing error during login:', error);
             return { status: 'error', message: `Error: ${error.message}` };
         }
     }
@@ -111,18 +111,18 @@ class AccountingService {
             }
             return result;
         } catch (error) {
-            log.error('Network or parsing error during logout:', error);
+            this.log.error('Network or parsing error during logout:', error);
             return { status: 'error', message: `Error: ${error.message}` };
         }
     }
 
     clearLocalSession() {
-        log.log('Clearing local session and resetting environment.');
-        this.#eventBus.dispatch(EVENTS.ENV_RESET_REQUEST, {});
-        this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: '' });
-        this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN_EXPIRY, value: '' });
-        this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: GUEST_USER });
-        this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: GUEST_USER, isLoggedIn: false });
+        this.log.log('Clearing local session and resetting environment.');
+        this.dispatch(EVENTS.ENV_RESET_REQUEST, {});
+        this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: '' });
+        this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN_EXPIRY, value: '' });
+        this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: GUEST_USER });
+        this.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: GUEST_USER, isLoggedIn: false });
     }
 
     async validateSession() {
@@ -131,33 +131,33 @@ class AccountingService {
             const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
 
             if (token && user && user !== GUEST_USER) {
-                log.log(`Found token for user "${user}". Validating session...`);
+                this.log.log(`Found token for user "${user}". Validating session...`);
                 const result = await this.#apiManager.post('validate', { token }, token); // Pass token for auth
 
                 if (result.status === 'success') {
-                    log.log('Session is valid. User is logged in.');
+                    this.log.log('Session is valid. User is logged in.');
                     // Ensure environment variables are set (they should be if we fetched them)
-                    this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: token });
-                    this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: user });
-                    this.#eventBus.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: user, isLoggedIn: true });
+                    this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: token });
+                    this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: user });
+                    this.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: user, isLoggedIn: true });
                     return;
                 }
                 // If validation fails, clear the session.
-                log.warn('Session validation failed or token expired. Clearing local session.');
+                this.log.warn('Session validation failed or token expired. Clearing local session.');
                 this.clearLocalSession(); // This will broadcast the user change to guest.
 
             } else {
-                log.log('No active session found. Operating as guest.');
+                this.log.log('No active session found. Operating as guest.');
                 this.clearLocalSession();
             }
         } catch (error) {
-            log.error("Error during session validation:", error);
+            this.log.error("Error during session validation:", error);
             this.clearLocalSession();
         }
     }
 
     async #getEnvVariable(key) {
-        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key });
+        const { values } = await this.request(EVENTS.VAR_GET_REQUEST, { key });
         return values ? values[key] : undefined;
     }
     
@@ -176,7 +176,7 @@ class AccountingService {
             const result = await this.#apiManager.post('add_user', { username, password });
             return result;
         } catch (error) {
-            log.error('Network or parsing error during user creation:', error);
+            this.log.error('Network or parsing error during user creation:', error);
             return { status: 'error', message: `Error: ${error.message}` };
         }
     }
@@ -192,13 +192,13 @@ class AccountingService {
             return { status: 'error', message: 'Not logged in.' };
         }
         try {
-            log.log('Attempting password change...');
-            log.log('Old password:', oldPassword);
-            log.log('New password:', newPassword);
+            this.log.log('Attempting password change...');
+            this.log.log('Old password:', oldPassword);
+            this.log.log('New password:', newPassword);
             const result = await this.#apiManager.post('change_password', { old_password: oldPassword, new_password: newPassword }, token);
             return result;
         } catch (error) {
-            log.error('Network or parsing error during password change:', error);
+            this.log.error('Network or parsing error during password change:', error);
             return { status: 'error', message: `Error: ${error.message}` };
         }
     }
@@ -216,11 +216,11 @@ class AccountingService {
     #handleUpdateDefaultRequest({ key, respond }) {
         switch (key) {
             case ENV_VARS.USER:
-                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: GUEST_USER });
+                this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: GUEST_USER });
                 respond({ value: GUEST_USER });
                 break;
             case ENV_VARS.TOKEN:
-                this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: '' });
+                this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: '' });
                 respond({ value: '' });
                 break;
         }
@@ -229,7 +229,7 @@ class AccountingService {
     async #handlePersistVariable(payload) {
         const user = await this.#getEnvVariable(ENV_VARS.USER);
         if (user === GUEST_USER || !(await this.isLoggedIn())) {
-            log.warn(`Persistence for variable "${payload.key}" blocked: User is guest or not logged in.`);
+            this.log.warn(`Persistence for variable "${payload.key}" blocked: User is guest or not logged in.`);
             return;
         }
         const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
@@ -243,7 +243,7 @@ class AccountingService {
     async #handlePersistCommand(payload) {
         const user = await this.#getEnvVariable(ENV_VARS.USER);
         if (user === GUEST_USER || !(await this.isLoggedIn())) {
-            log.warn(`Persistence for command "${payload.command}" blocked: User is guest or not logged in.`);
+            this.log.warn(`Persistence for command "${payload.command}" blocked: User is guest or not logged in.`);
             return;
         }
         const token = await this.#getEnvVariable(ENV_VARS.TOKEN);
@@ -257,7 +257,7 @@ class AccountingService {
     async #handleHistoryLoad({ respond }) {
         const user = await this.#getEnvVariable(ENV_VARS.USER);
         if (user === GUEST_USER || !(await this.isLoggedIn())) {
-            log.warn('History load blocked: User is guest or not logged in.');
+            this.log.warn('History load blocked: User is guest or not logged in.');
             if (respond) respond({ history: [] });
             return;
         }
@@ -267,12 +267,12 @@ class AccountingService {
                 category: 'HISTORY'
             }, token);
 
-            log.log("History data received from server:", result);
+            this.log.log("History data received from server:", result);
             if (respond) {
                 respond({ history: result.data || [] });
             }
         } catch (error) {
-            log.error("Failed to load history from server:", error);
+            this.log.error("Failed to load history from server:", error);
             if (respond) respond({ history: [], error });
         }
     }
@@ -280,7 +280,7 @@ class AccountingService {
     async #handleLoadRemoteVariables({ respond }) {
         const user = await this.#getEnvVariable(ENV_VARS.USER);
         if (user === GUEST_USER || !(await this.isLoggedIn())) {
-            log.warn('Remote variable load blocked: User is guest or not logged in.');
+            this.log.warn('Remote variable load blocked: User is guest or not logged in.');
             if (respond) respond({ variables: {} });
             return;
         }
@@ -290,12 +290,12 @@ class AccountingService {
                 category: 'ENV' // Special category to get all env vars
             }, token);
 
-            log.log("Remote variables received from server:", result);
+            this.log.log("Remote variables received from server:", result);
             if (respond) {
                 respond({ variables: result.data || {} });
             }
         } catch (error) {
-            log.error("Failed to load remote variables from server:", error);
+            this.log.error("Failed to load remote variables from server:", error);
             if (respond) respond({ variables: {}, error });
         }
     }

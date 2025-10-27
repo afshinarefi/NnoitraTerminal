@@ -19,8 +19,7 @@ import { EVENTS } from '../Core/Events.js';
 import { createLogger } from '../Managers/LogManager.js';
 import { getLongestCommonPrefix } from '../Utils/StringUtil.js';
 import { tokenize } from '../Utils/Tokenizer.js';
-
-const log = createLogger('AutocompleteService');
+import { BaseService } from '../Core/BaseService.js';
 
 /**
  * @class AutocompleteService
@@ -29,13 +28,14 @@ const log = createLogger('AutocompleteService');
  * @listens for `AUTOCOMPLETE_REQUEST` - The main trigger to start gathering suggestions.
  * @dispatches `AUTOCOMPLETE_BROADCAST` - The final list of suggestions.
  */
-export class AutocompleteService {
+export class AutocompleteService extends BaseService{
     #eventBus; // EventBus instance
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     #registerListeners() {
@@ -43,7 +43,7 @@ export class AutocompleteService {
     }
 
     async #handleAutocompleteRequest({ beforeCursorText, afterCursorText }) {
-        log.log('Autocomplete request received:', { beforeCursorText, afterCursorText });
+        this.log.log('Autocomplete request received:', { beforeCursorText, afterCursorText });
 
         const tokenizedParts = tokenize(beforeCursorText);
         // The new tokenizer preserves delimiters, so we pass the raw tokens.
@@ -59,7 +59,7 @@ export class AutocompleteService {
         try {
             // 1. Ask the CommandService for the final list of suggestions.
             // The CommandService will delegate to the specific command if necessary.
-            const response = await this.#eventBus.request(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, { parts: [...parts, ''] });
+            const response = await this.request(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, { parts: [...parts, ''] });
             const { suggestions: potentialOptions } = response;
             description = response.description;
 
@@ -91,7 +91,7 @@ export class AutocompleteService {
             }
 
         } catch (error) {
-            log.error('Error during autocomplete request:', error);
+            this.log.error('Error during autocomplete request:', error);
         }
 
         // 5. Construct the new command line parts and broadcast.
@@ -101,6 +101,6 @@ export class AutocompleteService {
         const completionSuffix = completedToken.substring(incompleteToken.length);
         const newTextBeforeCursor = beforeCursorText + completionSuffix;
 
-        this.#eventBus.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, { newTextBeforeCursor, options: finalSuggestions, afterCursorText, description });
+        this.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, { newTextBeforeCursor, options: finalSuggestions, afterCursorText, description });
     }
 }

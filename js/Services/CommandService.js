@@ -20,6 +20,7 @@ import { EVENTS } from '../Core/Events.js';
 import { ENV_VARS } from '../Core/Variables.js';
 import { ServiceApiManager } from '../Managers/ServiceApiManager.js';
 import { tokenize } from '../Utils/Tokenizer.js';
+import { BaseService } from '../Core/BaseService.js';
 
 // Import all command classes
 import { Welcome } from '../Commands/welcome.js';
@@ -43,8 +44,6 @@ import { Export } from '../Commands/export.js';
 import { Theme } from '../Commands/theme.js';
 import { Version } from '../Commands/version.js';
 
-const log = createLogger('CommandService');
-
 /**
  * @class CommandBusService
  * @description Manages command registration, resolution, and execution via the event bus.
@@ -56,18 +55,19 @@ const log = createLogger('CommandService');
  *
  * @listens for `variable-get-response` - Listens for the ALIAS value.
  */
-class CommandService {
+class CommandService extends BaseService{
     #eventBus;
     #registry = new Map();
     #apiProvider;
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#apiProvider = new ServiceApiManager(eventBus);
 
         this.#registerCommands();
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     #registerCommands() {
@@ -135,7 +135,7 @@ class CommandService {
                 if (allProvidedFunctions[funcName]) {
                     commandServices[funcName] = allProvidedFunctions[funcName];
                 } else {
-                    log.warn(`Command '${name}' requested unknown function '${funcName}'.`);
+                    this.log.warn(`Command '${name}' requested unknown function '${funcName}'.`);
                 }
             }
 
@@ -227,19 +227,19 @@ class CommandService {
             if (this.#registry.has(commandName)) {
                 try {
                     const commandHandler = this.getCommand(commandName);
-                    log.log(`Executing command: "${resolvedArgs}"`);
+                    this.log.log(`Executing command: "${resolvedArgs}"`);
                     const resultElement = await commandHandler.execute(resolvedArgs);
                     if (outputElement) outputElement.appendChild(resultElement);
                 } catch (e) {
                     if (outputElement) outputElement.textContent = `Error executing ${commandName}: ${e.message}`;
-                    log.error(`Error executing ${commandName}:`, e);
+                    this.log.error(`Error executing ${commandName}:`, e);
                 }
             } else {
                 if (outputElement) outputElement.textContent = `${commandName}: command not found`;
             }
         } finally {
             // Always dispatch the finished event to allow the terminal loop to continue.
-            this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST);
+            this.dispatch(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST);
         }
     }
 
@@ -250,7 +250,7 @@ class CommandService {
             const aliasValue = await this.#apiProvider.getVariable(ENV_VARS.ALIAS) || '{}';
             respond({ aliases: JSON.parse(aliasValue) });
         } catch (error) {
-            log.error("Failed to get aliases:", error);
+            this.log.error("Failed to get aliases:", error);
             respond({ aliases: {} });
         }
     }
@@ -312,7 +312,7 @@ class CommandService {
         if (key === ENV_VARS.ALIAS) {
             const defaultValue = '{}';
             // ALIAS is a remote variable, so it should be set as such.
-            this.#eventBus.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key, value: defaultValue });
+            this.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key, value: defaultValue });
             respond({ value: defaultValue });
         }
     }

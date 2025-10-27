@@ -17,8 +17,7 @@
  */
 import { EVENTS } from '../Core/Events.js';
 import { createLogger } from '../Managers/LogManager.js';
-
-const log = createLogger('InputService');
+import { BaseService } from '../Core/BaseService.js';
 
 /**
  * @class InputBusService
@@ -35,7 +34,7 @@ const log = createLogger('InputService');
  * @dispatches `history-next-request` - When the user requests the next history item.
  * @dispatches `autocomplete-request` - When the user requests autocomplete.
  */
-class InputService {
+class InputService extends BaseService{
     #eventBus;
     #eventNames;
     #view = null; // The CommandLine component instance
@@ -52,9 +51,10 @@ class InputService {
     #isNavigatingHistory = false;
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     /**
@@ -100,21 +100,21 @@ class InputService {
                         this.#isNavigatingHistory = true;
                     }
                     this.#view.setEnabled(false);
-                    this.#eventBus.dispatch(EVENTS.HISTORY_PREVIOUS_REQUEST);
+                    this.dispatch(EVENTS.HISTORY_PREVIOUS_REQUEST);
                 }
                 break;
 
             case 'ArrowDown':
-                log.log('ArrowDown key pressed - requesting next history if allowed.');
+                this.log.log('ArrowDown key pressed - requesting next history if allowed.');
                 if (this.#allowHistory && this.#isNavigatingHistory) {
                     event.preventDefault();
                     this.#view.setEnabled(false);
-                    this.#eventBus.dispatch(EVENTS.HISTORY_NEXT_REQUEST);
+                    this.dispatch(EVENTS.HISTORY_NEXT_REQUEST);
                 }
                 break;
 
             case 'Tab':
-                log.log('Tab key pressed - triggering autocomplete if allowed.', this.#allowAutocomplete);
+                this.log.log('Tab key pressed - triggering autocomplete if allowed.', this.#allowAutocomplete);
                 event.preventDefault(); // Ensure default tab behavior is stopped
                 if (this.#allowAutocomplete) {
                     this.#onAutocompleteRequest(this.#view.getValue());
@@ -140,8 +140,8 @@ class InputService {
             const beforeCursorText = value.substring(0, cursorPosition);
             const afterCursorText = value.substring(cursorPosition);
 
-            log.log('Dispatching autocomplete request:', { beforeCursorText, afterCursorText });
-            this.#eventBus.dispatch(EVENTS.AUTOCOMPLETE_REQUEST, { beforeCursorText, afterCursorText });
+            this.log.log('Dispatching autocomplete request:', { beforeCursorText, afterCursorText });
+            this.dispatch(EVENTS.AUTOCOMPLETE_REQUEST, { beforeCursorText, afterCursorText });
         }
     }
 

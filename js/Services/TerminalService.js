@@ -20,8 +20,7 @@ import { createLogger } from '../Managers/LogManager.js';
 import { ENV_VARS } from '../Core/Variables.js';
 import { TerminalItem } from '../Components/TerminalItem.js';
 import { fetchTextFile } from '../Utils/FileUtil.js';
-
-const log = createLogger('TerminalService');
+import { BaseService } from '../Core/BaseService.js';
 
 const DEFAULT_PS1 = '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}';
 const DEFAULT_HOST = window.location.hostname;
@@ -36,16 +35,17 @@ const DEFAULT_HOST = window.location.hostname;
  * @listens for `command-execution-finished-broadcast` - Restarts the input loop.
  * @listens for `clear-screen-request` - Clears the terminal output.
  */
-class TerminalService {
+class TerminalService extends BaseService{
     #eventBus;
     #view = null; // The Terminal component instance
     #nextId = 1;
     #currentItem = null; // The currently pending terminal item
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     /**
@@ -76,7 +76,7 @@ class TerminalService {
                 this.#view.welcomeOutputView.style.whiteSpace = 'pre-wrap';
                 this.#view.welcomeOutputView.textContent = motdText;
             } catch (error) {
-                log.error('Failed to load motd.dat:', error);
+                this.log.error('Failed to load motd.dat:', error);
             }
         }
         // Start the main command input loop.
@@ -86,11 +86,11 @@ class TerminalService {
     #handleUpdateDefaultRequest({ key, respond }) {
         switch (key) {
             case ENV_VARS.PS1:
-                this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_PS1 });
+                this.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_PS1 });
                 respond({ value: DEFAULT_PS1 });
                 break;
             case ENV_VARS.HOST:
-                this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: DEFAULT_HOST });
+                this.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: DEFAULT_HOST });
                 respond({ value: DEFAULT_HOST });
                 break;
         }
@@ -130,7 +130,7 @@ class TerminalService {
         try {
             // 1. Lazily get all required environment variables for the prompt.
             // This will trigger the new default-request flow if they don't exist.
-            const { values: promptVars } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, {
+            const { values: promptVars } = await this.request(EVENTS.VAR_GET_REQUEST, {
                 keys: [ENV_VARS.PS1, ENV_VARS.USER, ENV_VARS.HOST, ENV_VARS.PWD]
             });
 
@@ -145,18 +145,18 @@ class TerminalService {
             if (this.#currentItem) {
                 this.#currentItem.setContent(commandString);
                 const outputContainer = { element: this.#currentItem.getOutput() };
-                log.log(`Executing command: "${commandString}"`);
+                this.log.log(`Executing command: "${commandString}"`);
                 this.#view.scrollToBottom();
-                this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTE_BROADCAST, {
+                this.dispatch(EVENTS.COMMAND_EXECUTE_BROADCAST, {
                     commandString,
                     outputElement: outputContainer
                 });
             }
 
         } catch (error) {
-            log.error("Error in command loop:", error);
+            this.log.error("Error in command loop:", error);
             // If something fails, dispatch the finished event to try again.
-            this.#eventBus.dispatch(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST);
+            this.dispatch(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST);
         }
     }
 
@@ -183,7 +183,7 @@ class TerminalService {
         };
 
         // Request user input and return the promise.
-        return this.#eventBus.request(EVENTS.INPUT_REQUEST, { prompt, options }, 0);
+        return this.request(EVENTS.INPUT_REQUEST, { prompt, options }, 0);
     }
 }
 

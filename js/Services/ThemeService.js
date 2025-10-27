@@ -17,8 +17,7 @@
  */
 import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from '../Core/Events.js';
-
-const log = createLogger('ThemeService');
+import { BaseService } from '../Core/BaseService.js';
 
 // Define constants for hardcoded strings
 const VAR_THEME = 'THEME';
@@ -34,19 +33,20 @@ const DEFAULT_THEME = 'green';
  * @dispatches `variable-get-request` - To get the initial THEME variable on startup.
  * @dispatches `theme-changed-broadcast` - When the theme is successfully applied.
  */
-class ThemeService {
+class ThemeService extends BaseService{
     static VALID_THEMES = ['green', 'yellow', 'orange', 'red'];
     #eventBus;
 
     constructor(eventBus) {
+        super(eventBus);
         this.#eventBus = eventBus;
         this.#registerListeners();
-        log.log('Initializing...');
+        this.log.log('Initializing...');
     }
 
     async start() {
         // After all services are initialized, request the initial theme value.
-        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: VAR_THEME });
+        const { values } = await this.request(EVENTS.VAR_GET_REQUEST, { key: VAR_THEME });
         const theme = values[VAR_THEME] || DEFAULT_THEME;
         this.applyTheme(theme, false); // Don't persist on initial load
     }
@@ -72,17 +72,17 @@ class ThemeService {
     }
 
     async #handleUserChanged() {
-        log.log('User changed, re-evaluating theme.');
+        this.log.log('User changed, re-evaluating theme.');
         // This will trigger the lazy-loading of remote variables if a user logged in,
         // or fall back to defaults if logged out, because the environment state has changed.
-        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key: VAR_THEME });
+        const { values } = await this.request(EVENTS.VAR_GET_REQUEST, { key: VAR_THEME });
         const theme = values[VAR_THEME] || DEFAULT_THEME;
         this.applyTheme(theme, false); // Don't persist, just apply the current state.
     }
 
     #handleUpdateDefaultRequest({ key, respond }) {
         if (key === VAR_THEME) {
-            this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_THEME });
+            this.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_THEME });
             respond({ value: DEFAULT_THEME });
         }
     }
@@ -95,8 +95,8 @@ class ThemeService {
         const finalTheme = ThemeService.VALID_THEMES.includes(themeName) ? themeName : DEFAULT_THEME;
         const themeColor = `var(--arefi-color-${finalTheme})`;
         document.documentElement.style.setProperty('--arefi-color-theme', themeColor);
-        this.#eventBus.dispatch(EVENTS.THEME_CHANGED_BROADCAST, { themeName: finalTheme });
-        log.log(`Applied theme: ${finalTheme}`);
+        this.dispatch(EVENTS.THEME_CHANGED_BROADCAST, { themeName: finalTheme });
+        this.log.log(`Applied theme: ${finalTheme}`);
 
         // The theme command itself will handle persisting the variable.
         // This service only applies the theme based on the variable's value.
