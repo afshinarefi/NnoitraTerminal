@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { ServiceContainer } from '../Core/ServiceContainer.js';
 import { BaseComponent } from '../Core/BaseComponent.js';
 import { TerminalItem } from './TerminalItem.js';
 import { CommandLine } from './CommandLine.js';
@@ -79,6 +80,8 @@ class Terminal extends BaseComponent {
   #resizeObserver;
   /** @private {MutationObserver} #mutationObserver - Observes changes in the terminal output to automatically scroll. */
   #mutationObserver;
+  /** @private {object} #services - A dedicated set of services for this terminal instance. */
+  #services;
 
   /**
    * Creates an instance of Terminal.
@@ -90,6 +93,16 @@ class Terminal extends BaseComponent {
 
     // Apply component-specific styles
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalSpecificStyles];
+
+    // Create a new, independent set of services for this terminal instance.
+    const container = new ServiceContainer();
+    this.#services = container.services;
+
+    // Connect this component's views to its dedicated services.
+    // This makes each terminal a completely sandboxed application.
+    this.#services.input.setView(this.promptView);
+    this.#services.hint.setView(this.hintView);
+    this.#services.terminal.setView(this);
 
     this.#attachEventListeners();
   }
@@ -149,6 +162,13 @@ class Terminal extends BaseComponent {
     this.#mutationObserver = new MutationObserver(() => this.scrollToBottom());
     this.#mutationObserver.observe(this.refs.terminal, { childList: true, subtree: true });
 
+    // Start all services now that the component is in the DOM and views are connected.
+    // This ensures services like TerminalService can access their views during startup.
+    Object.values(this.#services).forEach(service => {
+      if (service && typeof service.start === 'function') {
+        service.start();
+      }
+    });
   }
 
   /**
