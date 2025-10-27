@@ -103,7 +103,7 @@ class Export {
 
         if (newVar) {
             const success = await this.#exportVariable(newVar.name.toUpperCase(), newVar.value);
-            if (success) {
+            if (success.success) {
                 log.log(`Set variable: ${newVar.name}='${newVar.value}'`);
                 // No output on successful export, which is standard shell behavior.
             } else {

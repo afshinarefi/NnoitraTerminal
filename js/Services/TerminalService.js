@@ -86,11 +86,9 @@ class TerminalService extends BaseService{
     #handleUpdateDefaultRequest({ key, respond }) {
         switch (key) {
             case ENV_VARS.PS1:
-                this.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_PS1 });
                 respond({ value: DEFAULT_PS1 });
                 break;
             case ENV_VARS.HOST:
-                this.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: DEFAULT_HOST });
                 respond({ value: DEFAULT_HOST });
                 break;
         }
@@ -128,13 +126,16 @@ class TerminalService extends BaseService{
 
     async #runCommandLoop() {
         try {
-            // 1. Lazily get all required environment variables for the prompt.
-            // This will trigger the new default-request flow if they don't exist.
-            const { values: promptVars } = await this.request(EVENTS.VAR_GET_REQUEST, {
-                keys: [ENV_VARS.PS1, ENV_VARS.USER, ENV_VARS.HOST, ENV_VARS.PWD]
-            });
+            // 1. Get all required environment variables for the prompt from their specific categories.
+            const [ps1, user, host, pwd] = await Promise.all([
+                this.request(EVENTS.VAR_GET_USERSPACE_REQUEST, { key: ENV_VARS.PS1 }),
+                this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER }),
+                this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.HOST }),
+                this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD })
+            ]);
 
             // 2. Format and display the header.
+            const promptVars = { PS1: ps1.value, USER: user.value, HOST: host.value, PWD: pwd.value };
             const headerText = this.#formatHeader(promptVars);
             this.#createAndDisplayHeader(headerText);
 

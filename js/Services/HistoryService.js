@@ -65,7 +65,6 @@ class HistoryService extends BaseService{
 
     #handleUpdateDefaultRequest({ key, respond }) {
         if (key === ENV_VARS.HISTSIZE) {
-            this.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_HISTSIZE });
             respond({ value: DEFAULT_HISTSIZE });
         }
     }
@@ -86,7 +85,6 @@ class HistoryService extends BaseService{
         } else {
             this.log.warn(`Invalid HISTSIZE value "${histSizeValue}". Resetting to default: ${DEFAULT_HISTSIZE}`);
             this.#maxSize = parseInt(DEFAULT_HISTSIZE, 10);
-            this.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key: ENV_VARS.HISTSIZE, value: String(this.#maxSize) });
         }
     }
 
@@ -100,8 +98,8 @@ class HistoryService extends BaseService{
         this.dispatch(EVENTS.COMMAND_PERSIST_REQUEST, { command: trimmedCommand });
 
         // Lazily get HISTSIZE and update the internal max size.
-        const { values } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HISTSIZE });
-        this.#updateMaxSize(values[ENV_VARS.HISTSIZE] || DEFAULT_HISTSIZE);
+        const { value } = await this.request(EVENTS.VAR_GET_USERSPACE_REQUEST, { key: ENV_VARS.HISTSIZE });
+        this.#updateMaxSize(value || DEFAULT_HISTSIZE);
 
         if (this.#history.length > this.#maxSize) {
             this.#history.pop();

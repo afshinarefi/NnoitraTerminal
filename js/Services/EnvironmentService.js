@@ -30,10 +30,12 @@ const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
  * @listens for `VAR_GET_REQUEST` - Responds to requests for a variable's value.
  * @listens for `VAR_SET_REQUEST` - Responds to requests to set a variable.
  * @listens for `ENV_RESET_REQUEST` - Responds to requests to reset the environment.
+ * @listens for `USER_CHANGED_BROADCAST` - Clears local storage on logout.
  *
  * @dispatches `VAR_PERSIST_REQUEST` - When a variable needs to be saved remotely.
  * @dispatches `VAR_CHANGED_BROADCAST` - When any variable's value changes.
- * @dispatches `VAR_GET_RESPONSE` - The value in response to a get request.
+ * @dispatches `VAR_LOAD_REMOTE_REQUEST` - To get remote/userspace variables from AccountingService.
+ * @dispatches `VAR_UPDATE_DEFAULT_REQUEST` - To get a default value for a variable that doesn't exist yet.
  */
 class EnvironmentService extends BaseService{
     static VAR_CATEGORIES = {
@@ -44,10 +46,8 @@ class EnvironmentService extends BaseService{
     };
 
     #eventBus;
-	#categorizedVariables = new Map();
-    #pendingFetches = new Set(); // Tracks variables currently being fetched to prevent recursion.
-    #isLazyLoading = false; // A global lock to prevent re-entry into the lazy-load process.
-    
+	#tempVariables = new Map();
+
 	constructor(eventBus) {
         super(eventBus);
         this.#eventBus = eventBus;
@@ -56,7 +56,10 @@ class EnvironmentService extends BaseService{
 	}
 
     #registerListeners() {
-        this.#eventBus.listen(EVENTS.VAR_GET_REQUEST, (payload) => this.#handleGetVariable(payload), this.constructor.name);
+        this.#eventBus.listen(EVENTS.VAR_GET_TEMP_REQUEST, (payload) => this.#handleGetTempVariable(payload), this.constructor.name);
+        this.#eventBus.listen(EVENTS.VAR_GET_LOCAL_REQUEST, (payload) => this.#handleGetLocalVariable(payload), this.constructor.name);
+        this.#eventBus.listen(EVENTS.VAR_GET_REMOTE_REQUEST, (payload) => this.#handleGetRemoteVariable(payload, EnvironmentService.VAR_CATEGORIES.REMOTE), this.constructor.name);
+        this.#eventBus.listen(EVENTS.VAR_GET_USERSPACE_REQUEST, (payload) => this.#handleGetRemoteVariable(payload, EnvironmentService.VAR_CATEGORIES.USERSPACE), this.constructor.name);
         this.#eventBus.listen(EVENTS.ENV_RESET_REQUEST, () => this.reset(), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_SET_TEMP_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.TEMP), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_SET_LOCAL_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.LOCAL), this.constructor.name);
@@ -69,120 +72,82 @@ class EnvironmentService extends BaseService{
 
 	start() {
 		// No longer loading from storage at startup. This is now lazy.
+        // No startup logic needed.
 	}
 
-	#loadFromStorage() {
-        this.log.log('Lazily loading variables from localStorage...');
-        const localMap = new Map();
-        this.#categorizedVariables.set(EnvironmentService.VAR_CATEGORIES.LOCAL, localMap);
-		const storedLocalVars = localStorage.getItem(LOCAL_STORAGE_KEY);
-		if (storedLocalVars) {
-			try {
-				const localObj = JSON.parse(storedLocalVars);
-				for (const [key, value] of Object.entries(localObj)) {
-					localMap.set(key.toUpperCase(), value);
-				}
-			} catch (e) {
-				this.log.error('Failed to parse local environment variables from localStorage:', e);
-			}
-		}
-	}
+    async #handleGetTempVariable({ key, respond }) {
+        const upperKey = key.toUpperCase();
+        let value = this.#tempVariables.get(upperKey);
 
-	#persistLocalVariables() {
-		const localMap = this.#categorizedVariables.get(EnvironmentService.VAR_CATEGORIES.LOCAL);
-        if (!localMap) {
-            // Nothing to persist if the category was never used.
-            return;
+        if (value === undefined) {
+            this.log.log(`Temp variable "${upperKey}" is undefined, requesting its default value.`);
+            const response = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
+            value = response.value;
+            // The owner provides the default, and we set it here.
+            if (value !== undefined) {
+                this.setVariable(upperKey, value, EnvironmentService.VAR_CATEGORIES.TEMP, false);
+            }
         }
-		const localObj = Object.fromEntries(localMap);
-		localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localObj));
-	}
+        respond({ value });
+    }
 
-    async #handleGetVariable({ key, keys, respond }) {
-        if (!respond) return; // Not a request-response event
+    async #handleGetLocalVariable({ key, respond }) {
+        const upperKey = key.toUpperCase();
+        const localData = this.#readAllLocal();
+        let value = localData[upperKey];
 
-        const values = {};
-        const keysToProcess = keys || (key ? [key] : []);
-        for (const k of keysToProcess) {
-            values[k] = await this.getVariable(k);
+        if (value === undefined) {
+            this.log.log(`Local variable "${upperKey}" is undefined, requesting its default value.`);
+            const response = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
+            value = response.value;
+            // The owner provides the default, and we set it here.
+            if (value !== undefined) {
+                this.setVariable(upperKey, value, EnvironmentService.VAR_CATEGORIES.LOCAL, true);
+            }
         }
-        const wasSent = respond({ values });
-        if (!wasSent) {
-            this.log.warn('Attempted to respond to a request that has already timed out.');
+        respond({ value });
+    }
+
+    async #handleGetRemoteVariable({ key, respond }, category) {
+        const upperKey = key.toUpperCase();
+        let value;
+
+        // Request from AccountingService on-demand.
+        const { variables } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { key: upperKey, category });
+        value = variables ? variables[upperKey] : undefined;
+
+        if (value === undefined) {
+            this.log.log(`Remote/Userspace variable "${upperKey}" is undefined, requesting its default value.`);
+            const response = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
+            value = response.value;
+            // The owner provides the default, and we set it here.
+            if (value !== undefined) {
+                this.setVariable(upperKey, value, category, true);
+            }
+        }
+        respond({ value });
+    }
+
+    #readAllLocal() {
+        const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (!stored) return {};
+        try {
+            return JSON.parse(stored);
+        } catch (e) {
+            this.log.error('Failed to parse local environment variables from localStorage:', e);
+            return {};
         }
     }
 
-	async getVariable(key) {
-		const upperKey = key.toUpperCase();
-
-        // Prevent recursive calls for the same variable.
-        // If we are already fetching this key, return undefined to break the loop.
-        if (this.#pendingFetches.has(upperKey)) {
-            this.log.warn(`Recursive call detected for variable "${upperKey}". Breaking loop.`);
-            return undefined;
-        }
-
-        // 1. Check all currently loaded categories.
-        let existingValue = this.#getVariableSync(upperKey);
-        if (existingValue !== undefined) {
-            return existingValue;
-        }
-
-        // 2. If not found, perform a one-time lazy load of all categories that haven't been loaded yet.
-        await this.#lazyLoadAllCategories();
-        existingValue = this.#getVariableSync(upperKey);
-        if (existingValue !== undefined) {
-            return existingValue;
-        }
-
-        // 3. If the variable is still not found after all lazy-loading, it's a new variable.
-        // Trigger the update-default flow to get its default value from its owner.
-        this.log.log(`Variable "${upperKey}" is undefined, requesting its default value from its owner.`);
-        
+    #writeAllLocal(data) {
         try {
-            this.#pendingFetches.add(upperKey); // Lock this key
-            const { value } = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
-            return value;
-        } finally {
-            this.#pendingFetches.delete(upperKey); // Unlock this key
-        }
-	}
-
-    async #lazyLoadAllCategories() {
-        // If a lazy-load is already in progress, do not start another one.
-        // This is the key to breaking the recursive loop.
-        if (this.#isLazyLoading) {
-            return;
-        }
-        this.#isLazyLoading = true;
-
-        try {
-            const loadPromises = [];
-
-            if (!this.#categorizedVariables.has(EnvironmentService.VAR_CATEGORIES.LOCAL)) {
-                this.#loadFromStorage(); // This is synchronous
-            }
-
-            if (!this.#categorizedVariables.has(EnvironmentService.VAR_CATEGORIES.REMOTE)) {
-                loadPromises.push(this.#loadRemoteVariables());
-            }
-
-            await Promise.all(loadPromises);
-        } finally {
-            this.#isLazyLoading = false; // Always release the lock
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            this.log.error('Failed to write to localStorage:', e);
         }
     }
 
-    #getVariableSync(upperKey) {
-		for (const categoryMap of this.#categorizedVariables.values()) {
-			if (categoryMap && categoryMap.has(upperKey)) {
-				return categoryMap.get(upperKey);
-			}
-		}
-		return undefined;
-	}
-
-	setVariable(key, value, category = null, persist = true) {
+	setVariable(key, value, category, persist = true) {
 		const upperKey = key.toUpperCase();
 
 		if (typeof value === 'number') {
@@ -194,38 +159,36 @@ class EnvironmentService extends BaseService{
 			return;
 		}
 
-		const targetCategory = category && Object.values(EnvironmentService.VAR_CATEGORIES).includes(category)
-            ? category
-            : EnvironmentService.VAR_CATEGORIES.TEMP;
-
-		for (const [cat, catMap] of this.#categorizedVariables.entries()) {
-            // Ensure the map exists before trying to delete from it
-			if (cat !== targetCategory) catMap.delete(upperKey);
-		}
-
-        // Ensure the target map is initialized
-        if (!this.#categorizedVariables.has(targetCategory)) {
-            this.#categorizedVariables.set(targetCategory, new Map());
+        switch (category) {
+            case EnvironmentService.VAR_CATEGORIES.TEMP:
+                this.#tempVariables.set(upperKey, value);
+                break;
+            case EnvironmentService.VAR_CATEGORIES.LOCAL:
+                const localData = this.#readAllLocal();
+                localData[upperKey] = value;
+                this.#writeAllLocal(localData);
+                break;
+            case EnvironmentService.VAR_CATEGORIES.REMOTE:
+            case EnvironmentService.VAR_CATEGORIES.USERSPACE:
+                if (persist) {
+                    this.dispatch(EVENTS.VAR_PERSIST_REQUEST, { key: upperKey, value, category });
+                }
+                break;
         }
-		this.#categorizedVariables.get(targetCategory).set(upperKey, value);
-
-		if (persist && targetCategory === EnvironmentService.VAR_CATEGORIES.LOCAL) {
-			this.#persistLocalVariables();
-		} else if (persist && (targetCategory === EnvironmentService.VAR_CATEGORIES.REMOTE || targetCategory === EnvironmentService.VAR_CATEGORIES.USERSPACE)) {
-			this.dispatch(EVENTS.VAR_PERSIST_REQUEST, { key: upperKey, value, category: targetCategory });
-		}
 
 		this.dispatch(EVENTS.VAR_CHANGED_BROADCAST, { key: upperKey, value });
 	}
 
-	isReadOnly(key) {
+	async isReadOnly(key) {
 		const upperKey = key.toUpperCase();
-		for (const [category, catMap] of this.#categorizedVariables.entries()) {
-			if (category !== EnvironmentService.VAR_CATEGORIES.USERSPACE && catMap.has(upperKey)) {
-				return true;
-			}
-		}
-		return false;
+        // A variable is considered read-only if it exists in any category other than USERSPACE.
+        // We must check each category.
+        if (this.#tempVariables.has(upperKey)) return true;
+        if (this.#readAllLocal().hasOwnProperty(upperKey)) return true;
+        const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: 'REMOTE' });
+        if (remoteData && remoteData.hasOwnProperty(upperKey)) return true;
+
+		return false; // Simplified: `export` command will now manage this logic.
 	}
 
 	exportVariable(key, value) {
@@ -237,96 +200,65 @@ class EnvironmentService extends BaseService{
 		return true;
 	}
 
-    #handleExportVariable({ key, value, respond }) {
-        const success = this.exportVariable(key, value);
-        respond({ success });
+    async #handleExportVariable({ key, value, respond }) {
+        const upperKey = key.toUpperCase();
+        const isReadonly = await this.isReadOnly(upperKey);
+        if (isReadonly) {
+            respond({ success: false });
+            return;
+        }
+        this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.USERSPACE);
+        respond({ success: true });
     }
 
     async #handleUserChanged({ isLoggedIn }) {
         if (!isLoggedIn) {
-            this.resetRemoteVariables();
+            // On logout, we just need to clear local storage.
+            // Remote variables are gated by the AccountingService, so no client-side clearing is needed.
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
         }
     }
 
 	removeVariable(key) {
         const upperKey = key.toUpperCase();
-		for (const [category, catMap] of this.#categorizedVariables.entries()) {
-			if (catMap.has(upperKey)) {
-				catMap.delete(upperKey);
-				if (category === VAR_CATEGORIES.LOCAL) {
-					this.#persistLocalVariables();
-				}
-				break;
-			}
-		}
-	}
-
-	hasVariable(key) {
-		const upperKey = key.toUpperCase();
-		for (const catMap of this.#categorizedVariables.values()) {
-			if (catMap.has(upperKey)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	getAllVariables() {
-		const allVars = {};
-		for (const catMap of this.#categorizedVariables.values()) {
-            Object.assign(allVars, Object.fromEntries(catMap));
-		}
-		return allVars;
-	}
-
-	getAllVariablesCategorized() {
-		const categorized = {};
-		for (const [category, catMap] of this.#categorizedVariables.entries()) {
-			categorized[category] = Object.fromEntries(catMap);
-		}
-		return categorized;
+        // This is now more complex. Let's assume it's for local/temp for now.
+        if (this.#tempVariables.has(upperKey)) {
+            this.#tempVariables.delete(upperKey);
+        }
+        const localData = this.#readAllLocal();
+        if (localData.hasOwnProperty(upperKey)) {
+            delete localData[upperKey];
+            this.#writeAllLocal(localData);
+        }
+        // Deleting remote variables would need a new event and backend endpoint.
 	}
 
     #handleGetAllCategorized({ respond }) {
-        const categorized = this.getAllVariablesCategorized();
-        respond({ categorized });
+        // This is now an async operation as it needs to fetch remote data.
+        (async () => {
+            const categorized = {
+                [EnvironmentService.VAR_CATEGORIES.TEMP]: {},
+                [EnvironmentService.VAR_CATEGORIES.LOCAL]: {},
+                [EnvironmentService.VAR_CATEGORIES.REMOTE]: {},
+                [EnvironmentService.VAR_CATEGORIES.USERSPACE]: {},
+            };
+
+            categorized.TEMP = Object.fromEntries(this.#tempVariables);
+            categorized.LOCAL = this.#readAllLocal();
+
+            const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: 'ENV' });
+            Object.assign(categorized.REMOTE, remoteData.REMOTE || {});
+            Object.assign(categorized.USERSPACE, remoteData.USERSPACE || {});
+
+            respond({ categorized });
+        })();
     }
-
-	async #loadRemoteVariables() {
-        this.log.log('Lazily loading remote environment variables...');
-        const { variables: data } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST);
-        this.log.log('Loading remote variables into environment:', data);
-
-		if (data) {
-            // Load variables into their correct categories
-            if (data.REMOTE) {
-                for (const [key, value] of Object.entries(data.REMOTE)) {
-                    this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.REMOTE, false);
-                }
-            }
-            if (data.USERSPACE) {
-                for (const [key, value] of Object.entries(data.USERSPACE)) {
-                    this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.USERSPACE, false);
-                }
-            }
-		}
-        // Broadcast that variables have changed.
-        this.dispatch(EVENTS.VAR_CHANGED_BROADCAST, { key: '*', value: null });
-	}
 
 	reset() {
 		this.log.log('Resetting environment service completely...');
 		localStorage.removeItem(LOCAL_STORAGE_KEY);
-        this.#categorizedVariables.clear();
-        this.#pendingFetches.clear();
-        this.#isLazyLoading = false;
+        this.#tempVariables.clear();
 	}
-
-    resetRemoteVariables() {
-        this.log.log('Clearing remote and userspace variables.');
-        this.#categorizedVariables.delete(EnvironmentService.VAR_CATEGORIES.REMOTE);
-        this.#categorizedVariables.delete(EnvironmentService.VAR_CATEGORIES.USERSPACE);
-    }
 }
 
 export { EnvironmentService };

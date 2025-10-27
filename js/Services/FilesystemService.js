@@ -97,7 +97,7 @@ class FilesystemService extends BaseService{
     async #handleGetPublicUrl({ path, respond }) {
         try {
             // Use the dedicated 'get_public_url' API action.
-            const { values: { PWD: pwd } } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+            const { value: pwd } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD });
             const data = await this.#makeApiRequest('get_public_url', { path, pwd });
             respond({ url: data.url });
         } catch (error) {
@@ -113,12 +113,12 @@ class FilesystemService extends BaseService{
     }
 
     async #getDirectoryContents(path) {
-        const { values: { PWD: pwd } } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+        const { value: pwd } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD });
         return this.#makeApiRequest('ls', { path, pwd });
     }
 
     async #getFileContents(path) {
-        const { values: { PWD: pwd } } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+        const { value: pwd } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD });
         const response = await this.#makeApiRequest('cat', { path, pwd });
         return response.content;
     }
@@ -137,7 +137,7 @@ class FilesystemService extends BaseService{
     }
 
     async #resolveAndValidatePath(path, mustBeDir) {
-        const { values: { PWD: pwd } } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+        const { value: pwd } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD });
         const data = await this.#makeApiRequest('resolve', {
             path,
             pwd,

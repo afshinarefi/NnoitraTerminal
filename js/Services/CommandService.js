@@ -90,7 +90,7 @@ class CommandService extends BaseService{
         this.register('alias', Alias, ['getAliases', 'setAliases']);
         this.register('unalias', Unalias, ['getAliases', 'setAliases']);
         this.register('export', Export, ['exportVariable', 'getAllCategorizedVariables']);
-        this.register('theme', Theme, ['getValidThemes', 'setUserspaceVariable', 'getVariable']);
+        this.register('theme', Theme, ['getValidThemes', 'setUserspaceVariable', 'eventBus', 'EVENTS']);
         this.register('version', Version, []);
     }
 
@@ -124,7 +124,7 @@ class CommandService extends BaseService{
             const allProvidedFunctions = {
                 // Functions that are part of CommandService's core responsibility (now deprecated for direct use by commands)
                 ...Object.fromEntries(
-                    Object.getOwnPropertyNames(ServiceApiManager.prototype) // Get all method names from the provider
+                    Object.getOwnPropertyNames(ServiceApiManager.prototype)
                         .filter(name => name !== 'constructor') // Get all methods
                         .map(name => [name, this.#apiProvider[name].bind(this.#apiProvider)])
                 )
@@ -134,6 +134,12 @@ class CommandService extends BaseService{
             for (const funcName of requiredServices) {
                 if (allProvidedFunctions[funcName]) {
                     commandServices[funcName] = allProvidedFunctions[funcName];
+                } else if (funcName === 'eventBus') {
+                    // Special case to provide the event bus directly
+                    commandServices.eventBus = this.#eventBus;
+                } else if (funcName === 'EVENTS') {
+                    // Special case to provide the events enum
+                    commandServices.EVENTS = EVENTS;
                 } else {
                     this.log.warn(`Command '${name}' requested unknown function '${funcName}'.`);
                 }
@@ -247,8 +253,8 @@ class CommandService extends BaseService{
 
     async #handleGetAliasesRequest({ respond }) {
         try {
-            const aliasValue = await this.#apiProvider.getVariable(ENV_VARS.ALIAS) || '{}';
-            respond({ aliases: JSON.parse(aliasValue) });
+            const { value } = await this.request(EVENTS.VAR_GET_REMOTE_REQUEST, { key: ENV_VARS.ALIAS });
+            respond({ aliases: JSON.parse(value || '{}') });
         } catch (error) {
             this.log.error("Failed to get aliases:", error);
             respond({ aliases: {} });
@@ -256,7 +262,7 @@ class CommandService extends BaseService{
     }
 
     #handleSetAliasesRequest({ aliases }) {
-        this.#apiProvider.setRemoteVariable(ENV_VARS.ALIAS, JSON.stringify(aliases));
+        this.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key: ENV_VARS.ALIAS, value: JSON.stringify(aliases) });
     }
 
     async #handleGetCommandListRequest({ respond }) {
@@ -311,8 +317,7 @@ class CommandService extends BaseService{
     #handleUpdateDefaultRequest({ key, respond }) {
         if (key === ENV_VARS.ALIAS) {
             const defaultValue = '{}';
-            // ALIAS is a remote variable, so it should be set as such.
-            this.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key, value: defaultValue });
+            // Just respond with the default. The requester will handle setting it.
             respond({ value: defaultValue });
         }
     }

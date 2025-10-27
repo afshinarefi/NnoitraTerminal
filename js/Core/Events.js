@@ -22,8 +22,10 @@
 export const EVENTS = {
     // Environment
     ENV_RESET_REQUEST: 'environment-reset-request',
-    VAR_GET_REQUEST: 'variable-get-request',
-    VAR_GET_RESPONSE: 'variable-get-response',
+    VAR_GET_TEMP_REQUEST: 'variable-get-temp-request',
+    VAR_GET_LOCAL_REQUEST: 'variable-get-local-request',
+    VAR_GET_REMOTE_REQUEST: 'variable-get-remote-request',
+    VAR_GET_USERSPACE_REQUEST: 'variable-get-userspace-request',
     VAR_CHANGED_BROADCAST: 'variable-changed-broadcast',
     VAR_UPDATE_DEFAULT_REQUEST: 'variable-update-default-request',
     VAR_PERSIST_REQUEST: 'variable-persist-request',
@@ -84,4 +86,5 @@ export const EVENTS = {
     FS_GET_FILE_CONTENTS_REQUEST: 'fs-get-file-contents-request',
     FS_GET_FILE_CONTENTS_RESPONSE: 'fs-get-file-contents-response',
     FS_GET_PUBLIC_URL_REQUEST: 'fs-get-public-url-request',
+    FS_RESOLVE_PATH_REQUEST: 'fs-resolve-path-request',
 };

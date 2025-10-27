@@ -128,11 +128,6 @@ export class ServiceApiManager {
         }
     }
 
-    async getVariable(key) {
-        const { values } = await this.#eventBus.request(EVENTS.VAR_GET_REQUEST, { key });
-        return values ? values[key] : undefined;
-    }
-
     setTempVariable(key, value) {
         this.#eventBus.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value });
     }
@@ -151,7 +146,7 @@ export class ServiceApiManager {
 
     async exportVariable(key, value) {
         const response = await this.#eventBus.request(EVENTS.VAR_EXPORT_REQUEST, { key, value });
-        return response.success;
+        return response;
     }
 
     async getAllCategorizedVariables() {

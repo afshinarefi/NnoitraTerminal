@@ -46,8 +46,8 @@ class ThemeService extends BaseService{
 
     async start() {
         // After all services are initialized, request the initial theme value.
-        const { values } = await this.request(EVENTS.VAR_GET_REQUEST, { key: VAR_THEME });
-        const theme = values[VAR_THEME] || DEFAULT_THEME;
+        const { value } = await this.request(EVENTS.VAR_GET_USERSPACE_REQUEST, { key: VAR_THEME });
+        const theme = value || DEFAULT_THEME;
         this.applyTheme(theme, false); // Don't persist on initial load
     }
 
@@ -75,8 +75,8 @@ class ThemeService extends BaseService{
         this.log.log('User changed, re-evaluating theme.');
         // This will trigger the lazy-loading of remote variables if a user logged in,
         // or fall back to defaults if logged out, because the environment state has changed.
-        const { values } = await this.request(EVENTS.VAR_GET_REQUEST, { key: VAR_THEME });
-        const theme = values[VAR_THEME] || DEFAULT_THEME;
+        const { value } = await this.request(EVENTS.VAR_GET_USERSPACE_REQUEST, { key: VAR_THEME });
+        const theme = value || DEFAULT_THEME;
         this.applyTheme(theme, false); // Don't persist, just apply the current state.
     }
 

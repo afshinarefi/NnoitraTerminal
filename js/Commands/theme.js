@@ -28,14 +28,16 @@ class Theme {
 
     #setUserspaceVariable;
     #getValidThemes;
-    #getVariable;
+    #getUserspaceVariable;
 
     constructor(services) {
         // The environment service is used for getting/setting THEME variable.
         this.#setUserspaceVariable = services.setUserspaceVariable;
         // The theme service is used for getting valid themes.
         this.#getValidThemes = services.getValidThemes;
-        this.#getVariable = services.getVariable;
+        // We need a way to get a userspace variable. Let's add a specific function for that.
+        // This is a placeholder for a function that should be added to ServiceApiManager
+        this.#getUserspaceVariable = (key) => services.eventBus.request(services.EVENTS.VAR_GET_USERSPACE_REQUEST, { key });
         log.log('Initializing...');
     }
 
@@ -57,8 +59,8 @@ class Theme {
         const validThemes = await this.#getValidThemes();
 
         if (!themeName) {
-            // Correctly get the current theme variable.
-            const currentTheme = await this.#getVariable('THEME');
+            // Get the current theme variable from the correct category.
+            const { value: currentTheme } = await this.#getUserspaceVariable('THEME');
             output.textContent = `Current theme: ${currentTheme}\nAvailable themes: ${validThemes.join(', ')}`;
             return output;
         }
