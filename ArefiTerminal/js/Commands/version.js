@@ -21,6 +21,7 @@ import { createLogger } from '../Managers/LogManager.js';
  * @description Implements the 'version' command, displaying the application version.
  */
 class Version {
+    static DATA_FILE = new URL('../../data/version.txt', import.meta.url);
     /**
      * @static
      * @type {string}
@@ -40,7 +41,7 @@ class Version {
       const outputDiv = document.createElement('div');
       outputDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
       try {
-        const response = await fetch('data/version.txt');
+        const response = await fetch(Version.DATA_FILE);
         if (!response.ok) {
           throw new Error(`Failed to load version information: ${response.statusText}`);
         }

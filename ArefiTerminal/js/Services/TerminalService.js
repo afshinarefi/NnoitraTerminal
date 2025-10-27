@@ -36,6 +36,7 @@ const DEFAULT_HOST = window.location.hostname;
  * @listens for `clear-screen-request` - Clears the terminal output.
  */
 class TerminalService extends BaseService{
+    static MOTD_FILE = new URL('../../data/motd.txt', import.meta.url);
     #eventBus;
     #view = null; // The Terminal component instance
     #nextId = 1;
@@ -70,7 +71,7 @@ class TerminalService extends BaseService{
         // Load the Message of the Day into the welcome area.
         if (this.#view && this.#view.welcomeOutputView) {
             try {
-                const motdText = await fetchTextFile('/data/motd.txt');
+                const motdText = await fetchTextFile(TerminalService.MOTD_FILE);
                 console.log(motdText);
                 // Use white-space to preserve formatting without needing a <pre> tag.
                 this.#view.welcomeOutputView.style.whiteSpace = 'pre-wrap';

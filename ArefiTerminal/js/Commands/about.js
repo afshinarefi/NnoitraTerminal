@@ -21,7 +21,7 @@ import { createLogger } from '../Managers/LogManager.js';
  * @description Implements the 'about' command, which displays personal information from a JSON file.
  */
 class About {
-    static DATA_FILE = '/data/about.json';
+    static DATA_FILE = new URL('../../data/about.json', import.meta.url);
     static DESCRIPTION = 'A short introduction.';
     static #log = createLogger('about'); // Keep static for static methods
     #requestMedia;

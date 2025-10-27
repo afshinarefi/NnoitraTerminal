@@ -22,6 +22,7 @@ import { createLogger } from '../Managers/LogManager.js';
  * @description Implements the 'welcome' command, displaying an ASCII art welcome message.
  */
 class Welcome {
+    static DATA_FILE = new URL('../../data/motd.txt', import.meta.url);
     /**
      * @static
      * @type {string}
@@ -41,7 +42,7 @@ class Welcome {
       const outputDiv = document.createElement('div');
       outputDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
       try {
-        const welcomeText = await fetchTextFile('data/motd.txt');
+        const welcomeText = await fetchTextFile(Welcome.DATA_FILE);
         this.#log.log(`Welcome message loaded successfully. ${welcomeText.length} characters.`);
         outputDiv.innerText = welcomeText;
       } catch (error) {
