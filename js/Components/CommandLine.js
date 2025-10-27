@@ -149,7 +149,7 @@ class CommandLine extends BaseComponent {
    * @param {KeyboardEvent} event - The keyboard event.
    */
   #onKeyDown(event) {
-    if (this.refs.prompt.disabled) {
+    if (this.refs.prompt.readOnly) {
       event.stopPropagation();
       event.preventDefault();
       return;
@@ -237,13 +237,13 @@ class CommandLine extends BaseComponent {
    * @param {boolean} isEnabled - True to enable, false to disable.
    */
   setEnabled(isEnabled) {
-    this.refs.prompt.disabled = !isEnabled;
+    this.refs.prompt.readOnly = !isEnabled;
     if (isEnabled) {
       this.refs.prompt.placeholder = ''; // Clear any temporary message.
       this.setReadyIcon(); // Set icon back to ready state.
       this.focus(); // Set focus back to the prompt.
     } else {
-      this.setBusyIcon(); // Set icon to busy state.
+      this.setBusyIcon(); // Set icon to busy state when readOnly.
       this.refs.prompt.placeholder = 'Running Command ...'; // Provide feedback to the user.
     }
   }
