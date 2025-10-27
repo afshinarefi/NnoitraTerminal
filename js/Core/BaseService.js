@@ -74,8 +74,8 @@ class BaseService {
      * @param {object} [payload] - The data to send with the request.
      * @returns {Promise<any>} A promise that resolves with the response.
      */
-    request(eventName, payload) {
-        return this.#eventBus.request(eventName, payload);
+    request(eventName, payload, timeout = 0) {
+        return this.#eventBus.request(eventName, payload, timeout);
     }
 
     /**
