@@ -97,7 +97,8 @@ class FilesystemService extends BaseService{
     async #handleGetPublicUrl({ path, respond }) {
         try {
             // Use the dedicated 'get_public_url' API action.
-            const data = await this.#makeApiRequest('get_public_url', { path });
+            const { values: { PWD: pwd } } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD });
+            const data = await this.#makeApiRequest('get_public_url', { path, pwd });
             respond({ url: data.url });
         } catch (error) {
             respond({ error });
