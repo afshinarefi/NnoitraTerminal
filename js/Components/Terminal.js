@@ -17,7 +17,6 @@
  */
 import { ServiceContainer } from '../Core/ServiceContainer.js';
 import { BaseComponent } from '../Core/BaseComponent.js';
-import { TerminalItem } from './TerminalItem.js';
 import { CommandLine } from './CommandLine.js';
 import { HintBox } from './HintBox.js';
 import { createLogger } from '../Managers/LogManager.js';
@@ -94,17 +93,7 @@ class Terminal extends BaseComponent {
     // Apply component-specific styles
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalSpecificStyles];
 
-    // Create a new, independent set of services for this terminal instance.
-    const container = new ServiceContainer();
-    this.#services = container.services;
-
-    // Connect this component's views to its dedicated services.
-    // This makes each terminal a completely sandboxed application.
-    this.#services.input.setView(this.promptView);
-    this.#services.hint.setView(this.hintView);
-    this.#services.terminal.setView(this);
-
-    this.#attachEventListeners();
+    this.#bootstrap();
   }
 
   /**
@@ -126,6 +115,26 @@ class Terminal extends BaseComponent {
 
   get welcomeOutputView() {
     return this.refs['welcome-output'];
+  }
+
+  /**
+   * Bootstraps the terminal by creating services, connecting views, and attaching listeners.
+   * @private
+   */
+  #bootstrap() {
+    // 1. Create a new, independent set of services for this terminal instance.
+    const container = new ServiceContainer();
+    this.#services = container.services;
+
+    // 2. Connect this component's views to its dedicated services.
+    // This makes each terminal a completely sandboxed application.
+    this.#services.input.setView(this.promptView);
+    this.#services.hint.setView(this.hintView);
+    this.#services.terminal.setView(this);
+
+    // 3. Attach UI event listeners.
+    this.#attachEventListeners();
+    log.log('Terminal bootstrapped successfully.');
   }
 
   /**
