@@ -68,13 +68,9 @@ class HistoryService extends BaseService{
         }
     }
 
-    async #handleUserChanged({ isLoggedIn }) {
-        if (isLoggedIn) {
-            const { history } = await this.request(EVENTS.HISTORY_LOAD_REQUEST);
-            this.loadHistory(history);
-        } else {
-            this.clearHistory();
-        }
+    async #handleUserChanged() {
+        const { history } = await this.request(EVENTS.HISTORY_LOAD_REQUEST);
+        this.loadHistory(history);
     }
 
     #updateMaxSize(histSizeValue) {

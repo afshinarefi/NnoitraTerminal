@@ -49,7 +49,6 @@ class EnvironmentService extends BaseService{
 
     get eventHandlers() {
         return {
-            [EVENTS.ENV_RESET_REQUEST]: this.#handleReset.bind(this),
             [EVENTS.GET_ALL_CATEGORIZED_VARS_REQUEST]: this.#handleGetAllCategorized.bind(this),
             [EVENTS.USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this),
             [EVENTS.VAR_EXPORT_REQUEST]: this.#handleExportVariable.bind(this),
@@ -200,11 +199,8 @@ class EnvironmentService extends BaseService{
         respond({ success: true });
     }
 
-    async #handleUserChanged({ isLoggedIn }) {
-        if (!isLoggedIn) {
-            // On logout, we just need to clear local storage.
-            this.dispatch(EVENTS.RESET_LOCAL_VAR, { namespace: ENV_NAMESPACE }); // Clear all local storage
-        }
+    async #handleUserChanged() {
+        this.#tempVariables.clear();
     }
 
     #handleGetAllCategorized({ respond }) {
@@ -227,12 +223,6 @@ class EnvironmentService extends BaseService{
             respond({ categorized });
         })();
     }
-
-	#handleReset() {
-		this.log.log('Resetting environment service completely...');
-		this.dispatch(EVENTS.RESET_LOCAL_VAR, { namespace: ENV_NAMESPACE }); // Clear all local storage
-        this.#tempVariables.clear();
-	}
 }
 
 export { EnvironmentService };

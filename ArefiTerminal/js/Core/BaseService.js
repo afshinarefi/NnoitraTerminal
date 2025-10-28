@@ -64,7 +64,7 @@ class BaseService {
      * @param {string} eventName - The name of the event to dispatch.
      * @param {object} [payload] - The data to send with the event.
      */
-    dispatch(eventName, payload) {
+    dispatch(eventName, payload = {} ) {
         this.#eventBus.dispatch(eventName, payload);
     }
 

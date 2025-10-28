@@ -21,7 +21,6 @@
  */
 export const EVENTS = {
     // Environment
-    ENV_RESET_REQUEST: 'environment-reset-request',
     GET_ALL_CATEGORIZED_VARS_REQUEST: 'get-all-categorized-vars-request',
     VAR_EXPORT_REQUEST: 'variable-export-request',
     VAR_GET_LOCAL_REQUEST: 'variable-get-local-request',
