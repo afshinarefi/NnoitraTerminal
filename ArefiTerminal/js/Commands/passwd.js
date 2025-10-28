@@ -15,23 +15,21 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('passwd');
-
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class Passwd
  * @description Implements the 'passwd' command for changing a user's password.
  */
-class Passwd {
+class Passwd extends BaseCommand {
     static DESCRIPTION = 'Change user password.';
 
     #prompt;
     #changePassword;
 
     constructor(services) {
-        this.#prompt = services.prompt;
-        this.#changePassword = services.changePassword;
-        log.log('Initializing...');
+        super(services);
+        this.#prompt = this.services.prompt;
+        this.#changePassword = this.services.changePassword;
     }
 
     static man() {
@@ -59,7 +57,7 @@ DESCRIPTION
     }
 
     async execute(args) { // Made async for consistency
-        log.log('Executing...');
+        this.log.log('Executing...');
         const outputDiv = document.createElement('div');
         const promptOptions = { isSecret: true, allowHistory: false, allowAutocomplete: false };
 
@@ -85,7 +83,7 @@ DESCRIPTION
 
         } catch (error) {
             // A timeout on the prompt means the user cancelled (e.g., Ctrl+C)
-            log.warn('Password change operation cancelled or failed:', error);
+            this.log.warn('Password change operation cancelled or failed:', error);
             outputDiv.textContent = 'passwd: Operation cancelled.';
         }
 

@@ -15,15 +15,13 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createDirectoryList } from '../Utils/TableUtil.js';
-import { createLogger } from '../Managers/LogManager.js';
-
-const log = createLogger('ls');
+import { BaseCommand } from '../Core/BaseCommand.js';
+import { createDirectoryList } from '../Utils/TableUtil.js'; // Still needed for createDirectoryList
 /**
  * @class Ls
  * @description Implements the 'ls' command, which lists the contents of a directory using FilesystemService.
  */
-class Ls {
+class Ls extends BaseCommand {
     #getDirectoryContents;
     #autocompletePath;
 
@@ -34,8 +32,9 @@ class Ls {
      * @param {Function} funcs.autocompletePath - A function for path autocompletion.
      */
     constructor(funcs) {
-        this.#getDirectoryContents = funcs.getDirectoryContents; // This is still needed for execute
-        this.#autocompletePath = funcs.autocompletePath;
+        super(funcs);
+        this.#getDirectoryContents = this.services.getDirectoryContents; // This is still needed for execute
+        this.#autocompletePath = this.services.autocompletePath;
     }
 
     static man() {
@@ -56,13 +55,13 @@ class Ls {
             
             return [...directories, ...files].sort();
         } catch (error) {
-            log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            this.log.warn(`Autocomplete failed for path "${pathArg}":`, error);
             return []; // On error, return no suggestions.
         }
     }
 
     async execute(args) {
-        log.log('Executing with args:', args);
+        this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         const pathArg = args[1] || '.';
         
@@ -81,7 +80,7 @@ class Ls {
             outputDiv.appendChild(ul);
 
         } catch (error) {
-            log.warn(`Cannot access path: "${pathArg}"`, error);
+            this.log.warn(`Cannot access path: "${pathArg}"`, error);
             outputDiv.textContent = `ls: cannot access '${pathArg}': ${error.message}`;
         }
 

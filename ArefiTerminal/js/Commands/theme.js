@@ -15,28 +15,25 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-
-const log = createLogger('theme');
-
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class Theme
  * @description Implements the 'theme' command to change the terminal's color theme.
  */
-class Theme {
+class Theme extends BaseCommand {
     static DESCRIPTION = 'Set the terminal color theme.';
 
     #setTheme;
     #getValidThemes;
-    #getRemoteVariable;
+    #getSystemVariable;
 
     constructor(services) {
+        super(services);
         // The environment service is used for getting/setting THEME variable.
-        this.#setTheme = services.setTheme;
-        this.#getRemoteVariable = services.getRemoteVariable;
+        this.#setTheme = this.services.setTheme;
+        this.#getSystemVariable = this.services.getSystemVariable;
         // The theme service is used for getting valid themes.
-        this.#getValidThemes = services.getValidThemes;
-        log.log('Initializing...');
+        this.#getValidThemes = this.services.getValidThemes;
     }
 
     static man() {
@@ -58,7 +55,7 @@ class Theme {
 
         if (!themeName) {
             // Get the current theme variable from the correct category.
-            const { value: currentTheme } = await this.#getRemoteVariable('THEME');
+            const { value: currentTheme } = await this.#getSystemVariable('THEME');
             output.textContent = `Current theme: ${currentTheme}\nAvailable themes: ${validThemes.join(', ')}`;
             return output;
         }
@@ -67,10 +64,10 @@ class Theme {
             // Set the environment variable. The Terminal component will listen for this change.
             this.#setTheme(themeName);
             output.textContent = `Theme set to '${themeName}'.`;
-            log.log(`Theme set to: ${themeName}`);
+            this.log.log(`Theme set to: ${themeName}`);
         } else {
             output.textContent = `Error: Invalid theme '${themeName}'.\nAvailable themes: ${validThemes.join(', ')}`;
-            log.warn(`Invalid theme name provided: ${themeName}`);
+            this.log.warn(`Invalid theme name provided: ${themeName}`);
         }
 
         return output;

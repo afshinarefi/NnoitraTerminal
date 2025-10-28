@@ -15,21 +15,21 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('login');
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class Login
  * @description Implements the 'login' command for user authentication.
  */
-class Login {
+class Login extends BaseCommand {
     static DESCRIPTION = 'Log in as a user.';
 
     #prompt; // Function to request user input
     #login;  // Function to perform login
 
     constructor(services) {
-        this.#prompt = services.prompt;
-        this.#login = services.login;
+        super(services);
+        this.#prompt = this.services.prompt;
+        this.#login = this.services.login;
     }
 
     static man() {
@@ -58,7 +58,7 @@ class Login {
     }
 
     async execute(args) {
-        log.log('Executing with args:', args);
+        this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         const username = args[1];
 
@@ -68,14 +68,14 @@ class Login {
         }
 
         // Always prompt for the password interactively for security reasons.
-        log.log('Prompting user for password.');
+        this.log.log('Prompting user for password.');
         const password = await this.#prompt('Password: ', { isSecret: true, allowHistory: false, allowAutocomplete: false });
 
         try {
             const loginResult = await this.#login(username, password);
             outputDiv.textContent = loginResult.message;
         } catch (error) {
-            log.error('Network or parsing error during login:', error);
+            this.log.error('Network or parsing error during login:', error);
             outputDiv.textContent = `Error: ${error.message}`;
         }
 

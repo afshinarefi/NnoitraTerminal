@@ -15,35 +15,29 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('alias');
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class Alias
  * @description Implements the 'alias' command to define or display command aliases.
  */
-class Alias {
+class Alias extends BaseCommand {
     static DESCRIPTION = 'Define or display aliases.';
 
     #getAliases;
     #setAliases;
 
     constructor(services) {
-        this.#getAliases = services.getAliases;
-        this.#setAliases = services.setAliases;
-        log.log('Initializing...');
+        super(services);
+        this.#getAliases = this.services.getAliases;
+        this.#setAliases = this.services.setAliases;
     }
 
     static man() {
         return `NAME\n       alias - Define or display command aliases.\n\nSYNOPSIS\n       alias [name[=value] ...]\n\nDESCRIPTION\n       The alias command allows you to create shortcuts for longer commands.\n\n       - With no arguments, 'alias' prints the list of all current aliases.\n       - With 'name=value', it defines an alias. The value can be a string in quotes.\n\nEXAMPLES\n       $ alias\n       (Displays all aliases.)\n\n       $ alias l="ls -l"\n       (Creates an alias 'l' for 'ls -l'.)`;
     }
 
-    async autocompleteArgs(currentArgs) { // Made async for consistency
-        // For now, no specific autocomplete for alias arguments.
-        return [];
-    }
-
     async execute(args) {
-        log.log('Executing with args:', args);
+        this.log.log('Executing with args:', args);
         const output = document.createElement('div');
         output.style.whiteSpace = 'pre-wrap';
 
@@ -52,7 +46,7 @@ class Alias {
         // If no arguments, display all aliases
         if (args.length <= 1) {
             if (Object.keys(aliases).length === 0) {
-                log.log('No aliases found to display.');
+                this.log.log('No aliases found to display.');
                 output.textContent = 'No aliases defined.';
             } else {
                 let aliasText = '';
@@ -60,7 +54,7 @@ class Alias {
                     aliasText += `alias ${name}='${value}'\n`;
                 }
                 output.textContent = aliasText.trim();
-                log.log('Displaying all defined aliases.');
+                this.log.log('Displaying all defined aliases.');
             }
             return output;
         }
@@ -85,9 +79,9 @@ class Alias {
         if (name) {
             aliases[name] = value;
             this.#setAliases(aliases);
-            log.log(`Created alias: ${name}='${value}'`);
+            this.log.log(`Created alias: ${name}='${value}'`);
         } else {
-            log.warn('Invalid alias format:', aliasString);
+            this.log.warn('Invalid alias format:', aliasString);
             output.textContent = `alias: invalid alias name`;
         }
 

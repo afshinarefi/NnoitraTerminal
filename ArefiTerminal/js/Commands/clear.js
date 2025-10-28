@@ -15,18 +15,18 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class Clear
  * @description Implements the 'clear' command, which clears the terminal output.
  */
-const log = createLogger('clear');
-class Clear {
+class Clear extends BaseCommand {
     static DESCRIPTION = 'Clear the terminal output.';
     #clearScreen;
 
     constructor(services) {
-        this.#clearScreen = services.clearScreen;
+        super(services);
+        this.#clearScreen = this.services.clearScreen;
     }
 
     /**
@@ -35,7 +35,7 @@ class Clear {
      * @returns {HTMLElement} An empty div, as this command produces no visible output.
      */
     execute(args) {
-        log.log('Executing clear command.');
+        this.log.log('Executing clear command.');
         this.#clearScreen();
         const outputDiv = document.createElement('div');
         // The command itself produces no output, so we return an empty element.
@@ -55,14 +55,6 @@ SYNOPSIS
 
 DESCRIPTION
        The clear command erases all output in the terminal window.`;
-    }
-
-    /**
-     * Returns array of possible argument completions
-     * @returns {string[]} Empty array since clear takes no arguments
-     */
-    async autocompleteArgs(currentArgs) {
-        return []; // Clear command takes no arguments.
     }
 }
 

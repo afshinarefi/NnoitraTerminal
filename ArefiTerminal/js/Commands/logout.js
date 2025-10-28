@@ -15,27 +15,23 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('logout');
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class Logout
  * @description Implements the 'logout' command to end a user session.
  */
-class Logout {
+class Logout extends BaseCommand {
     static DESCRIPTION = 'Log out of the current session.';
 
     #logout;
 
     constructor(services) {
-        this.#logout = services.logout;
+        super(services);
+        this.#logout = this.services.logout;
     }
 
     static man() {
         return `NAME\n       logout - Log out of the system.\n\nSYNOPSIS\n       logout\n\nDESCRIPTION\n       Ends the current user session.`;
-    }
-
-    async autocompleteArgs(currentArgs) { // Made async for consistency
-        return [];
     }
 
     /**
@@ -49,13 +45,13 @@ class Logout {
     }
 
     async execute(args) {
-        log.log('Executing...');
+        this.log.log('Executing...');
         const outputDiv = document.createElement('div');
         try {
             const result = await this.#logout();
             outputDiv.textContent = result.message;
         } catch (error) {
-            log.error('Network or parsing error during logout:', error);
+            this.log.error('Network or parsing error during logout:', error);
             outputDiv.textContent = `Error: ${error.message}`;
         }
 

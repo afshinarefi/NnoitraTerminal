@@ -15,24 +15,22 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
+import { BaseCommand } from '../Core/BaseCommand.js';
 import { parseAssignment } from '../Utils/ParseUtil.js';
-const log = createLogger('export');
-
 /**
  * @class Export
  * @description Implements the 'export' command to set or display user-modifiable environment variables.
  */
-class Export {
+class Export extends BaseCommand {
     static DESCRIPTION = 'Set or display user environment variables.';
 
     #exportVariable;
     #getAllCategorizedVariables;
 
     constructor(services) {
-        this.#exportVariable = services.exportVariable;
-        this.#getAllCategorizedVariables = services.getAllCategorizedVariables;
-        log.log('Initializing...');
+        super(services);
+        this.#exportVariable = this.services.exportVariable;
+        this.#getAllCategorizedVariables = this.services.getAllCategorizedVariables;
     }
 
     static man() {
@@ -81,7 +79,7 @@ class Export {
     }
 
     async execute(args) {
-        log.log('Executing with args:', args);
+        this.log.log('Executing with args:', args);
         const output = document.createElement('pre');
         const exportString = args.slice(1).join(' ');
 
@@ -104,15 +102,15 @@ class Export {
         if (newVar) {
             const success = await this.#exportVariable(newVar.name.toUpperCase(), newVar.value);
             if (success.success) {
-                log.log(`Set variable: ${newVar.name}='${newVar.value}'`);
+                this.log.log(`Set variable: ${newVar.name}='${newVar.value}'`);
                 // No output on successful export, which is standard shell behavior.
             } else {
                 output.textContent = `export: permission denied: \`${newVar.name}\` is a read-only variable.`;
-                log.warn(`Attempted to export non-userspace variable: ${newVar.name}`);
+                this.log.warn(`Attempted to export non-userspace variable: ${newVar.name}`);
             }
         } else {
             output.textContent = `export: invalid format. Use name="value"`;
-            log.warn('Invalid export format:', exportString);
+            this.log.warn('Invalid export format:', exportString);
         }
 
         return output;

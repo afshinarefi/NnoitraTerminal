@@ -15,21 +15,19 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class About
  * @description Implements the 'about' command, which displays personal information from a JSON file.
  */
-class About {
+class About extends BaseCommand {
     static DATA_FILE = new URL('../../data/about.json', import.meta.url);
     static DESCRIPTION = 'A short introduction.';
-    static #log = createLogger('about'); // Keep static for static methods
     #requestMedia;
 
     constructor(services) {
-        if (services) {
-            this.#requestMedia = services.requestMedia;
-        }
+        super(services);
+        this.#requestMedia = services.requestMedia;
     }
 
     static man() {
@@ -41,14 +39,14 @@ class About {
     }
 
     async execute(args) {
-        About.#log.log('Executing...');
+        this.log.log('Executing...');
         const outputDiv = document.createElement('div');
         try {
-            const response = await fetch(About.DATA_FILE);
+            const response = await fetch(About.DATA_FILE); // Use static property
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            About.#log.log('Successfully fetched about.json');
+            this.log.log('Successfully fetched about.json');
             const data = await response.json();
 
             for (const item of data) {
@@ -83,7 +81,7 @@ class About {
                 }
             }
         } catch (error) {
-            About.#log.error('Failed to fetch about information:', error);
+            this.log.error('Failed to fetch about information:', error);
             outputDiv.textContent = `Error: ${error.message}`;
         }
         return outputDiv;

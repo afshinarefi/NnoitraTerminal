@@ -15,23 +15,21 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('adduser');
-
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class AddUser
  * @description Implements the 'adduser' command for creating new users.
  */
-class AddUser {
+class AddUser extends BaseCommand {
     static DESCRIPTION = 'Add a new user.';
 
     #prompt;
     #addUser;
 
     constructor(services) {
-        this.#prompt = services.prompt;
-        this.#addUser = services.addUser;
-        log.log('Initializing...');
+        super(services);
+        this.#prompt = this.services.prompt;
+        this.#addUser = this.services.addUser;
     }
 
     static man() {
@@ -56,7 +54,7 @@ DESCRIPTION
     }
 
     async execute(args) {
-        log.log('Executing with args:', args);
+        this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         const username = args[1];
 
@@ -73,14 +71,14 @@ DESCRIPTION
 
         try {
             // Prompt for password
-            const password = await this.#prompt('Password: ', { isSecret: true, allowHistory: false });
+            const password = await this.#prompt('Password: ', { isSecret: true, allowHistory: false, allowAutocomplete: false });
             if (password === null) { // User cancelled with Ctrl+C
                 outputDiv.textContent = 'adduser: Operation cancelled.';
                 return outputDiv;
             }
 
             // Prompt for password confirmation
-            const confirmPassword = await this.#prompt('Confirm password: ', { isSecret: true, allowHistory: false });
+            const confirmPassword = await this.#prompt('Confirm password: ', { isSecret: true, allowHistory: false, allowAutocomplete: false });
             if (confirmPassword === null) { // User cancelled with Ctrl+C
                 outputDiv.textContent = 'adduser: Operation cancelled.';
                 return outputDiv;
@@ -101,7 +99,7 @@ DESCRIPTION
                 outputDiv.textContent = `adduser: ${result.message}`;
             }
         } catch (error) {
-            log.error('Error during user creation:', error);
+            this.log.error('Error during user creation:', error);
             outputDiv.textContent = 'adduser: An unexpected error occurred.';
         }
 

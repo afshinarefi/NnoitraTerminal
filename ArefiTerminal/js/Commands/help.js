@@ -15,13 +15,12 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('help');
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class Help
  * @description Implements the 'help' command, which lists all available commands and their descriptions.
  */
-class Help {
+class Help extends BaseCommand {
     /**
      * @static
      * @type {string}
@@ -37,8 +36,9 @@ class Help {
      * @param {CommandService} commandService - The CommandService instance to interact with.
      */
     constructor(services) {
-        this.#getCommandList = services.getCommandList;
-        this.#getCommandMeta = services.getCommandMeta;
+        super(services);
+        this.#getCommandList = this.services.getCommandList;
+        this.#getCommandMeta = this.services.getCommandMeta;
     }
 
     /**
@@ -51,24 +51,13 @@ class Help {
     }
 
     /**
-     * Provides autocomplete suggestions for the arguments of the help command.
-     * @static
-     * @param {string[]} currentArgs - The arguments typed so far.
-     * @param {object} services - A collection of all services.
-     * @returns {string[]} An array of suggested arguments.
-     */
-    async autocompleteArgs(currentArgs) { // Made async for consistency
-        return []; // Help command takes no arguments.
-    }
-
-    /**
      * Executes the help command.
      * Retrieves all registered commands and their descriptions from the CommandService and formats them for display.
      * @param {string[]} args - An array of arguments passed to the command (not used by this command).
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the list of commands.
      */
     async execute(args) {
-        log.log('Executing...');
+        this.log.log('Executing...');
         const outputDiv = document.createElement('div');
         // Use the injected service function to get the list of commands.
         const commands = await this.#getCommandList();

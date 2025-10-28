@@ -15,14 +15,12 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-
-const log = createLogger('view');
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class View
  * @description Implements the 'view' command, which displays an image or video file.
  */
-class View {
+class View extends BaseCommand {
     static DESCRIPTION = 'View a photo or video.';
 
     #getDirectoryContents;
@@ -30,10 +28,10 @@ class View {
     #requestMedia;
 
     constructor(services) {
-        this.#getDirectoryContents = services.getDirectoryContents;
-        this.#getPublicUrl = services.getPublicUrl;
-        this.#requestMedia = services.requestMedia;
-        log.log('Initializing...');
+        super(services);
+        this.#getDirectoryContents = this.services.getDirectoryContents;
+        this.#getPublicUrl = this.services.getPublicUrl;
+        this.#requestMedia = this.services.requestMedia;
     }
 
     static man() {
@@ -58,13 +56,13 @@ class View {
 
             return [...directories, ...files].sort();
         } catch (error) {
-            log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            this.log.warn(`Autocomplete failed for path "${pathArg}":`, error);
             return []; // On error, return no suggestions.
         }
     }
 
     async execute(args) {
-        log.log('Executing with args:', args);
+        this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         
         // Reconstruct the file path from all argument tokens.
@@ -72,14 +70,14 @@ class View {
         const filePathArg = commandArgs.join('').trim();
 
         if (!filePathArg) {
-            log.warn('Missing file operand.');
+            this.log.warn('Missing file operand.');
             outputDiv.textContent = 'view: missing file operand';
             return outputDiv;
         }
 
         const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
         if (!supportedFormats.test(filePathArg)) {
-            log.warn(`File is not a supported media type: "${filePathArg}"`);
+            this.log.warn(`File is not a supported media type: "${filePathArg}"`);
             outputDiv.textContent = `view: ${filePathArg}: Unsupported file type.`;
             return outputDiv;
         }

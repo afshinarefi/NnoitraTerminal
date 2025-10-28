@@ -15,18 +15,18 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('cat');
+import { BaseCommand } from '../Core/BaseCommand.js';
 
-export class Cat {
+export class Cat extends BaseCommand {
     static DESCRIPTION = 'Print the content of a FILE';
 
     #getFileContents;
     #getDirectoryContents;
 
     constructor(services) {
-        this.#getFileContents = services.getFileContents;
-        this.#getDirectoryContents = services.getDirectoryContents;
+        super(services);
+        this.#getFileContents = this.services.getFileContents;
+        this.#getDirectoryContents = this.services.getDirectoryContents;
     }
 
     static man() {
@@ -51,18 +51,18 @@ export class Cat {
 
             return [...directories, ...files].sort();
         } catch (error) {
-            log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            this.log.warn(`Autocomplete failed for path "${pathArg}":`, error);
             return []; // On error, return no suggestions.
         }
     }
 
     async execute(args) {
-        log.log('Executing with args:', args);
+        this.log.log('Executing with args:', args);
         const output = document.createElement('pre');
         const filePathArg = args.slice(1).join('').trim();
 
         if (!filePathArg) {
-            log.warn('Missing file operand.');
+            this.log.warn('Missing file operand.');
             output.textContent = 'cat: missing file operand';
             return output;
         }
@@ -71,7 +71,7 @@ export class Cat {
             const content = await this.#getFileContents(filePathArg);
             output.textContent = content;
         } catch (error) {
-            log.error(`Failed to get file content for "${filePathArg}":`, error);
+            this.log.error(`Failed to get file content for "${filePathArg}":`, error);
             output.textContent = `cat: ${filePathArg}: ${error.message}`;
         }
 

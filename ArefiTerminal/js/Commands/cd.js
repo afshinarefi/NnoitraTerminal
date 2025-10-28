@@ -15,21 +15,21 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('cd');
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class Cd
  * @description Implements the 'cd' command, which changes the current working directory using FilesystemService.
  */
-class Cd {
+class Cd extends BaseCommand {
     static DESCRIPTION = 'Change the current working directory.';
 
     #changeDirectory;
     #getDirectoryContents;
 
     constructor(services) {
-        this.#changeDirectory = services.changeDirectory;
-        this.#getDirectoryContents = services.getDirectoryContents;
+        super(services);
+        this.#changeDirectory = this.services.changeDirectory;
+        this.#getDirectoryContents = this.services.getDirectoryContents;
     }
 
     static man() {
@@ -41,7 +41,6 @@ class Cd {
 
         const lastSlashIndex = pathArg.lastIndexOf('/');
         const dirToList = lastSlashIndex === -1 ? '.' : pathArg.substring(0, lastSlashIndex + 1) || '/';
-        const prefix = lastSlashIndex === -1 ? '' : pathArg.substring(0, lastSlashIndex + 1);
 
         try {
             // Get all contents of the target directory.
@@ -51,13 +50,13 @@ class Cd {
             // For 'cd', we only suggest directories. AutocompleteService will handle filtering.
             return (contents.directories || []).map(dir => dir.name + '/').sort();
         } catch (error) {
-            log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            this.log.warn(`Autocomplete failed for path "${pathArg}":`, error);
             return []; // On error, return no suggestions.
         }
     }
 
     async execute(args) {
-        log.log('Executing with args:', args);
+        this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
         const pathArg = args.slice(1).join('').trim() || '/';
 

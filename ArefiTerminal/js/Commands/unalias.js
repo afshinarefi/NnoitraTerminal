@@ -15,22 +15,21 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('unalias');
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class Unalias
  * @description Implements the 'unalias' command to remove command aliases.
  */
-class Unalias {
+class Unalias extends BaseCommand {
     static DESCRIPTION = 'Remove an alias.';
 
     #getAliases;
     #setAliases;
 
     constructor(services) {
-        this.#getAliases = services.getAliases;
-        this.#setAliases = services.setAliases;
-        log.log('Initializing...');
+        super(services);
+        this.#getAliases = this.services.getAliases;
+        this.#setAliases = this.services.setAliases;
     }
 
     static man() {
@@ -49,12 +48,12 @@ class Unalias {
     }
 
     async execute(args) {
-        log.log('Executing with args:', args);
+        this.log.log('Executing with args:', args);
         const output = document.createElement('pre');
         const aliasName = args[1];
 
         if (!aliasName) {
-            log.warn('No alias name provided.');
+            this.log.warn('No alias name provided.');
             output.textContent = 'unalias: usage: unalias <alias_name>';
             return output;
         }
@@ -62,12 +61,12 @@ class Unalias {
         const aliases = await this.#getAliases();
 
         if (aliasName in aliases) {
-            log.log(`Removing alias: "${aliasName}"`);
+            this.log.log(`Removing alias: "${aliasName}"`);
             delete aliases[aliasName];
             this.#setAliases(aliases);
             output.textContent = `Alias '${aliasName}' removed.`;
         } else {
-            log.warn(`Alias not found: "${aliasName}"`);
+            this.log.warn(`Alias not found: "${aliasName}"`);
             output.textContent = `unalias: ${aliasName}: not found`;
         }
 

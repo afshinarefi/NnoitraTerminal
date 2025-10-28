@@ -15,13 +15,12 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('history');
+import { BaseCommand } from '../Core/BaseCommand.js';
 /**
  * @class History
  * @description Implements the 'history' command, which displays the command history.
  */
-class History {
+class History extends BaseCommand {
     /**
      * @static
      * @type {string}
@@ -35,7 +34,8 @@ class History {
      * Creates an instance of History.
      */
     constructor(services) {
-        this.#getHistory = services.getHistory;
+        super(services);
+        this.#getHistory = this.services.getHistory;
     }
 
     /**
@@ -48,24 +48,13 @@ class History {
     }
 
     /**
-     * Provides autocomplete suggestions for the arguments of the history command.
-     * @static
-     * @param {string[]} currentArgs - The arguments typed so far.
-     * @param {object} services - A collection of all services.
-     * @returns {string[]} An array of suggested arguments.
-     */
-    async autocompleteArgs(currentArgs) { // Made async for consistency
-        return []; // History command takes no arguments.
-    }
-
-    /**
      * Executes the history command.
      * Displays the command history.
      * @param {string[]} args - An array of arguments passed to the command (not used by this command).
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the history.
      */
     async execute(args) {
-        log.log('Executing...');
+        this.log.log('Executing...');
         const outputDiv = document.createElement('div');
         const historyData = await this.#getHistory();
 
