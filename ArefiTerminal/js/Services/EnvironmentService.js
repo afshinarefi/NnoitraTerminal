@@ -36,13 +36,6 @@ const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
  * @dispatches `VAR_UPDATE_DEFAULT_REQUEST` - To get a default value for a variable that doesn't exist yet.
  */
 class EnvironmentService extends BaseService{
-    static VAR_CATEGORIES = {
-        TEMP: 'TEMP',
-        LOCAL: 'LOCAL',
-        REMOTE: 'REMOTE',
-        USERSPACE: 'USERSPACE'
-    };
-
 	#tempVariables = new Map();
 
 	constructor(eventBus) {
@@ -57,8 +50,8 @@ class EnvironmentService extends BaseService{
             [EVENTS.VAR_GET_REMOTE_REQUEST]: this.#handleGetSystemVariable.bind(this),
             [EVENTS.VAR_GET_USERSPACE_REQUEST]: this.#handleGetUserSpaceVariable.bind(this),
             [EVENTS.ENV_RESET_REQUEST]: this.#handleReset.bind(this),
-            [EVENTS.VAR_SET_TEMP_REQUEST]: this.#handleSetVariableLocal.bind(this),
-            [EVENTS.VAR_SET_LOCAL_REQUEST]: this.#handleSetVariableLocal.bind(this),
+            [EVENTS.VAR_SET_TEMP_REQUEST]: this.#handleSetTempVariable.bind(this),
+            [EVENTS.VAR_SET_LOCAL_REQUEST]: this.#handleSetLocalVariable.bind(this),
             [EVENTS.VAR_SET_REMOTE_REQUEST]: this.#handleSetVariableRemote.bind(this),
             [EVENTS.VAR_SET_USERSPACE_REQUEST]: this.#handleSetVariableUserspace.bind(this),
             [EVENTS.VAR_EXPORT_REQUEST]: this.#handleExportVariable.bind(this),
@@ -82,7 +75,7 @@ class EnvironmentService extends BaseService{
             value = response.value;
             // The owner provides the default, and we set it here.
             if (value !== undefined) {
-                this.setVariable(upperKey, value, EnvironmentService.VAR_CATEGORIES.TEMP, false);
+                this.#setTempVariable(upperKey, value);
             }
         }
         respond({ value });
@@ -99,18 +92,18 @@ class EnvironmentService extends BaseService{
             value = response.value;
             // The owner provides the default, and we set it here.
             if (value !== undefined) {
-                this.setVariable(upperKey, value, EnvironmentService.VAR_CATEGORIES.LOCAL, true);
+                this.#setLocalVariable(upperKey, value);
             }
         }
         respond({ value });
     }
 
     async #handleGetUserSpaceVariable({ key, respond }) {
-        return this.#handleGetRemoteVariable({ key, respond }, EnvironmentService.VAR_CATEGORIES.USERSPACE);
+        return this.#handleGetRemoteVariable({ key, respond }, 'USERSPACE');
     }
 
     async #handleGetSystemVariable({ key, respond }) {
-        return this.#handleGetRemoteVariable({ key, respond }, EnvironmentService.VAR_CATEGORIES.REMOTE);
+        return this.#handleGetRemoteVariable({ key, respond }, 'REMOTE');
     }
 
 
@@ -128,7 +121,7 @@ class EnvironmentService extends BaseService{
             value = response.value;
             // The owner provides the default, and we set it here.
             if (value !== undefined) {
-                this.setVariable(upperKey, value, category, true);
+                this.#setRemoteVariable(upperKey, value, category);
             }
         }
         respond({ value });
@@ -153,52 +146,52 @@ class EnvironmentService extends BaseService{
         }
     }
 
-    #handleSetVariableTemp({ key, value }) {
-        this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.TEMP);
+    #handleSetTempVariable({ key, value }) {
+        this.#setTempVariable(key.toUpperCase(), value);
     }
 
-    #handleSetVariableLocal({ key, value }) {
-        this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.LOCAL);
+    #handleSetLocalVariable({ key, value }) {
+        this.#setLocalVariable(key.toUpperCase(), value);
     }
 
     #handleSetVariableRemote({ key, value }) {
-        this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.REMOTE);
+        this.#setRemoteVariable(key.toUpperCase(), value, 'REMOTE');
     }
 
     #handleSetVariableUserspace({ key, value }) {
-        this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.USERSPACE);
+        this.#setRemoteVariable(key.toUpperCase(), value, 'USERSPACE');
     }
 
-	setVariable(key, value, category, persist = true) {
-		const upperKey = key.toUpperCase();
-
+    #validate(key, value) {
 		if (typeof value === 'number') {
 			value = String(value);
 		}
 
-		if (!upperKey || (value !== null && typeof value !== 'string')) {
+		if (!key || (value !== null && typeof value !== 'string')) {
 			this.log.error("Invalid key or value provided to setVariable:", { key, value, type: typeof value });
-			return;
+			return false;
 		}
+        return true;
+    }
 
-        switch (category) {
-            case EnvironmentService.VAR_CATEGORIES.TEMP:
-                this.#tempVariables.set(upperKey, value);
-                break;
-            case EnvironmentService.VAR_CATEGORIES.LOCAL:
-                const localData = this.#readAllLocal();
-                localData[upperKey] = value;
-                this.#writeAllLocal(localData);
-                break;
-            case EnvironmentService.VAR_CATEGORIES.REMOTE:
-            case EnvironmentService.VAR_CATEGORIES.USERSPACE:
-                if (persist) {
-                    this.dispatch(EVENTS.VAR_PERSIST_REQUEST, { key: upperKey, value, category });
-                }
-                break;
-        }
+    #setTempVariable(key, value) {
+        if (!this.#validate(key, value)) return;
+        this.#tempVariables.set(key, value);
+    }
 
-	}
+    #setLocalVariable(key, value) {
+        if (!this.#validate(key, value)) return;
+        const localData = this.#readAllLocal();
+        localData[key] = value;
+        this.#writeAllLocal(localData);
+    }
+
+    #setRemoteVariable(key, value, category) {
+        if (!this.#validate(key, value)) return;
+        // The `persist` flag is now implicitly true for remote variables.
+        // Default values are handled by the getter methods and don't call this.
+        this.dispatch(EVENTS.VAR_PERSIST_REQUEST, { key, value, category });
+    }
 
 	async isReadOnly(key) {
 		const upperKey = key.toUpperCase();
@@ -212,15 +205,6 @@ class EnvironmentService extends BaseService{
 		return false; // Simplified: `export` command will now manage this logic.
 	}
 
-	exportVariable(key, value) {
-		const upperKey = key.toUpperCase();
-		if (this.isReadOnly(upperKey)) {
-			return false;
-		}
-		this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.USERSPACE);
-		return true;
-	}
-
     async #handleExportVariable({ key, value, respond }) {
         const upperKey = key.toUpperCase();
         const isReadonly = await this.isReadOnly(upperKey);
@@ -228,7 +212,7 @@ class EnvironmentService extends BaseService{
             respond({ success: false });
             return;
         }
-        this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.USERSPACE);
+        this.#setRemoteVariable(key, value, 'USERSPACE');
         respond({ success: true });
     }
 
@@ -258,10 +242,10 @@ class EnvironmentService extends BaseService{
         // This is now an async operation as it needs to fetch remote data.
         (async () => {
             const categorized = {
-                [EnvironmentService.VAR_CATEGORIES.TEMP]: {},
-                [EnvironmentService.VAR_CATEGORIES.LOCAL]: {},
-                [EnvironmentService.VAR_CATEGORIES.REMOTE]: {},
-                [EnvironmentService.VAR_CATEGORIES.USERSPACE]: {},
+                TEMP: {},
+                LOCAL: {},
+                REMOTE: {},
+                USERSPACE: {},
             };
 
             categorized.TEMP = Object.fromEntries(this.#tempVariables);
