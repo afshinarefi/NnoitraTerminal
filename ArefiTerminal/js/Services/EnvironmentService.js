@@ -16,7 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 // Define constants for hardcoded strings to improve maintainability.
+const TEMP_NAMESPACE = 'TEMP';
+const LOCAL_NAMESPACE = 'LOCAL';
 const ENV_NAMESPACE = 'ENV';
+const SYSTEM_NAMESPACE = 'SYSTEM';
+const USERSPACE_NAMESPACE = 'USERSPACE';
+
 
 /**
  * @class EnvironmentService
@@ -28,8 +33,8 @@ const ENV_NAMESPACE = 'ENV';
  * @listens for `ENV_RESET_REQUEST` - Responds to requests to reset the environment.
  * @listens for `USER_CHANGED_BROADCAST` - Clears local storage on logout.
  *
- * @dispatches `VAR_PERSIST_REQUEST` - When a variable needs to be saved remotely.
- * @dispatches `VAR_LOAD_REMOTE_REQUEST` - To get remote/userspace variables from AccountingService.
+ * @dispatches `VAR_SAVE_REMOTE_REQUEST` - When a variable needs to be saved remotely.
+ * @dispatches `VAR_LOAD_SYSTEM_REQUEST` - To get remote/userspace variables from AccountingService.
  * @dispatches `VAR_UPDATE_DEFAULT_REQUEST` - To get a default value for a variable that doesn't exist yet.
  */
 import { EVENTS } from '../Core/Events.js';
@@ -46,12 +51,12 @@ class EnvironmentService extends BaseService{
         return {
             [EVENTS.VAR_GET_TEMP_REQUEST]: this.#handleGetTempVariable.bind(this),
             [EVENTS.VAR_GET_LOCAL_REQUEST]: this.#handleGetLocalVariable.bind(this),
-            [EVENTS.VAR_GET_REMOTE_REQUEST]: this.#handleGetSystemVariable.bind(this),
+            [EVENTS.VAR_GET_SYSTEM_REQUEST]: this.#handleGetSystemVariable.bind(this),
             [EVENTS.VAR_GET_USERSPACE_REQUEST]: this.#handleGetUserSpaceVariable.bind(this),
             [EVENTS.ENV_RESET_REQUEST]: this.#handleReset.bind(this),
             [EVENTS.VAR_SET_TEMP_REQUEST]: this.#handleSetTempVariable.bind(this),
             [EVENTS.VAR_SET_LOCAL_REQUEST]: this.#handleSetLocalVariable.bind(this),
-            [EVENTS.VAR_SET_REMOTE_REQUEST]: this.#handleSetVariableRemote.bind(this),
+            [EVENTS.VAR_SET_SYSTEM_REQUEST]: this.#handleSetVariableRemote.bind(this),
             [EVENTS.VAR_SET_USERSPACE_REQUEST]: this.#handleSetVariableUserspace.bind(this),
             [EVENTS.VAR_EXPORT_REQUEST]: this.#handleExportVariable.bind(this),
             [EVENTS.USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this),
@@ -98,11 +103,11 @@ class EnvironmentService extends BaseService{
     }
 
     async #handleGetUserSpaceVariable({ key, respond }) {
-        return this.#handleGetRemoteVariable({ key, respond }, 'USERSPACE');
+        return this.#handleGetRemoteVariable({ key, respond }, USERSPACE_NAMESPACE);
     }
 
     async #handleGetSystemVariable({ key, respond }) {
-        return this.#handleGetRemoteVariable({ key, respond }, 'REMOTE');
+        return this.#handleGetRemoteVariable({ key, respond }, SYSTEM_NAMESPACE);
     }
 
 
@@ -135,11 +140,11 @@ class EnvironmentService extends BaseService{
     }
 
     #handleSetVariableRemote({ key, value }) {
-        this.#setRemoteVariable(key.toUpperCase(), value, 'REMOTE');
+        this.#setRemoteVariable(key.toUpperCase(), value, SYSTEM_NAMESPACE);
     }
 
     #handleSetVariableUserspace({ key, value }) {
-        this.#setRemoteVariable(key.toUpperCase(), value, 'USERSPACE');
+        this.#setRemoteVariable(key.toUpperCase(), value, USERSPACE_NAMESPACE);
     }
 
     #validate(key, value) {
@@ -168,7 +173,7 @@ class EnvironmentService extends BaseService{
         if (!this.#validate(key, value)) return;
         // The `persist` flag is now implicitly true for remote variables.
         // Default values are handled by the getter methods and don't call this.
-        this.dispatch(EVENTS.VAR_PERSIST_REQUEST, { key, value, category });
+        this.dispatch(EVENTS.VAR_SAVE_REMOTE_REQUEST, { key, value, category });
     }
 
 	async isReadOnly(key) {
@@ -178,7 +183,7 @@ class EnvironmentService extends BaseService{
         if (this.#tempVariables.has(upperKey)) return true; // Check temp variables first.
         const { value: localValue } = await this.request(EVENTS.LOAD_LOCAL_VAR, { key: upperKey, namespace: ENV_NAMESPACE });
         if (localValue !== undefined) return true; // Check local variables
-        const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: 'REMOTE' });
+        const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: SYSTEM_NAMESPACE });
         if (remoteData && remoteData.hasOwnProperty(upperKey)) return true;
 
 		return false; // Simplified: `export` command will now manage this logic.
@@ -191,7 +196,7 @@ class EnvironmentService extends BaseService{
             respond({ success: false });
             return;
         }
-        this.#setRemoteVariable(key, value, 'USERSPACE');
+        this.#setRemoteVariable(key, value, USERSPACE_NAMESPACE);
         respond({ success: true });
     }
 
@@ -208,15 +213,15 @@ class EnvironmentService extends BaseService{
             const categorized = {
                 TEMP: {},
                 LOCAL: {},
-                REMOTE: {},
+                SYSTEM: {},
                 USERSPACE: {},
             };
 
             categorized.TEMP = Object.fromEntries(this.#tempVariables);
             categorized.LOCAL = (await this.request(EVENTS.LOAD_LOCAL_VAR, { namespace: ENV_NAMESPACE })).value;
 
-            const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: 'ENV' });
-            Object.assign(categorized.REMOTE, remoteData.REMOTE || {});
+            const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: [SYSTEM_NAMESPACE, USERSPACE_NAMESPACE] });
+            Object.assign(categorized.SYSTEM, remoteData.SYSTEM || {});
             Object.assign(categorized.USERSPACE, remoteData.USERSPACE || {});
 
             respond({ categorized });

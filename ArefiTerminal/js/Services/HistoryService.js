@@ -97,7 +97,7 @@ class HistoryService extends BaseService{
         this.dispatch(EVENTS.COMMAND_PERSIST_REQUEST, { command: trimmedCommand });
 
         // Lazily get HISTSIZE and update the internal max size.
-        const { value } = await this.request(EVENTS.VAR_GET_REMOTE_REQUEST, { key: ENV_VARS.HISTSIZE });
+        const { value } = await this.request(EVENTS.VAR_GET_SYSTEM_REQUEST, { key: ENV_VARS.HISTSIZE });
         this.#updateMaxSize(value || DEFAULT_HISTSIZE);
 
         if (this.#history.length > this.#maxSize) {

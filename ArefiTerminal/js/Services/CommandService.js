@@ -86,7 +86,7 @@ class CommandService extends BaseService{
         this.register('alias', Alias, ['getAliases', 'setAliases']);
         this.register('unalias', Unalias, ['getAliases', 'setAliases']);
         this.register('export', Export, ['exportVariable', 'getAllCategorizedVariables']);
-        this.register('theme', Theme, ['getValidThemes', 'setTheme', 'getRemoteVariable']);
+        this.register('theme', Theme, ['getValidThemes', 'setTheme', 'getSystemVariable']);
         this.register('version', Version, []);
     }
 
@@ -234,7 +234,7 @@ class CommandService extends BaseService{
 
     async #handleGetAliasesRequest({ respond }) {
         try {
-            const { value } = await this.request(EVENTS.VAR_GET_REMOTE_REQUEST, { key: ENV_VARS.ALIAS });
+            const { value } = await this.request(EVENTS.VAR_GET_SYSTEM_REQUEST, { key: ENV_VARS.ALIAS });
             respond({ aliases: JSON.parse(value || '{}') });
         } catch (error) {
             this.log.error("Failed to get aliases:", error);
@@ -243,7 +243,7 @@ class CommandService extends BaseService{
     }
 
     #handleSetAliasesRequest({ aliases }) {
-        this.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key: ENV_VARS.ALIAS, value: JSON.stringify(aliases) });
+        this.dispatch(EVENTS.VAR_SET_SYSTEM_REQUEST, { key: ENV_VARS.ALIAS, value: JSON.stringify(aliases) });
     }
 
     async #handleGetCommandListRequest({ respond }) {

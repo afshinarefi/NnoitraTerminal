@@ -246,15 +246,18 @@ def handle_get_data(form_data):
     cursor = conn.cursor()
     data = {}
 
-    if category == 'ENV':
-        # Special case: fetch all environment-related categories
-        data = {'REMOTE': {}, 'USERSPACE': {}}
-        cursor.execute("SELECT category, key, value FROM user_data WHERE username = ? AND category IN ('REMOTE', 'USERSPACE')", (username,))
+    # Check if category is a comma-separated list
+    if ',' in category:
+        categories = [c.strip() for c in category.split(',') if c.strip()]
+        # Initialize data structure for multiple categories
+        for cat in categories:
+            data[cat] = {}
+        placeholders = ','.join('?' for _ in categories)
+        cursor.execute(f"SELECT category, key, value FROM user_data WHERE username = ? AND category IN ({placeholders})", (username, *categories))
         rows = cursor.fetchall()
         for row in rows:
             cat, key, value = row
-            if cat in data:
-                data[cat][key] = value
+            data[cat][key] = value
     else:
         # Fetch a single category
         order_by_clause = ""

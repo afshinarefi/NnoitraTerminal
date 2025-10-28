@@ -24,15 +24,13 @@ export const EVENTS = {
     ENV_RESET_REQUEST: 'environment-reset-request',
     VAR_GET_TEMP_REQUEST: 'variable-get-temp-request',
     VAR_GET_LOCAL_REQUEST: 'variable-get-local-request',
-    VAR_GET_REMOTE_REQUEST: 'variable-get-remote-request',
+    VAR_GET_SYSTEM_REQUEST: 'variable-get-system-request',
     VAR_GET_USERSPACE_REQUEST: 'variable-get-userspace-request',
-    VAR_UPDATE_DEFAULT_REQUEST: 'variable-update-default-request',
-    VAR_PERSIST_REQUEST: 'variable-persist-request',
-    VAR_LOAD_REMOTE_REQUEST: 'variable-load-remote-request',
     VAR_SET_TEMP_REQUEST: 'variable-set-temp-request',
     VAR_SET_LOCAL_REQUEST: 'variable-set-local-request',
-    VAR_SET_REMOTE_REQUEST: 'variable-set-remote-request',
+    VAR_SET_SYSTEM_REQUEST: 'variable-set-system-request',
     VAR_SET_USERSPACE_REQUEST: 'variable-set-userspace-request',
+    VAR_UPDATE_DEFAULT_REQUEST: 'variable-update-default-request',
     VAR_EXPORT_REQUEST: 'variable-export-request',
     SAVE_LOCAL_VAR: 'save-local-variable', // For LocalStorageService
     LOAD_LOCAL_VAR: 'load-local-variable', // For LocalStorageService
@@ -46,6 +44,8 @@ export const EVENTS = {
     PASSWORD_CHANGE_REQUEST: 'password-change-request',
     ADD_USER_REQUEST: 'add-user-request',
     IS_LOGGED_IN_REQUEST: 'is-logged-in-request',
+    VAR_SAVE_REMOTE_REQUEST: 'variable-save-remote-request',
+    VAR_LOAD_REMOTE_REQUEST: 'variable-load-remote-request',
 
     // History
     HISTORY_PREVIOUS_REQUEST: 'history-previous-request',

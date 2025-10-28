@@ -136,12 +136,12 @@ export class ServiceApiManager {
         this.#eventBus.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key, value });
     }
 
-    setRemoteVariable(key, value) {
-        this.#eventBus.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key, value });
+    setSystemVariable(key, value) {
+        this.#eventBus.dispatch(EVENTS.VAR_SET_SYSTEM_REQUEST, { key, value });
     }
 
-    async getRemoteVariable(key, value) {
-        const response = await this.#eventBus.request(EVENTS.VAR_GET_REMOTE_REQUEST, { key });
+    async getSystemVariable(key, value) {
+        const response = await this.#eventBus.request(EVENTS.VAR_GET_SYSTEM_REQUEST, { key });
         return response;
     }
 

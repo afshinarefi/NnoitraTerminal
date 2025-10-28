@@ -47,7 +47,7 @@ class AccountingService extends BaseService {
 
     get eventHandlers() {
         return {
-            [EVENTS.VAR_PERSIST_REQUEST]: this.#handlePersistVariable.bind(this),
+            [EVENTS.VAR_SAVE_REMOTE_REQUEST]: this.#handlePersistVariable.bind(this),
             [EVENTS.COMMAND_PERSIST_REQUEST]: this.#handlePersistCommand.bind(this),
             [EVENTS.HISTORY_LOAD_REQUEST]: this.#handleHistoryLoad.bind(this),
             [EVENTS.LOGIN_REQUEST]: this.#handleLoginRequest.bind(this),
@@ -244,17 +244,9 @@ class AccountingService extends BaseService {
         }
         try {
             const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
-            
-            // The backend expects 'ENV' to get all remote/userspace vars.
-            // Or a specific category like 'REMOTE' or 'USERSPACE'.
-            // If a specific key is requested, we still fetch the whole category from the backend
-            // as the backend is not optimized for single key lookups.
-            const fetchCategory = (category === 'REMOTE' || category === 'USERSPACE' || category === 'ENV')
-                ? category
-                : 'ENV'; // Default to fetching all if category is weird.
 
             const result = await this.#apiManager.post('get_data', {
-                category: fetchCategory,
+                category: category,
                 key: key // Pass key along, though backend might not use it for 'ENV'
             }, token);
 

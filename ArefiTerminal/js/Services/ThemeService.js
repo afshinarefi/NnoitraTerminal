@@ -51,7 +51,7 @@ class ThemeService extends BaseService{
 
     async start() {
         // After all services are initialized, request the initial theme value.
-        const { value } = await this.request(EVENTS.VAR_GET_REMOTE_REQUEST, { key: VAR_THEME });
+        const { value } = await this.request(EVENTS.VAR_GET_SYSTEM_REQUEST, { key: VAR_THEME });
         const theme = value || DEFAULT_THEME;
         this.applyTheme(theme);
     }
@@ -74,14 +74,14 @@ class ThemeService extends BaseService{
         this.log.log('User changed, re-evaluating theme.');
         // This will trigger the lazy-loading of remote variables if a user logged in,
         // or fall back to defaults if logged out, because the environment state has changed.
-        const { value } = await this.request(EVENTS.VAR_GET_REMOTE_REQUEST, { key: VAR_THEME });
+        const { value } = await this.request(EVENTS.VAR_GET_SYSTEM_REQUEST, { key: VAR_THEME });
         const theme = value || DEFAULT_THEME;
         this.applyTheme(theme, false); // Don't persist, just apply the current state.
     }
 
     #handleUpdateDefaultRequest({ key, respond }) {
         if (key === VAR_THEME) {
-            this.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key, value: DEFAULT_THEME });
+            this.dispatch(EVENTS.VAR_SET_SYSTEM_REQUEST, { key, value: DEFAULT_THEME });
             respond({ value: DEFAULT_THEME });
         }
     }
@@ -101,7 +101,7 @@ class ThemeService extends BaseService{
         }
 
         this.dispatch(EVENTS.THEME_CHANGED_BROADCAST, { themeName: finalTheme });
-        this.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key: VAR_THEME, value: finalTheme });
+        this.dispatch(EVENTS.VAR_SET_SYSTEM_REQUEST, { key: VAR_THEME, value: finalTheme });
         this.log.log(`Applied theme: ${finalTheme}`);
 
         // The theme command itself will handle persisting the variable.
