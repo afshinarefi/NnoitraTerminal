@@ -15,11 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { EVENTS } from '../Core/Events.js';
-import { BaseService } from '../Core/BaseService.js';
-
 // Define constants for hardcoded strings to improve maintainability.
-const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
+const ENV_NAMESPACE = 'ENV';
 
 /**
  * @class EnvironmentService
@@ -35,6 +32,8 @@ const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
  * @dispatches `VAR_LOAD_REMOTE_REQUEST` - To get remote/userspace variables from AccountingService.
  * @dispatches `VAR_UPDATE_DEFAULT_REQUEST` - To get a default value for a variable that doesn't exist yet.
  */
+import { EVENTS } from '../Core/Events.js';
+import { BaseService } from '../Core/BaseService.js';
 class EnvironmentService extends BaseService{
 	#tempVariables = new Map();
 
@@ -83,8 +82,8 @@ class EnvironmentService extends BaseService{
 
     async #handleGetLocalVariable({ key, respond }) {
         const upperKey = key.toUpperCase();
-        const localData = this.#readAllLocal();
-        let value = localData[upperKey];
+        const { value: storedValue } = await this.request(EVENTS.LOAD_LOCAL_VAR, { key: upperKey, namespace: ENV_NAMESPACE });
+        let value = storedValue;
 
         if (value === undefined) {
             this.log.log(`Local variable "${upperKey}" is undefined, requesting its default value.`);
@@ -127,25 +126,6 @@ class EnvironmentService extends BaseService{
         respond({ value });
     }
 
-    #readAllLocal() {
-        const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (!stored) return {};
-        try {
-            return JSON.parse(stored);
-        } catch (e) {
-            this.log.error('Failed to parse local environment variables from localStorage:', e);
-            return {};
-        }
-    }
-
-    #writeAllLocal(data) {
-        try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
-        } catch (e) {
-            this.log.error('Failed to write to localStorage:', e);
-        }
-    }
-
     #handleSetTempVariable({ key, value }) {
         this.#setTempVariable(key.toUpperCase(), value);
     }
@@ -181,9 +161,7 @@ class EnvironmentService extends BaseService{
 
     #setLocalVariable(key, value) {
         if (!this.#validate(key, value)) return;
-        const localData = this.#readAllLocal();
-        localData[key] = value;
-        this.#writeAllLocal(localData);
+        this.dispatch(EVENTS.SAVE_LOCAL_VAR, { key, value, namespace: ENV_NAMESPACE });
     }
 
     #setRemoteVariable(key, value, category) {
@@ -197,8 +175,9 @@ class EnvironmentService extends BaseService{
 		const upperKey = key.toUpperCase();
         // A variable is considered read-only if it exists in any category other than USERSPACE.
         // We must check each category.
-        if (this.#tempVariables.has(upperKey)) return true;
-        if (this.#readAllLocal().hasOwnProperty(upperKey)) return true;
+        if (this.#tempVariables.has(upperKey)) return true; // Check temp variables first.
+        const { value: localValue } = await this.request(EVENTS.LOAD_LOCAL_VAR, { key: upperKey, namespace: ENV_NAMESPACE });
+        if (localValue !== undefined) return true; // Check local variables
         const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: 'REMOTE' });
         if (remoteData && remoteData.hasOwnProperty(upperKey)) return true;
 
@@ -219,24 +198,9 @@ class EnvironmentService extends BaseService{
     async #handleUserChanged({ isLoggedIn }) {
         if (!isLoggedIn) {
             // On logout, we just need to clear local storage.
-            // Remote variables are gated by the AccountingService, so no client-side clearing is needed.
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            this.dispatch(EVENTS.RESET_LOCAL_VAR, { namespace: ENV_NAMESPACE }); // Clear all local storage
         }
     }
-
-	removeVariable(key) {
-        const upperKey = key.toUpperCase();
-        // This is now more complex. Let's assume it's for local/temp for now.
-        if (this.#tempVariables.has(upperKey)) {
-            this.#tempVariables.delete(upperKey);
-        }
-        const localData = this.#readAllLocal();
-        if (localData.hasOwnProperty(upperKey)) {
-            delete localData[upperKey];
-            this.#writeAllLocal(localData);
-        }
-        // Deleting remote variables would need a new event and backend endpoint.
-	}
 
     #handleGetAllCategorized({ respond }) {
         // This is now an async operation as it needs to fetch remote data.
@@ -249,7 +213,7 @@ class EnvironmentService extends BaseService{
             };
 
             categorized.TEMP = Object.fromEntries(this.#tempVariables);
-            categorized.LOCAL = this.#readAllLocal();
+            categorized.LOCAL = (await this.request(EVENTS.LOAD_LOCAL_VAR, { namespace: ENV_NAMESPACE })).value;
 
             const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: 'ENV' });
             Object.assign(categorized.REMOTE, remoteData.REMOTE || {});
@@ -261,7 +225,7 @@ class EnvironmentService extends BaseService{
 
 	#handleReset() {
 		this.log.log('Resetting environment service completely...');
-		localStorage.removeItem(LOCAL_STORAGE_KEY);
+		this.dispatch(EVENTS.RESET_LOCAL_VAR, { namespace: ENV_NAMESPACE }); // Clear all local storage
         this.#tempVariables.clear();
 	}
 }
