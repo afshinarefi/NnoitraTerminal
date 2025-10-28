@@ -22,22 +22,24 @@
 export const EVENTS = {
     // Environment
     ENV_RESET_REQUEST: 'environment-reset-request',
-    VAR_GET_TEMP_REQUEST: 'variable-get-temp-request',
+    GET_ALL_CATEGORIZED_VARS_REQUEST: 'get-all-categorized-vars-request',
+    VAR_EXPORT_REQUEST: 'variable-export-request',
     VAR_GET_LOCAL_REQUEST: 'variable-get-local-request',
     VAR_GET_SYSTEM_REQUEST: 'variable-get-system-request',
+    VAR_GET_TEMP_REQUEST: 'variable-get-temp-request',
     VAR_GET_USERSPACE_REQUEST: 'variable-get-userspace-request',
-    VAR_SET_TEMP_REQUEST: 'variable-set-temp-request',
     VAR_SET_LOCAL_REQUEST: 'variable-set-local-request',
     VAR_SET_SYSTEM_REQUEST: 'variable-set-system-request',
+    VAR_SET_TEMP_REQUEST: 'variable-set-temp-request',
     VAR_SET_USERSPACE_REQUEST: 'variable-set-userspace-request',
-    VAR_UPDATE_DEFAULT_REQUEST: 'variable-update-default-request',
-    VAR_EXPORT_REQUEST: 'variable-export-request',
-    SAVE_LOCAL_VAR: 'save-local-variable', // For LocalStorageService
+    
+    // Local Storage
     LOAD_LOCAL_VAR: 'load-local-variable', // For LocalStorageService
     RESET_LOCAL_VAR: 'reset-local-variable', // For LocalStorageService
-    GET_ALL_CATEGORIZED_VARS_REQUEST: 'get-all-categorized-vars-request',
-
+    SAVE_LOCAL_VAR: 'save-local-variable', // For LocalStorageService
+    
     // Accounting & User
+    VAR_UPDATE_DEFAULT_REQUEST: 'variable-update-default-request',
     USER_CHANGED_BROADCAST: 'user-changed-broadcast',
     LOGIN_REQUEST: 'login-request',
     LOGOUT_REQUEST: 'logout-request',
@@ -63,13 +65,11 @@ export const EVENTS = {
     GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST: 'get-autocomplete-suggestions-request',
     GET_ALIASES_REQUEST: 'get-aliases-request',
     SET_ALIASES_REQUEST: 'set-aliases-request',
-    GET_AUTOCOMPLETE_CONTEXT_REQUEST: 'get-autocomplete-context-request',
     GET_COMMAND_LIST_REQUEST: 'get-command-list-request',
     GET_COMMAND_META_REQUEST: 'get-command-meta-request',
 
     // Input
     INPUT_REQUEST: 'input-request',
-    INPUT_RESPONSE: 'input-response',
 
     // UI
     CLEAR_SCREEN_REQUEST: 'clear-screen-request',
@@ -82,11 +82,8 @@ export const EVENTS = {
     // Filesystem
     FS_CHANGE_DIRECTORY_REQUEST: 'fs-change-directory-request',
     FS_IS_DIR_REQUEST: 'fs-is-directory-request',
-    FS_IS_DIR_RESPONSE: 'fs-is-directory-response',
     FS_GET_DIRECTORY_CONTENTS_REQUEST: 'fs-get-directory-contents-request',
-    FS_GET_DIRECTORY_CONTENTS_RESPONSE: 'fs-get-directory-contents-response',
     FS_GET_FILE_CONTENTS_REQUEST: 'fs-get-file-contents-request',
-    FS_GET_FILE_CONTENTS_RESPONSE: 'fs-get-file-contents-response',
     FS_GET_PUBLIC_URL_REQUEST: 'fs-get-public-url-request',
     FS_RESOLVE_PATH_REQUEST: 'fs-resolve-path-request',
 };

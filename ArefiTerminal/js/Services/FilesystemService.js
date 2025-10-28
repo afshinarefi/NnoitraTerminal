@@ -29,10 +29,6 @@ const DEFAULT_PWD = '/';
  * @listens for `FS_AUTOCOMPLETE_PATH_REQUEST` - Responds with path suggestions.
  * @listens for `FS_GET_DIRECTORY_CONTENTS_REQUEST` - Responds with directory contents.
  * @listens for `FS_GET_FILE_CONTENTS_REQUEST` - Responds with file contents.
- *
- * @dispatches `FS_AUTOCOMPLETE_PATH_RESPONSE` - The path suggestions.
- * @dispatches `FS_GET_DIRECTORY_CONTENTS_RESPONSE` - The directory contents.
- * @dispatches `FS_GET_FILE_CONTENTS_RESPONSE` - The file contents.
  */
 class FilesystemService extends BaseService{
     #apiManager;

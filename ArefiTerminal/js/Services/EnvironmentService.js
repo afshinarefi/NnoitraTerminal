@@ -49,18 +49,18 @@ class EnvironmentService extends BaseService{
 
     get eventHandlers() {
         return {
-            [EVENTS.VAR_GET_TEMP_REQUEST]: this.#handleGetTempVariable.bind(this),
+            [EVENTS.ENV_RESET_REQUEST]: this.#handleReset.bind(this),
+            [EVENTS.GET_ALL_CATEGORIZED_VARS_REQUEST]: this.#handleGetAllCategorized.bind(this),
+            [EVENTS.USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this),
+            [EVENTS.VAR_EXPORT_REQUEST]: this.#handleExportVariable.bind(this),
             [EVENTS.VAR_GET_LOCAL_REQUEST]: this.#handleGetLocalVariable.bind(this),
             [EVENTS.VAR_GET_SYSTEM_REQUEST]: this.#handleGetSystemVariable.bind(this),
+            [EVENTS.VAR_GET_TEMP_REQUEST]: this.#handleGetTempVariable.bind(this),
             [EVENTS.VAR_GET_USERSPACE_REQUEST]: this.#handleGetUserSpaceVariable.bind(this),
-            [EVENTS.ENV_RESET_REQUEST]: this.#handleReset.bind(this),
-            [EVENTS.VAR_SET_TEMP_REQUEST]: this.#handleSetTempVariable.bind(this),
             [EVENTS.VAR_SET_LOCAL_REQUEST]: this.#handleSetLocalVariable.bind(this),
             [EVENTS.VAR_SET_SYSTEM_REQUEST]: this.#handleSetVariableRemote.bind(this),
+            [EVENTS.VAR_SET_TEMP_REQUEST]: this.#handleSetTempVariable.bind(this),
             [EVENTS.VAR_SET_USERSPACE_REQUEST]: this.#handleSetVariableUserspace.bind(this),
-            [EVENTS.VAR_EXPORT_REQUEST]: this.#handleExportVariable.bind(this),
-            [EVENTS.USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this),
-            [EVENTS.GET_ALL_CATEGORIZED_VARS_REQUEST]: this.#handleGetAllCategorized.bind(this)
         };
     }
 
