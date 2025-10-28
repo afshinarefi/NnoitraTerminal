@@ -76,6 +76,8 @@ class CommandLine extends BaseComponent {
   #isSecret = false;
   /** @private {string} #secretValue - Stores the actual value when in secret input mode. */
   #secretValue = '';
+  /** @private {boolean} #isEnabled - Flag to control if the input should accept changes. */
+  #isEnabled = true;
 
   /**
    * Creates an instance of CommandLine.
@@ -149,9 +151,11 @@ class CommandLine extends BaseComponent {
    * @param {KeyboardEvent} event - The keyboard event.
    */
   #onKeyDown(event) {
-    if (this.refs.prompt.readOnly) {
-      event.stopPropagation();
+    // If the input is not enabled, prevent all key actions and stop further processing.
+    // This ensures no input is registered and no default browser behavior occurs.
+    if (!this.#isEnabled) {
       event.preventDefault();
+      event.stopPropagation(); // Stop event from bubbling up to parent elements
       return;
     }
 
@@ -237,7 +241,7 @@ class CommandLine extends BaseComponent {
    * @param {boolean} isEnabled - True to enable, false to disable.
    */
   setEnabled(isEnabled) {
-    this.refs.prompt.readOnly = !isEnabled;
+    this.#isEnabled = isEnabled;
     if (isEnabled) {
       this.refs.prompt.placeholder = ''; // Clear any temporary message.
       this.setReadyIcon(); // Set icon back to ready state.
