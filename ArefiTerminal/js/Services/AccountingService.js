@@ -22,6 +22,8 @@ import { BaseService } from '../Core/BaseService.js';
 
 // Define constants for hardcoded strings to improve maintainability.
 const GUEST_USER = 'guest';
+const GUEST_STORAGE_PREFIX = 'GUEST_STORAGE_';
+const HISTORY_CATEGORY = 'HISTORY';
 
 /**
  * @class AccountingService
@@ -98,7 +100,7 @@ class AccountingService extends BaseService {
             const result = await this.#apiManager.post('logout', {}, token);
             if (result.status === 'success' || (result.status === 'error' && result.message.includes('expired'))) {
                 // Clear local session regardless of backend response if token is expired or logout is successful
-                this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: '' }); // Set new ones
+                this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: '' });
                 this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: GUEST_USER });
                 this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN_EXPIRY, value: '' });
                 this.dispatch(EVENTS.USER_CHANGED_BROADCAST);
@@ -176,13 +178,13 @@ class AccountingService extends BaseService {
     async #handlePersistVariable(payload) {
         const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
         if (user === GUEST_USER) {
-            this.dispatch(EVENTS.SAVE_LOCAL_VAR, { namespace: "guest_storage_" + payload.category, key: payload.key, value: payload.value });
+            this.dispatch(EVENTS.SAVE_LOCAL_VAR, { namespace: `${GUEST_STORAGE_PREFIX}${payload.category}`, key: payload.key, value: payload.value });
         } else {
             const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
             this.#apiManager.post('set_data', {
                 category: payload.category,
                 key: payload.key,
-                value: payload.value
+                value: payload.value,
             }, token);
         }
     }
@@ -191,11 +193,11 @@ class AccountingService extends BaseService {
         
         const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
         if (user === GUEST_USER) {
-            this.dispatch(EVENTS.SAVE_LOCAL_VAR, { namespace: "guest_storage_history", key: Date.now(), value: payload.command });
+            this.dispatch(EVENTS.SAVE_LOCAL_VAR, { namespace: `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}`, key: Date.now(), value: payload.command });
         } else {
             const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
             this.#apiManager.post('set_data', {
-                category: 'HISTORY',
+                category: HISTORY_CATEGORY,
                 key: Date.now(),
                 value: payload.command
             }, token);
@@ -205,14 +207,13 @@ class AccountingService extends BaseService {
     async #handleHistoryLoad({ respond }) {
         const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
         if (user === GUEST_USER) {
-            var guest_storage = await this.request(EVENTS.LOAD_LOCAL_VAR, { namespace: "guest_storage_history" });
-            guest_storage = guest_storage.value;
-            if (respond) respond({ history: guest_storage || [] });
+            const { value: guestHistory } = await this.request(EVENTS.LOAD_LOCAL_VAR, { namespace: `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}` });
+            if (respond) respond({ history: guestHistory || {} });
         } else {
             try {
                 const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
                 const result = await this.#apiManager.post('get_data', {
-                    category: 'HISTORY'
+                    category: HISTORY_CATEGORY
                 }, token);
 
                 this.log.log("History data received from server:", result);
@@ -233,7 +234,7 @@ class AccountingService extends BaseService {
             const categories = Array.isArray(category) ? category : [category];
 
             for (const cat of categories) {
-                const namespace = "guest_storage_" + cat;
+                const namespace = `${GUEST_STORAGE_PREFIX}${cat}`;
                 // If a key is provided, we are fetching a single variable.
                 // If no key, we are fetching all variables for the category (or categories).
                 const { value } = await this.request(EVENTS.LOAD_LOCAL_VAR, { namespace, key });
