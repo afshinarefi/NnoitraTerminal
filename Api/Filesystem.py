@@ -20,13 +20,27 @@ import json
 import urllib.parse
 from pathlib import PurePath
 
+SERVER_CONF_PATH = './server.conf'
+
 # --- Constants ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-WEBSITE_ROOT = os.path.dirname(SCRIPT_DIR) # This should be /var/www/html
-FS_ROOT = os.path.join(WEBSITE_ROOT, 'fs') # The absolute path to the virtual filesystem root.
+WEBSITE_ROOT = os.path.dirname(SCRIPT_DIR)  # This should be /var/www/html
 
+def get_fs_root_from_config():
+    """Reads the readonly-filesystem-location from server.conf."""
+    default_fs_path = '../fs'
+    try:
+        with open(SERVER_CONF_PATH, 'r') as f:
+            for line in f:
+                if line.strip().startswith('readonly-filesystem-location'):
+                    _, raw_value = line.split('=', 1)
+                    value = raw_value.strip().strip('"') # Remove whitespace and surrounding quotes
+                    return os.path.abspath(os.path.join(SCRIPT_DIR, value))
+    except FileNotFoundError:
+        pass  # Config file not found, will use default
+    return os.path.abspath(os.path.join(SCRIPT_DIR, default_fs_path))
 
-# --- Utility Functions ---
+FS_ROOT = get_fs_root_from_config()
 
 def get_query_param(params, name, default=''):
     """Safely gets a query parameter from the CGI environment."""

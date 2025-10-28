@@ -24,11 +24,31 @@ from datetime import datetime, timedelta, timezone
 from email import message_from_string
 from urllib.parse import parse_qs
 
+SERVER_CONF_PATH = './server.conf'
+
 # Construct the absolute path to the database file to ensure it's always in the correct location.
+# SCRIPT_DIR is /var/www/html/Api
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
-DB_DIR = os.path.join(PROJECT_ROOT, 'db')
-DB_FILE = os.path.join(DB_DIR, 'users.db')
+
+def get_db_file_from_config():
+    """Reads the database-location from server.conf."""
+    # Default path if not found in config, relative to SCRIPT_DIR
+    default_db_path_relative_to_api = '../db/users.db'
+    resolved_default_db_path = os.path.abspath(os.path.join(SCRIPT_DIR, default_db_path_relative_to_api))
+
+    try:
+        with open(SERVER_CONF_PATH, 'r') as f:
+            for line in f:
+                if line.strip().startswith('database-location'):
+                    _, raw_value = line.split('=', 1)
+                    value = raw_value.strip().strip('"') # Remove whitespace and surrounding quotes
+                    return os.path.abspath(os.path.join(SCRIPT_DIR, value))
+    except FileNotFoundError:
+        pass  # Config file not found, will use default
+    return resolved_default_db_path
+
+DB_FILE = get_db_file_from_config()
+DB_DIR = os.path.dirname(DB_FILE) # Derive DB_DIR from the resolved DB_FILE
 
 def init_db():
     """Initializes the database and creates tables if they don't exist."""
