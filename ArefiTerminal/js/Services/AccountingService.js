@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
 import { ApiManager } from '../Managers/ApiManager.js';
 import { ENV_VARS } from '../Core/Variables.js';
 import { EVENTS } from '../Core/Events.js';
@@ -38,29 +37,27 @@ const GUEST_USER = 'guest';
  * @dispatches `environment-reset-request` - To reset the environment service.
  */
 class AccountingService extends BaseService {
-    #eventBus;
     #apiManager;
 
     constructor(eventBus, config = {}) {
         super(eventBus);
-        this.#eventBus = eventBus;
         this.#apiManager = new ApiManager(config.apiUrl);
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
 
-    #registerListeners() {
-        // Listen for responses to the initial variable check
-        this.#eventBus.listen(EVENTS.VAR_PERSIST_REQUEST, (payload) => this.#handlePersistVariable(payload), this.constructor.name);
-        this.#eventBus.listen(EVENTS.COMMAND_PERSIST_REQUEST, (payload) => this.#handlePersistCommand(payload), this.constructor.name);
-        this.#eventBus.listen(EVENTS.HISTORY_LOAD_REQUEST, (payload) => this.#handleHistoryLoad(payload), this.constructor.name);
-        this.#eventBus.listen(EVENTS.LOGIN_REQUEST, this.#handleLoginRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.LOGOUT_REQUEST, this.#handleLogoutRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.PASSWORD_CHANGE_REQUEST, this.#handleChangePasswordRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.ADD_USER_REQUEST, this.#handleAddUserRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_LOAD_REMOTE_REQUEST, this.#handleLoadRemoteVariables.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.IS_LOGGED_IN_REQUEST, this.#handleIsLoggedInRequest.bind(this), this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.VAR_PERSIST_REQUEST]: this.#handlePersistVariable.bind(this),
+            [EVENTS.COMMAND_PERSIST_REQUEST]: this.#handlePersistCommand.bind(this),
+            [EVENTS.HISTORY_LOAD_REQUEST]: this.#handleHistoryLoad.bind(this),
+            [EVENTS.LOGIN_REQUEST]: this.#handleLoginRequest.bind(this),
+            [EVENTS.LOGOUT_REQUEST]: this.#handleLogoutRequest.bind(this),
+            [EVENTS.PASSWORD_CHANGE_REQUEST]: this.#handleChangePasswordRequest.bind(this),
+            [EVENTS.ADD_USER_REQUEST]: this.#handleAddUserRequest.bind(this),
+            [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [EVENTS.VAR_LOAD_REMOTE_REQUEST]: this.#handleLoadRemoteVariables.bind(this),
+            [EVENTS.IS_LOGGED_IN_REQUEST]: this.#handleIsLoggedInRequest.bind(this),
+        };
     }
 
     async isLoggedIn() {

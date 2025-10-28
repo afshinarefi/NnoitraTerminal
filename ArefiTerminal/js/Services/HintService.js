@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { EVENTS } from '../Core/Events.js';
-import { createLogger } from '../Managers/LogManager.js';
 import { BaseService } from '../Core/BaseService.js';
 
 /**
@@ -29,14 +28,11 @@ import { BaseService } from '../Core/BaseService.js';
  * @listens for `command-execute-broadcast` - Hides the hint box.
  */
 class HintService extends BaseService{
-    #eventBus;
     #view = null; // The HintBox component instance
     #resizeObserver;
 
     constructor(eventBus) {
         super(eventBus);
-        this.#eventBus = eventBus;
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
 
@@ -55,16 +51,11 @@ class HintService extends BaseService{
         this.#resizeObserver.observe(this.#view);
     }
 
-    #registerListeners() {
-        // Listen for autocomplete suggestions to display them
-        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_BROADCAST, (payload) => { // eslint-disable-line no-unused-vars
-            this.#handleShowHints(payload);
-        }, this.constructor.name);
-
-        // Listen for command submission to hide the hints
-        this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, () => { // eslint-disable-line no-unused-vars
-            this.#handleHideHints();
-        }, this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.AUTOCOMPLETE_BROADCAST]: this.#handleShowHints.bind(this),
+            [EVENTS.COMMAND_EXECUTE_BROADCAST]: this.#handleHideHints.bind(this)
+        };
     }
 
     /**

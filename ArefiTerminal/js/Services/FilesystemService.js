@@ -17,7 +17,6 @@
  */
 import { ENV_VARS } from '../Core/Variables.js';
 import { EVENTS } from '../Core/Events.js';
-import { createLogger } from '../Managers/LogManager.js';
 import { ApiManager } from '../Managers/ApiManager.js';
 import { BaseService } from '../Core/BaseService.js';
 
@@ -36,24 +35,23 @@ const DEFAULT_PWD = '/';
  * @dispatches `FS_GET_FILE_CONTENTS_RESPONSE` - The file contents.
  */
 class FilesystemService extends BaseService{
-    #eventBus;
     #apiManager;
 
     constructor(eventBus, config = {}) {
         super(eventBus);
-        this.#eventBus = eventBus;
         this.#apiManager = new ApiManager(config.apiUrl);
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
 
-    #registerListeners() {
-        this.#eventBus.listen(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, this.#handleGetDirectoryContents.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, this.#handleGetFileContents.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.FS_CHANGE_DIRECTORY_REQUEST, this.#handleChangeDirectory.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.FS_RESOLVE_PATH_REQUEST, this.#handleResolvePathRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.FS_GET_PUBLIC_URL_REQUEST, this.#handleGetPublicUrl.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.FS_GET_FILE_CONTENTS_REQUEST]: this.#handleGetFileContents.bind(this),
+            [EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST]: this.#handleGetDirectoryContents.bind(this),
+            [EVENTS.FS_CHANGE_DIRECTORY_REQUEST]: this.#handleChangeDirectory.bind(this),
+            [EVENTS.FS_RESOLVE_PATH_REQUEST]: this.#handleResolvePathRequest.bind(this),
+            [EVENTS.FS_GET_PUBLIC_URL_REQUEST]: this.#handleGetPublicUrl.bind(this),
+            [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this)
+        };
     }
 
     async #handleGetDirectoryContents({ path, respond }) {

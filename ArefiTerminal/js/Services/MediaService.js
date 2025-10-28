@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { EVENTS } from '../Core/Events.js';
-import { createLogger } from '../Managers/LogManager.js';
 import { Media } from '../Components/Media.js';
 import { BaseService } from '../Core/BaseService.js';
 
@@ -25,17 +24,15 @@ import { BaseService } from '../Core/BaseService.js';
  * @description A service responsible for creating media elements and managing their side effects, like scrolling.
  */
 export class MediaService extends BaseService{
-    #eventBus;
 
     constructor(eventBus) {
         super(eventBus);
-        this.#eventBus = eventBus;
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
-
-    #registerListeners() {
-        this.#eventBus.listen(EVENTS.MEDIA_REQUEST, this.#handleMediaRequest.bind(this), this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.MEDIA_REQUEST]: this.#handleMediaRequest.bind(this)
+        };
     }
 
     #handleMediaRequest({ src, respond }) {

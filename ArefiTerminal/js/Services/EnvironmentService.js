@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from '../Core/Events.js';
 import { BaseService } from '../Core/BaseService.js';
 
@@ -44,29 +43,28 @@ class EnvironmentService extends BaseService{
         USERSPACE: 'USERSPACE'
     };
 
-    #eventBus;
 	#tempVariables = new Map();
 
 	constructor(eventBus) {
         super(eventBus);
-        this.#eventBus = eventBus;
-        this.#registerListeners();
 		this.log.log('Initializing...');
 	}
 
-    #registerListeners() {
-        this.#eventBus.listen(EVENTS.VAR_GET_TEMP_REQUEST, (payload) => this.#handleGetTempVariable(payload), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_GET_LOCAL_REQUEST, (payload) => this.#handleGetLocalVariable(payload), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_GET_REMOTE_REQUEST, (payload) => this.#handleGetRemoteVariable(payload, EnvironmentService.VAR_CATEGORIES.REMOTE), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_GET_USERSPACE_REQUEST, (payload) => this.#handleGetRemoteVariable(payload, EnvironmentService.VAR_CATEGORIES.USERSPACE), this.constructor.name);
-        this.#eventBus.listen(EVENTS.ENV_RESET_REQUEST, () => this.reset(), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_SET_TEMP_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.TEMP), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_SET_LOCAL_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.LOCAL), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_SET_REMOTE_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.REMOTE), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_SET_USERSPACE_REQUEST, (payload) => this.setVariable(payload.key, payload.value, EnvironmentService.VAR_CATEGORIES.USERSPACE), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_EXPORT_REQUEST, this.#handleExportVariable.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.USER_CHANGED_BROADCAST, this.#handleUserChanged.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.GET_ALL_CATEGORIZED_VARS_REQUEST, this.#handleGetAllCategorized.bind(this), this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.VAR_GET_TEMP_REQUEST]: this.#handleGetTempVariable.bind(this),
+            [EVENTS.VAR_GET_LOCAL_REQUEST]: this.#handleGetLocalVariable.bind(this),
+            [EVENTS.VAR_GET_REMOTE_REQUEST]: this.#handleGetSystemVariable.bind(this),
+            [EVENTS.VAR_GET_USERSPACE_REQUEST]: this.#handleGetUserSpaceVariable.bind(this),
+            [EVENTS.ENV_RESET_REQUEST]: this.#handleReset.bind(this),
+            [EVENTS.VAR_SET_TEMP_REQUEST]: this.#handleSetVariableLocal.bind(this),
+            [EVENTS.VAR_SET_LOCAL_REQUEST]: this.#handleSetVariableLocal.bind(this),
+            [EVENTS.VAR_SET_REMOTE_REQUEST]: this.#handleSetVariableRemote.bind(this),
+            [EVENTS.VAR_SET_USERSPACE_REQUEST]: this.#handleSetVariableUserspace.bind(this),
+            [EVENTS.VAR_EXPORT_REQUEST]: this.#handleExportVariable.bind(this),
+            [EVENTS.USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this),
+            [EVENTS.GET_ALL_CATEGORIZED_VARS_REQUEST]: this.#handleGetAllCategorized.bind(this)
+        };
     }
 
 	start() {
@@ -107,6 +105,15 @@ class EnvironmentService extends BaseService{
         respond({ value });
     }
 
+    async #handleGetUserSpaceVariable({ key, respond }) {
+        return this.#handleGetRemoteVariable({ key, respond }, EnvironmentService.VAR_CATEGORIES.USERSPACE);
+    }
+
+    async #handleGetSystemVariable({ key, respond }) {
+        return this.#handleGetRemoteVariable({ key, respond }, EnvironmentService.VAR_CATEGORIES.REMOTE);
+    }
+
+
     async #handleGetRemoteVariable({ key, respond }, category) {
         const upperKey = key.toUpperCase();
         let value;
@@ -144,6 +151,22 @@ class EnvironmentService extends BaseService{
         } catch (e) {
             this.log.error('Failed to write to localStorage:', e);
         }
+    }
+
+    #handleSetVariableTemp({ key, value }) {
+        this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.TEMP);
+    }
+
+    #handleSetVariableLocal({ key, value }) {
+        this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.LOCAL);
+    }
+
+    #handleSetVariableRemote({ key, value }) {
+        this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.REMOTE);
+    }
+
+    #handleSetVariableUserspace({ key, value }) {
+        this.setVariable(key, value, EnvironmentService.VAR_CATEGORIES.USERSPACE);
     }
 
 	setVariable(key, value, category, persist = true) {
@@ -252,7 +275,7 @@ class EnvironmentService extends BaseService{
         })();
     }
 
-	reset() {
+	#handleReset() {
 		this.log.log('Resetting environment service completely...');
 		localStorage.removeItem(LOCAL_STORAGE_KEY);
         this.#tempVariables.clear();

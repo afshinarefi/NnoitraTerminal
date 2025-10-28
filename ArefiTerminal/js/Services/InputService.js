@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { EVENTS } from '../Core/Events.js';
-import { createLogger } from '../Managers/LogManager.js';
 import { BaseService } from '../Core/BaseService.js';
 
 /**
@@ -35,8 +34,6 @@ import { BaseService } from '../Core/BaseService.js';
  * @dispatches `autocomplete-request` - When the user requests autocomplete.
  */
 class InputService extends BaseService{
-    #eventBus;
-    #eventNames;
     #view = null; // The CommandLine component instance
     #inputBuffer = '';
     #isSecret = false;
@@ -52,8 +49,6 @@ class InputService extends BaseService{
 
     constructor(eventBus) {
         super(eventBus);
-        this.#eventBus = eventBus;
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
 
@@ -74,10 +69,12 @@ class InputService extends BaseService{
         this.#view.setEnabled(false);
     }
 
-    #registerListeners() {
-        this.#eventBus.listen(EVENTS.INPUT_REQUEST, this.#handleInputRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.HISTORY_INDEXED_RESPONSE, this.#handleHistoryResponse.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_BROADCAST, this.#handleAutocompleteBroadcast.bind(this), this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.INPUT_REQUEST]: this.#handleInputRequest.bind(this),
+            [EVENTS.HISTORY_INDEXED_RESPONSE]: this.#handleHistoryResponse.bind(this),
+            [EVENTS.AUTOCOMPLETE_BROADCAST]: this.#handleAutocompleteBroadcast.bind(this)
+        };
     }
 
     // --- Event Handlers ---

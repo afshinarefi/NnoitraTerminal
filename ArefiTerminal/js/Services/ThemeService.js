@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from '../Core/Events.js';
 import { BaseService } from '../Core/BaseService.js';
 
@@ -34,13 +33,10 @@ const DEFAULT_THEME = 'green';
  */
 class ThemeService extends BaseService{
     static VALID_THEMES = ['green', 'yellow', 'orange', 'red'];
-    #eventBus;
     #view = null; // The Terminal component instance
 
     constructor(eventBus) {
         super(eventBus);
-        this.#eventBus = eventBus;
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
 
@@ -60,11 +56,13 @@ class ThemeService extends BaseService{
         this.applyTheme(theme);
     }
 
-    #registerListeners() {
-        this.#eventBus.listen(EVENTS.SET_THEME_REQUEST, this.#handleSetThemeRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.GET_VALID_THEMES_REQUEST, this.#handleGetValidThemesRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.USER_CHANGED_BROADCAST, this.#handleUserChanged.bind(this), this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.SET_THEME_REQUEST]: this.#handleSetThemeRequest.bind(this),
+            [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [EVENTS.GET_VALID_THEMES_REQUEST]: this.#handleGetValidThemesRequest.bind(this),
+            [EVENTS.USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this)
+        };
     }
 
     #handleSetThemeRequest({ themeName, respond }) {

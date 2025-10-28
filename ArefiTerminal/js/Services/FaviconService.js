@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from '../Core/Events.js';
 import { BaseService } from '../Core/BaseService.js';
 
@@ -28,13 +27,10 @@ import { BaseService } from '../Core/BaseService.js';
  */
 class FaviconService extends BaseService{
     static #SIZES = [16, 32, 64, 128, 180]; // 180 for apple-touch-icon
-    #eventBus;
     #view = null; // The Terminal component instance
 
     constructor(eventBus) {
         super(eventBus);
-        this.#eventBus = eventBus;
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
 
@@ -52,8 +48,10 @@ class FaviconService extends BaseService{
         // that this service listens to. No need to call renderFavicon() directly.
     }
 
-    #registerListeners() {
-        this.#eventBus.listen(EVENTS.THEME_CHANGED_BROADCAST, this.#renderFavicon.bind(this));
+    get eventHandlers() {
+        return {
+            [EVENTS.THEME_CHANGED_BROADCAST]: this.#renderFavicon.bind(this)
+        };
     }
 
     /**

@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from '../Core/Events.js';
 import { ENV_VARS } from '../Core/Variables.js';
 import { BaseService } from '../Core/BaseService.js';
@@ -38,30 +37,34 @@ const DEFAULT_HISTSIZE = '1000';
  * @dispatches `VAR_SET_REQUEST` - To set the HISTSIZE variable.
  */
 class HistoryService extends BaseService{
-    #eventBus;
     #history = [];
     #cursorIndex = 0;
     #maxSize = parseInt(DEFAULT_HISTSIZE, 10);
 
     constructor(eventBus) {
         super(eventBus);
-        this.#eventBus = eventBus;
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
 
-    #registerListeners() {
-        this.#eventBus.listen(EVENTS.HISTORY_PREVIOUS_REQUEST, () => this.#handleGetPrevious(), this.constructor.name);
-        this.#eventBus.listen(EVENTS.HISTORY_NEXT_REQUEST, () => this.#handleGetNext(), this.constructor.name);
-        this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, (payload) => this.addCommand(payload.commandString), this.constructor.name);
-        this.#eventBus.listen(EVENTS.USER_CHANGED_BROADCAST, this.#handleUserChanged.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.HISTORY_GET_ALL_REQUEST, this.#handleGetAllHistory.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.HISTORY_PREVIOUS_REQUEST]: this.#handleGetPrevious.bind(this),
+            [EVENTS.HISTORY_NEXT_REQUEST]: this.#handleGetNext.bind(this),
+            [EVENTS.COMMAND_EXECUTE_BROADCAST]: this.#handleAddCommand.bind(this),
+            [EVENTS.HISTORY_GET_ALL_REQUEST]: this.#handleGetAllHistory.bind(this),
+            [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [EVENTS.USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this)
+        };
     }
 
     async start() {
         // No startup logic needed anymore. HISTSIZE will be resolved on first use.
     }
+
+    #handleAddCommand({ commandString }) {
+        this.addCommand(commandString);
+    }
+
 
     #handleUpdateDefaultRequest({ key, respond }) {
         if (key === ENV_VARS.HISTSIZE) {

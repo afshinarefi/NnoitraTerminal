@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { EVENTS } from '../Core/Events.js';
-import { createLogger } from '../Managers/LogManager.js';
 import { ENV_VARS } from '../Core/Variables.js';
 import { TerminalItem } from '../Components/TerminalItem.js';
 import { fetchTextFile } from '../Utils/FileUtil.js';
@@ -37,15 +36,12 @@ const DEFAULT_HOST = window.location.hostname;
  */
 class TerminalService extends BaseService{
     static MOTD_FILE = new URL('../../data/motd.txt', import.meta.url);
-    #eventBus;
     #view = null; // The Terminal component instance
     #nextId = 1;
     #currentItem = null; // The currently pending terminal item
 
     constructor(eventBus) {
         super(eventBus);
-        this.#eventBus = eventBus;
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
 
@@ -56,12 +52,13 @@ class TerminalService extends BaseService{
     setView(view) {
         this.#view = view;
     }
-
-    #registerListeners() {
-        this.#eventBus.listen(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST, this.#runCommandLoop.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST, this.#handleScrollToBottom.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.CLEAR_SCREEN_REQUEST, this.#handleClear.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [EVENTS.CLEAR_SCREEN_REQUEST]: this.#handleClear.bind(this),
+            [EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST]: this.#handleScrollToBottom.bind(this),
+            [EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST]: this.#runCommandLoop.bind(this)
+        };
     }
 
     /**

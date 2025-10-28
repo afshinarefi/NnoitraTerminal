@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { EVENTS } from '../Core/Events.js';
-import { createLogger } from '../Managers/LogManager.js';
 import { getLongestCommonPrefix } from '../Utils/StringUtil.js';
 import { tokenize } from '../Utils/Tokenizer.js';
 import { BaseService } from '../Core/BaseService.js';
@@ -29,17 +28,16 @@ import { BaseService } from '../Core/BaseService.js';
  * @dispatches `AUTOCOMPLETE_BROADCAST` - The final list of suggestions.
  */
 export class AutocompleteService extends BaseService{
-    #eventBus; // EventBus instance
 
     constructor(eventBus) {
         super(eventBus);
-        this.#eventBus = eventBus;
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
 
-    #registerListeners() {
-        this.#eventBus.listen(EVENTS.AUTOCOMPLETE_REQUEST, this.#handleAutocompleteRequest.bind(this), this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.AUTOCOMPLETE_REQUEST]: this.#handleAutocompleteRequest.bind(this)
+        };
     }
 
     async #handleAutocompleteRequest({ beforeCursorText, afterCursorText }) {

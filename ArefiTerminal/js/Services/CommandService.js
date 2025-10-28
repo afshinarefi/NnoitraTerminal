@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { createLogger } from '../Managers/LogManager.js';
 import { EVENTS } from '../Core/Events.js';
 import { ENV_VARS } from '../Core/Variables.js';
 import { ServiceApiManager } from '../Managers/ServiceApiManager.js';
@@ -56,17 +55,14 @@ import { Version } from '../Commands/version.js';
  * @listens for `variable-get-response` - Listens for the ALIAS value.
  */
 class CommandService extends BaseService{
-    #eventBus;
     #registry = new Map();
     #apiProvider;
 
     constructor(eventBus) {
         super(eventBus);
-        this.#eventBus = eventBus;
         this.#apiProvider = new ServiceApiManager(eventBus);
 
         this.#registerCommands();
-        this.#registerListeners();
         this.log.log('Initializing...');
     }
 
@@ -98,20 +94,24 @@ class CommandService extends BaseService{
         // No startup logic needed for aliases anymore.
     }
 
-    #registerListeners() {
-        this.#eventBus.listen(EVENTS.COMMAND_EXECUTE_BROADCAST, (payload) => this.execute(payload.commandString, payload.outputElement), this.constructor.name);
-
-        this.#eventBus.listen(EVENTS.GET_ALIASES_REQUEST, this.#handleGetAliasesRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.SET_ALIASES_REQUEST, this.#handleSetAliasesRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.GET_COMMAND_LIST_REQUEST, this.#handleGetCommandListRequest.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.GET_COMMAND_META_REQUEST, this.#handleGetCommandMetaRequest.bind(this), this.constructor.name);
-
-        this.#eventBus.listen(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, this.#handleGetAutocompleteSuggestions.bind(this), this.constructor.name);
-        this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
+    get eventHandlers() {
+        return {
+            [EVENTS.COMMAND_EXECUTE_BROADCAST]: this.#handleExecute.bind(this),
+            [EVENTS.GET_ALIASES_REQUEST]: this.#handleGetAliasesRequest.bind(this),
+            [EVENTS.SET_ALIASES_REQUEST]: this.#handleSetAliasesRequest.bind(this),
+            [EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST]: this.#handleGetAutocompleteSuggestions.bind(this),
+            [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [EVENTS.GET_COMMAND_LIST_REQUEST]: this.#handleGetCommandListRequest.bind(this),
+            [EVENTS.GET_COMMAND_META_REQUEST]: this.#handleGetCommandMetaRequest.bind(this)
+        };
     }
 
     register(name, CommandClass, requiredServices = []) {
         this.#registry.set(name, { CommandClass, requiredServices });
+    }
+
+    #handleExecute({ commandString, outputElement }) {
+        this.execute(commandString, outputElement);
     }
 
     getCommand(name) {
@@ -134,12 +134,6 @@ class CommandService extends BaseService{
             for (const funcName of requiredServices) {
                 if (allProvidedFunctions[funcName]) {
                     commandServices[funcName] = allProvidedFunctions[funcName];
-                } else if (funcName === 'eventBus') {
-                    // Special case to provide the event bus directly
-                    commandServices.eventBus = this.#eventBus;
-                } else if (funcName === 'EVENTS') {
-                    // Special case to provide the events enum
-                    commandServices.EVENTS = EVENTS;
                 } else {
                     this.log.warn(`Command '${name}' requested unknown function '${funcName}'.`);
                 }
