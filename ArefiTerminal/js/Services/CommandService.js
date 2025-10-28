@@ -90,7 +90,7 @@ class CommandService extends BaseService{
         this.register('alias', Alias, ['getAliases', 'setAliases']);
         this.register('unalias', Unalias, ['getAliases', 'setAliases']);
         this.register('export', Export, ['exportVariable', 'getAllCategorizedVariables']);
-        this.register('theme', Theme, ['getValidThemes', 'setUserspaceVariable', 'eventBus', 'EVENTS']);
+        this.register('theme', Theme, ['getValidThemes', 'setTheme', 'getRemoteVariable']);
         this.register('version', Version, []);
     }
 

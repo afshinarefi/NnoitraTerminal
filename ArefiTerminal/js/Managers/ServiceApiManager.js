@@ -140,6 +140,11 @@ export class ServiceApiManager {
         this.#eventBus.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key, value });
     }
 
+    async getRemoteVariable(key, value) {
+        const response = await this.#eventBus.request(EVENTS.VAR_GET_REMOTE_REQUEST, { key });
+        return response;
+    }
+
     setUserspaceVariable(key, value) {
         this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value });
     }

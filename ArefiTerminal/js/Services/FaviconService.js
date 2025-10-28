@@ -117,7 +117,7 @@ class FaviconService extends BaseService{
             bgColor: styles.getPropertyValue('--arefi-color-theme').trim() || 'green',
             symbolColor: styles.getPropertyValue('--arefi-color-text-highlight').trim() || '#000',
             borderColor: styles.getPropertyValue('--arefi-color-text-highlight').trim() || '#000',
-            borderWidth: 2
+            borderWidth: 1
         };
 
         // Remove any existing favicon links

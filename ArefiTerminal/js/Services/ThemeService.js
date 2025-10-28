@@ -27,7 +27,6 @@ const DEFAULT_THEME = 'green';
  * @class ThemeBusService
  * @description Manages the terminal's color theme by reacting to environment variable changes.
  *
- * @listens for `variable-changed-broadcast` - For changes to the THEME variable.
  * @listens for `variable-get-response` - For the initial THEME value.
  *
  * @dispatches `variable-get-request` - To get the initial THEME variable on startup.
@@ -56,24 +55,16 @@ class ThemeService extends BaseService{
 
     async start() {
         // After all services are initialized, request the initial theme value.
-        const { value } = await this.request(EVENTS.VAR_GET_USERSPACE_REQUEST, { key: VAR_THEME });
+        const { value } = await this.request(EVENTS.VAR_GET_REMOTE_REQUEST, { key: VAR_THEME });
         const theme = value || DEFAULT_THEME;
-        this.applyTheme(theme, false); // Don't persist on initial load
+        this.applyTheme(theme);
     }
 
     #registerListeners() {
-        this.#eventBus.listen(EVENTS.VAR_CHANGED_BROADCAST, this.#handleVarChanged.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.SET_THEME_REQUEST, this.#handleSetThemeRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, this.#handleUpdateDefaultRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.GET_VALID_THEMES_REQUEST, this.#handleGetValidThemesRequest.bind(this), this.constructor.name);
         this.#eventBus.listen(EVENTS.USER_CHANGED_BROADCAST, this.#handleUserChanged.bind(this), this.constructor.name);
-    }
-
-    #handleVarChanged(payload) {
-        // This handles changes from other sources, like manual `export THEME=...`
-        if (payload.key === VAR_THEME) {
-            this.applyTheme(payload.value, false);
-        }
     }
 
     #handleSetThemeRequest({ themeName, respond }) {
@@ -85,14 +76,14 @@ class ThemeService extends BaseService{
         this.log.log('User changed, re-evaluating theme.');
         // This will trigger the lazy-loading of remote variables if a user logged in,
         // or fall back to defaults if logged out, because the environment state has changed.
-        const { value } = await this.request(EVENTS.VAR_GET_USERSPACE_REQUEST, { key: VAR_THEME });
+        const { value } = await this.request(EVENTS.VAR_GET_REMOTE_REQUEST, { key: VAR_THEME });
         const theme = value || DEFAULT_THEME;
         this.applyTheme(theme, false); // Don't persist, just apply the current state.
     }
 
     #handleUpdateDefaultRequest({ key, respond }) {
         if (key === VAR_THEME) {
-            this.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value: DEFAULT_THEME });
+            this.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key, value: DEFAULT_THEME });
             respond({ value: DEFAULT_THEME });
         }
     }
@@ -101,7 +92,7 @@ class ThemeService extends BaseService{
         respond({ themes: this.getValidThemes() });
     }
 
-    applyTheme(themeName, persist = true) {
+    applyTheme(themeName) {
         const finalTheme = ThemeService.VALID_THEMES.includes(themeName) ? themeName : DEFAULT_THEME;
 
         if (this.#view) {
@@ -112,6 +103,7 @@ class ThemeService extends BaseService{
         }
 
         this.dispatch(EVENTS.THEME_CHANGED_BROADCAST, { themeName: finalTheme });
+        this.dispatch(EVENTS.VAR_SET_REMOTE_REQUEST, { key: VAR_THEME, value: finalTheme });
         this.log.log(`Applied theme: ${finalTheme}`);
 
         // The theme command itself will handle persisting the variable.

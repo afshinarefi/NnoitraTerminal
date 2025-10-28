@@ -26,7 +26,6 @@ export const EVENTS = {
     VAR_GET_LOCAL_REQUEST: 'variable-get-local-request',
     VAR_GET_REMOTE_REQUEST: 'variable-get-remote-request',
     VAR_GET_USERSPACE_REQUEST: 'variable-get-userspace-request',
-    VAR_CHANGED_BROADCAST: 'variable-changed-broadcast',
     VAR_UPDATE_DEFAULT_REQUEST: 'variable-update-default-request',
     VAR_PERSIST_REQUEST: 'variable-persist-request',
     VAR_LOAD_REMOTE_REQUEST: 'variable-load-remote-request',

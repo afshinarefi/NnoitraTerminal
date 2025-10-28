@@ -33,7 +33,6 @@ const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
  * @listens for `USER_CHANGED_BROADCAST` - Clears local storage on logout.
  *
  * @dispatches `VAR_PERSIST_REQUEST` - When a variable needs to be saved remotely.
- * @dispatches `VAR_CHANGED_BROADCAST` - When any variable's value changes.
  * @dispatches `VAR_LOAD_REMOTE_REQUEST` - To get remote/userspace variables from AccountingService.
  * @dispatches `VAR_UPDATE_DEFAULT_REQUEST` - To get a default value for a variable that doesn't exist yet.
  */
@@ -176,7 +175,6 @@ class EnvironmentService extends BaseService{
                 break;
         }
 
-		this.dispatch(EVENTS.VAR_CHANGED_BROADCAST, { key: upperKey, value });
 	}
 
 	async isReadOnly(key) {

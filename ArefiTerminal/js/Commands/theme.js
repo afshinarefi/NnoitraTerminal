@@ -26,18 +26,16 @@ const log = createLogger('theme');
 class Theme {
     static DESCRIPTION = 'Set the terminal color theme.';
 
-    #setUserspaceVariable;
+    #setTheme;
     #getValidThemes;
-    #getUserspaceVariable;
+    #getRemoteVariable;
 
     constructor(services) {
         // The environment service is used for getting/setting THEME variable.
-        this.#setUserspaceVariable = services.setUserspaceVariable;
+        this.#setTheme = services.setTheme;
+        this.#getRemoteVariable = services.getRemoteVariable;
         // The theme service is used for getting valid themes.
         this.#getValidThemes = services.getValidThemes;
-        // We need a way to get a userspace variable. Let's add a specific function for that.
-        // This is a placeholder for a function that should be added to ServiceApiManager
-        this.#getUserspaceVariable = (key) => services.eventBus.request(services.EVENTS.VAR_GET_USERSPACE_REQUEST, { key });
         log.log('Initializing...');
     }
 
@@ -60,14 +58,14 @@ class Theme {
 
         if (!themeName) {
             // Get the current theme variable from the correct category.
-            const { value: currentTheme } = await this.#getUserspaceVariable('THEME');
+            const { value: currentTheme } = await this.#getRemoteVariable('THEME');
             output.textContent = `Current theme: ${currentTheme}\nAvailable themes: ${validThemes.join(', ')}`;
             return output;
         }
 
         if (validThemes.includes(themeName)) {
             // Set the environment variable. The Terminal component will listen for this change.
-            this.#setUserspaceVariable('THEME', themeName);
+            this.#setTheme(themeName);
             output.textContent = `Theme set to '${themeName}'.`;
             log.log(`Theme set to: ${themeName}`);
         } else {
