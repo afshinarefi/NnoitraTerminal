@@ -90,10 +90,6 @@ class CommandService extends BaseService{
         this.register('version', Version, []);
     }
 
-    async start() {
-        // No startup logic needed for aliases anymore.
-    }
-
     get eventHandlers() {
         return {
             [EVENTS.COMMAND_EXECUTE_BROADCAST]: this.#handleExecute.bind(this),
@@ -117,28 +113,19 @@ class CommandService extends BaseService{
     getCommand(name) {
         const registration = this.#registry.get(name);
         if (registration) {
-            const { CommandClass, requiredServices } = registration;
+            const { CommandClass, requiredServices = [] } = registration;
 
-            // Create a tailored 'services' object for each command, providing only what it needs.
-            // This acts as a gateway and adheres to the principle of least privilege.
-            const allProvidedFunctions = {
-                // Functions that are part of CommandService's core responsibility (now deprecated for direct use by commands)
-                ...Object.fromEntries(
-                    Object.getOwnPropertyNames(ServiceApiManager.prototype)
-                        .filter(name => name !== 'constructor') // Get all methods
-                        .map(name => [name, this.#apiProvider[name].bind(this.#apiProvider)])
-                )
-            };
-
-            const commandServices = {};
-            for (const funcName of requiredServices) {
-                if (allProvidedFunctions[funcName]) {
-                    commandServices[funcName] = allProvidedFunctions[funcName];
+            // Create a tailored 'services' object for the command, providing only what it needs.
+            // This adheres to the principle of least privilege.
+            const commandServices = requiredServices.reduce((acc, funcName) => {
+                if (typeof this.#apiProvider[funcName] === 'function') {
+                    acc[funcName] = this.#apiProvider[funcName].bind(this.#apiProvider);
                 } else {
                     this.log.warn(`Command '${name}' requested unknown function '${funcName}'.`);
                 }
-            }
-
+                return acc;
+            }, {});
+            
             return new CommandClass(commandServices);
         }
         return null;

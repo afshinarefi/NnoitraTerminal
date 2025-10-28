@@ -66,8 +66,10 @@ class AccountingService extends BaseService {
     }
 
     async start() {
-        // Request initial state now that all services are listening.
-        await this.validateSession();
+        // On startup, broadcast the initial login state. This allows services
+        // like HistoryService to load remote data for a logged-in user on page refresh.
+        const loggedIn = await this.isLoggedIn();
+        this.dispatch(EVENTS.USER_CHANGED_BROADCAST, { isLoggedIn: loggedIn });
     }
 
     async login(username, password) {
@@ -117,36 +119,6 @@ class AccountingService extends BaseService {
         this.dispatch(EVENTS.ENV_RESET_REQUEST, {}); // This clears localStorage and temp vars
         // The default value flow will now handle setting USER to guest.
         this.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: GUEST_USER, isLoggedIn: false });
-    }
-
-    async validateSession() {
-        try {
-            // Request variables directly from their categories
-            const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
-            const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
-
-            if (token && user && user !== GUEST_USER) {
-                this.log.log(`Found token for user "${user}". Validating session...`);
-                const result = await this.#apiManager.post('validate', { token }, token); // Pass token for auth
-
-                if (result.status === 'success') {
-                    this.log.log('Session is valid. User is logged in.');
-                    // Ensure environment variables are set (they should be if we fetched them)
-                    this.dispatch(EVENTS.USER_CHANGED_BROADCAST, { user: user, isLoggedIn: true });
-                    return;
-                }
-                // If validation fails, clear the session.
-                this.log.warn('Session validation failed or token expired. Clearing local session.');
-                this.clearLocalSession(); // This will broadcast the user change to guest.
-
-            } else {
-                this.log.log('No active session found. Operating as guest.');
-                this.clearLocalSession();
-            }
-        } catch (error) {
-            this.log.error("Error during session validation:", error);
-            this.clearLocalSession();
-        }
     }
     
     async #handleLoginRequest({ username, password, respond }) {

@@ -57,10 +57,6 @@ class HistoryService extends BaseService{
         };
     }
 
-    async start() {
-        // No startup logic needed anymore. HISTSIZE will be resolved on first use.
-    }
-
     #handleAddCommand({ commandString }) {
         this.addCommand(commandString);
     }

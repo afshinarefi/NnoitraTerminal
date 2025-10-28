@@ -43,11 +43,6 @@ class FaviconService extends BaseService{
         this.log.log('View connected.');
     }
 
-    start() {
-        // The theme service will apply the initial theme, which will trigger the broadcast
-        // that this service listens to. No need to call renderFavicon() directly.
-    }
-
     get eventHandlers() {
         return {
             [EVENTS.THEME_CHANGED_BROADCAST]: this.#renderFavicon.bind(this)
