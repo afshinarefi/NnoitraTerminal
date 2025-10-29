@@ -39,11 +39,8 @@ class BaseComponent extends HTMLElement {
   /**
    * Creates an instance of ArefiBaseComponent.
    * @param {string} htmlTemplate - The HTML string that defines the structure of the component's Shadow DOM.
-   * @param {Object.<string, CustomElementConstructor>} [componentMap={}] - An optional map where keys are custom element tag names
-   *   and values are their corresponding class constructors. This allows for programmatic upgrading of custom elements
-   *   within the `htmlTemplate` before they are appended to the Shadow DOM.
    */
-  constructor(htmlTemplate, componentMap = {}) {
+  constructor(htmlTemplate) {
     super();
     this.#log = createLogger(this.constructor.name);
     // --- 1. Define Shared Styles ---
@@ -79,7 +76,7 @@ class BaseComponent extends HTMLElement {
     // --- 3. Process Template and Append ---
     // If an HTML template is provided, create a document fragment and append it to the Shadow DOM.
     if (htmlTemplate) {
-      const fragment = this.#createFragment(htmlTemplate, componentMap);
+      const fragment = this.#createFragment(htmlTemplate);
       this.#shadow.appendChild(fragment);
     }
 
@@ -124,35 +121,10 @@ class BaseComponent extends HTMLElement {
     return this.#shadow;
   }
 
-  /**
-   * Utility method to create a DocumentFragment from an HTML string.
-   * It also handles the programmatic upgrading of custom elements specified in the `componentMap`,
-   * ensuring their constructors are executed immediately upon creation.
-   * @private
-   * @param {string} htmlString - The HTML string to convert into a DocumentFragment.
-   * @param {Object.<string, CustomElementConstructor>} componentMap - A map of custom element tag names to their class constructors.
-   * @returns {DocumentFragment} A DocumentFragment containing the parsed HTML and upgraded custom elements.
-   */
-  #createFragment(htmlString, componentMap) {
+  #createFragment(htmlString) {
     const template = document.createElement('template');
     template.innerHTML = htmlString;
-    const fragment = template.content;
-
-    // Iterate over the component map to find and replace placeholder custom elements
-    // with their live instances, transferring attributes in the process.
-    for (const [tag, ComponentClass] of Object.entries(componentMap)) {
-      fragment.querySelectorAll(tag).forEach(placeholder => {
-        const liveInstance = new ComponentClass();
-
-        // Transfer attributes (e.g., part="prompt") from the placeholder to the live instance.
-        for (const attr of placeholder.attributes) {
-          liveInstance.setAttribute(attr.name, attr.value);
-        }
-
-        placeholder.replaceWith(liveInstance);
-      });
-    }
-    return fragment;
+    return template.content;
   }
 }
 

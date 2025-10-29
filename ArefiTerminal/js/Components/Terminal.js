@@ -127,12 +127,11 @@ class Terminal extends BaseComponent {
    */
   constructor() {
     // Pass the template and map to the base constructor
-    super(TEMPLATE, { 'arefi-cmd': TerminalPrompt, 'arefi-hint-box': SuggestionBox });
+    super(TEMPLATE);
 
     // Apply component-specific styles
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalSpecificStyles];
 
-    this.#bootstrap();
   }
 
   /**
@@ -208,6 +207,9 @@ class Terminal extends BaseComponent {
    * Sets up the ResizeObserver and initial focus.
    */
   connectedCallback() {
+    // Bootstrap services now that the component is in the DOM and attributes are available.
+    this.#bootstrap();
+
     // Initialize ResizeObserver to scroll to bottom when terminal size changes
     this.#resizeObserver = new ResizeObserver(() => {
       this.scrollToBottom();

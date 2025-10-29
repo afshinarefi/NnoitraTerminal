@@ -126,7 +126,7 @@ class CommandBlock extends BaseComponent {
    */
   constructor() {
     // Pass the template and map to the base constructor, including the Icon component.
-    super(TEMPLATE, { 'arefi-icon': TerminalSymbol });
+    super(TEMPLATE);
 
     // Apply component-specific styles to the shadow DOM.
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalItemSpecificStyles];
