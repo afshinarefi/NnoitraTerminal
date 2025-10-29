@@ -17,7 +17,7 @@
  */
 import { EVENTS } from '../Core/Events.js';
 import { ENV_VARS } from '../Core/Variables.js';
-import { TerminalItem } from '../Components/TerminalItem.js';
+import { CommandBlock } from '../Components/CommandBlock.js';
 import { fetchTextFile } from '../Utils/FileUtil.js';
 import { BaseService } from '../Core/BaseService.js';
 
@@ -113,10 +113,10 @@ class TerminalService extends BaseService{
 
     #createAndDisplayHeader(headerText) {
         const id = this.#nextId++;
-        const item = new TerminalItem();
+        const item = new CommandBlock();
         
-        // Set only the header content initially and make it visible.
-        item.setHeader(id, headerText);
+        item.setAttribute('item-id', id);
+        item.setAttribute('header-text', headerText);
 
         this.#view.appendToOutput(item);
         this.#currentItem = item; // Store as the pending item.
@@ -142,8 +142,8 @@ class TerminalService extends BaseService{
 
         // 3. Populate the command item and dispatch for execution.
             if (this.#currentItem) {
-                this.#currentItem.setContent(commandString);
-                const outputContainer = { element: this.#currentItem.getOutput() };
+                this.#currentItem.setAttribute('command', commandString);
+                const outputContainer = { element: this.#currentItem };
                 this.log.log(`Executing command: "${commandString}"`);
                 this.#view.scrollToBottom();
                 this.dispatch(EVENTS.COMMAND_EXECUTE_BROADCAST, {

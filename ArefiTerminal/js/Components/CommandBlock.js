@@ -16,8 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { BaseComponent } from '../Core/BaseComponent.js';
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('TerminalItem');
 import { TerminalSymbol } from './TerminalSymbol.js';
 
 /**
@@ -29,7 +27,7 @@ const TEMPLATE = `
   <arefi-icon part='icon'></arefi-icon>
   <span part='command'></span>
   </div>
-  <div part='output'></div>
+  <div part='output'><slot></slot></div>
   `;
 
 /**
@@ -121,10 +119,7 @@ terminalItemSpecificStyles.replaceSync(CSS);
  * @description Represents a single entry in the terminal output, displaying a command and its corresponding output.
  * Each item includes a timestamp, user/host/path information, an indexed icon, and the command text.
  */
-class TerminalItem extends BaseComponent {
-  /** @private {number} #id - The unique ID for this specific TerminalItem instance. */
-  #id;
-
+class CommandBlock extends BaseComponent {
   /**
    * Creates an instance of TerminalItem.
    * Initializes the shadow DOM and applies component-specific styles.
@@ -137,46 +132,39 @@ class TerminalItem extends BaseComponent {
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalItemSpecificStyles];
   }
 
-  /**
-   * Returns the output element of this terminal item.
-   * This element is where the command's output will be appended.
-   * @returns {HTMLElement} The output div element.
-   */
-  getOutput() {
-    return this.refs.output;
+  static get observedAttributes() {
+    return ['item-id', 'header-text', 'command'];
   }
 
-  /**
-   * Sets the header content and makes it visible.
-   * @param {number} id - The unique ID for this item.
-   * @param {string} headerText - The pre-formatted header string (PS1).
-   */
-  setHeader(id, headerText) {
-    log.log(`Setting header for ID ${id}`);
-    this.#id = id;
-    this.id = `term-item-${id}`;
-    this.refs.header.textContent = headerText;
-    this.classList.add('header-visible');
-  }
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (oldValue === newValue) return;
 
-  /**
-   * Sets the command content and makes the command and output areas visible.
-   * @param {string} command - The command string to display.
-   */
-  setContent(command) {
-    if (this.#id === undefined) {
-      log.error('setContent called before setHeader. ID is not set.');
-      return;
+    switch (name) {
+      case 'item-id':
+        this.id = `term-item-${newValue}`;
+        // If the command is already set, update the icon's value.
+        if (this.hasAttribute('command')) {
+          this.refs.icon.setAttribute('value', newValue);
+        }
+        break;
+      case 'header-text':
+        this.refs.header.textContent = newValue;
+        this.classList.add('header-visible');
+        break;
+      case 'command':
+        this.refs.command.textContent = newValue;
+        const itemId = this.getAttribute('item-id');
+        if (itemId) {
+          this.refs.icon.setAttribute('type', 'indexed');
+          this.refs.icon.setAttribute('value', itemId);
+        }
+        this.classList.add('active');
+        break;
     }
-    log.log(`Setting command content for ID ${this.#id}:`, { command });
-    this.refs.command.textContent = command;
-    this.refs.icon.setAttribute('type', 'indexed');
-    this.refs.icon.setAttribute('value', this.#id);
-    this.classList.add('active');
   }
 }
 
 // Define the custom element 'arefi-term-item'
-customElements.define('arefi-term-item', TerminalItem);
+customElements.define('arefi-term-item', CommandBlock);
 
-export { TerminalItem };
+export { CommandBlock };

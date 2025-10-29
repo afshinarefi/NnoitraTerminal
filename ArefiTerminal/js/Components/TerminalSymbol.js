@@ -16,8 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { BaseComponent } from '../Core/BaseComponent.js';
-import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('Icon');
 
 /**
  * @constant {string} TEMPLATE - HTML template for the Icon component's shadow DOM.
