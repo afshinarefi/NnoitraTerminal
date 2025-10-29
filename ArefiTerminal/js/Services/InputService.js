@@ -37,11 +37,6 @@ class InputService extends BaseService{
     #view = null; // The CommandLine component instance
     #inputBuffer = '';
     #isSecret = false;
-
-    // Properties for swipe gesture detection
-    #touchStartX = 0;
-    #touchStartY = 0;
-
     // State properties for the current input mode
     #allowHistory = false;
     #allowAutocomplete = false;
@@ -58,15 +53,14 @@ class InputService extends BaseService{
      */
     setView(view) {
         this.#view = view;
-        // The view delegates its raw user interaction events to this service.
-        this.#view.addEventListener('keydown', (e) => this.#onKeyDown(e.detail));
-        this.#view.addEventListener('command-submit', (e) => this.#onCommandSubmit(e.detail));
-        this.#view.addEventListener('autocomplete-request', (e) => this.#onAutocompleteRequest(e.detail));
-        this.#view.addEventListener('touchstart', (e) => this.#onTouchStart(e.detail));
-        this.#view.addEventListener('touchend', (e) => this.#onTouchEnd(e.detail));
-
-        // Set the initial state to disabled. The prompt is not usable until the main loop requests input.
-        this.#view.setEnabled(false);
+        // Listen for custom events from the command line component.
+        this.#view.addEventListener('enter', (e) => this.submitInput(e.detail.value));
+        this.#view.addEventListener('tab', () => this.requestAutocomplete());
+        this.#view.addEventListener('arrow-up', () => this.requestPreviousHistory());
+        this.#view.addEventListener('arrow-down', () => this.requestNextHistory());
+        this.#view.addEventListener('swipe-right', () => this.requestAutocomplete());
+        // Set the initial state to disabled.
+        this.#view.setAttribute('disabled', ''); // The view is disabled until an input request is received.
     }
 
     get eventHandlers() {
@@ -77,62 +71,49 @@ class InputService extends BaseService{
         };
     }
 
-    // --- Event Handlers ---
-    
-    /**
-     * Handles keydown events delegated from the view.
-     * @param {KeyboardEvent} event
-     */
-    #onKeyDown(event) {
-        if (!this.#view) return;
+    // --- Public Methods (called by Terminal.js in response to view events) ---
 
-        switch (event.key) {
-            // Enter is handled by the 'command-submit' event listener
-            // to consolidate submission logic.
-            case 'ArrowUp':
-                if (this.#allowHistory) {
-                    event.preventDefault();
-                    if (!this.#isNavigatingHistory) {
-                        this.#inputBuffer = this.#view.getValue();
-                        this.#isNavigatingHistory = true;
-                    }
-                    this.#view.setEnabled(false);
-                    this.dispatch(EVENTS.HISTORY_PREVIOUS_REQUEST);
-                }
-                break;
-
-            case 'ArrowDown':
-                this.log.log('ArrowDown key pressed - requesting next history if allowed.');
-                if (this.#allowHistory && this.#isNavigatingHistory) {
-                    event.preventDefault();
-                    this.#view.setEnabled(false);
-                    this.dispatch(EVENTS.HISTORY_NEXT_REQUEST);
-                }
-                break;
-
-            case 'Tab':
-                this.log.log('Tab key pressed - triggering autocomplete if allowed.', this.#allowAutocomplete);
-                event.preventDefault(); // Ensure default tab behavior is stopped
-                if (this.#allowAutocomplete) {
-                    this.#onAutocompleteRequest(this.#view.getValue());
-                }
-                break;
-        }
-    }
-
-    #onCommandSubmit(value) {
+    submitInput(value) {
         // For any input, finish the read operation, which uses the `respond` function.
         // This handles both normal commands and interactive prompts consistently.
         if (this.respond) {
-            this.#finishRead();
+            this.#finishRead(value);
             this.#isNavigatingHistory = false; // Reset on command submission
             this.#view.clear();
         }
     }
 
+    requestAutocomplete() {
+        this.log.log('Tab key pressed - triggering autocomplete if allowed.', this.#allowAutocomplete);
+        if (this.#allowAutocomplete) {
+            this.#onAutocompleteRequest(this.#view.getValue());
+        }
+    }
+
+    requestPreviousHistory() {
+        if (this.#allowHistory) {
+            if (!this.#isNavigatingHistory) {
+                this.#inputBuffer = this.#view.getValue();
+                this.#isNavigatingHistory = true;
+            }
+            this.#view.setAttribute('disabled', '');
+            this.dispatch(EVENTS.HISTORY_PREVIOUS_REQUEST);
+        }
+    }
+
+    requestNextHistory() {
+        this.log.log('ArrowDown key pressed - requesting next history if allowed.');
+        if (this.#allowHistory && this.#isNavigatingHistory) {
+            this.#view.setAttribute('disabled', '');
+            this.dispatch(EVENTS.HISTORY_NEXT_REQUEST);
+        }
+    }
+
+    // --- Private Logic ---
+
     #onAutocompleteRequest(value) {
         if (this.#allowAutocomplete) {
-            this.#view.setEnabled(false); // Disable input during the request.
+            this.#view.setAttribute('disabled', ''); // Disable input during the request.
             const cursorPosition = this.#view.getCursorPosition(); // This method needs to be added to CommandLine.js
             const beforeCursorText = value.substring(0, cursorPosition);
             const afterCursorText = value.substring(cursorPosition);
@@ -141,40 +122,6 @@ class InputService extends BaseService{
             this.dispatch(EVENTS.AUTOCOMPLETE_REQUEST, { beforeCursorText, afterCursorText });
         }
     }
-
-    // --- Gesture Handlers ---
-
-    /**
-     * Records the starting position of a touch event for swipe detection.
-     * @param {Touch} touch - The touch object from the event.
-     */
-    #onTouchStart(touch) {
-        if (!touch) return;
-        this.#touchStartX = touch.clientX;
-        this.#touchStartY = touch.clientY;
-    }
-
-    /**
-     * Calculates the gesture at the end of a touch and triggers autocomplete on a right swipe.
-     * @param {Touch} touch - The touch object from the event.
-     */
-    #onTouchEnd(touch) {
-        if (this.#touchStartX === 0 || !touch) return;
-
-        const deltaX = touch.clientX - this.#touchStartX;
-        const deltaY = touch.clientY - this.#touchStartY;
-
-        // Reset start coordinates
-        this.#touchStartX = 0;
-        this.#touchStartY = 0;
-
-        // Check for a right swipe: significant horizontal movement, minimal vertical movement.
-        if (deltaX > 50 && Math.abs(deltaY) < 50) {
-            this.#onAutocompleteRequest(this.#view.getValue());
-        }
-    }
-
-    // --- Core Logic Methods ---
 
     #startRead(prompt, options = {}, correlationId) {
         this.#isSecret = options.isSecret || false;
@@ -185,18 +132,20 @@ class InputService extends BaseService{
         this.#isNavigatingHistory = false;
 
         this.#view.clear();
-        this.#view.setEnabled(true);
-        this.#view.setPlaceholder(prompt);
-        this.#view.setSecret(this.#isSecret);
+        this.#view.removeAttribute('disabled');
+        this.#view.setAttribute('placeholder', prompt);
+        if (this.#isSecret) {
+            this.#view.setAttribute('secret', '');
+        } else {
+            this.#view.removeAttribute('secret');
+        }
         this.#view.focus();
     }
 
-    #finishRead() {
-        const value = this.#isSecret ? this.#view.getSecretValue() : this.#view.getValue();
-
+    #finishRead(value) {
         // The `respond` function is attached by the event bus's `request` method.
         this.respond({ value });
-        this.#view.setEnabled(false); // Disable prompt after responding.
+        this.#view.setAttribute('disabled', ''); // Disable prompt after responding.
     }
 
     #resetState() {
@@ -208,9 +157,9 @@ class InputService extends BaseService{
         this.#isNavigatingHistory = false;
 
         this.#view.clear();
-        this.#view.setEnabled(true);
-        this.#view.setPlaceholder('');
-        this.#view.setSecret(false);
+        this.#view.removeAttribute('disabled');
+        this.#view.setAttribute('placeholder', '');
+        this.#view.removeAttribute('secret');
     }
 
     // --- Listener Implementations ---
@@ -218,28 +167,25 @@ class InputService extends BaseService{
     #handleInputRequest(payload) {
         const { prompt, options, respond } = payload;
         this.#startRead(prompt, options);
-        if (options?.isSecret) {
-            this.#view.setKeyIcon();
-        }
         // Store the respond function to be called later in #finishRead
         this.respond = respond;
     }
 
     #handleHistoryResponse(payload) {
         if (!this.#view) return;
-        this.#view.setEnabled(true);
+        this.#view.removeAttribute('disabled');
     
         if (payload.command !== undefined) {
             if (payload.index > 0) {
                 this.#view.setValue(payload.command);
-                console.log(payload.index);
-                this.#view.setHistoryIcon(payload.index);
+                // Use the new generic method to set the icon text
+                this.#view.setAttribute('icon-text', `H:${payload.index}`);
             } else {
                 // Index 0 means we've returned to the current, un-submitted command.
                 this.#view.setValue(this.#inputBuffer);
                 this.#isNavigatingHistory = false;
                 this.#inputBuffer = '';
-                this.#view.setReadyIcon();
+                this.#view.removeAttribute('icon-text');
             }
         }
     }
@@ -257,7 +203,7 @@ class InputService extends BaseService{
             }
         } finally {
             // Always re-enable the prompt after an autocomplete attempt.
-            this.#view.setEnabled(true);
+            this.#view.removeAttribute('disabled');
         }
     }
 }

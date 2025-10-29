@@ -1,4 +1,4 @@
-Arefi Terminal v1.2.2
+Arefi Terminal v1.2.3
 Copyright (C) 2025 Afshin Arefi
 
 License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.

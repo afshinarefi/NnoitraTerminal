@@ -16,9 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { BaseComponent } from '../Core/BaseComponent.js';
-import { createLogger } from '../Managers/LogManager.js';
 import { Icon } from './Icon.js';
-const log = createLogger('CommandLine');
 
 /**
  * @constant {string} TEMPLATE - HTML template for the CommandLine component's shadow DOM.
@@ -68,8 +66,21 @@ commandLineSpecificStyles.replaceSync(CSS);
 /**
  * @class CommandLine
  * @extends BaseComponent
- * @description Represents the command input line in the terminal. It handles user input,
- * keyboard navigation for command history, and dispatches events for command submission and autocomplete.
+ * @description A fully encapsulated, declarative Web Component for terminal input.
+ *
+ * @features
+ * - **Declarative API**: Controlled via HTML attributes like `disabled`, `secret`, `placeholder`, and `icon-text`.
+ * - **Secret Mode**: Automatically masks input for passwords when the `secret` attribute is present.
+ * - **Custom Events**: Dispatches clear, high-level events for user interactions (`enter`, `tab`, `arrow-up`, `arrow-down`, `swipe-right`).
+ * - **Rich Public API**: Provides methods like `getValue()`, `setValue()`, `getCursorPosition()`, `setCursorPosition()`, and `clear()` for programmatic control.
+ * - **Stateful Icon**: Manages an internal icon that automatically updates based on the component's state (e.g., ready, busy, secret).
+ * - **Touch Support**: Implements a swipe-right gesture to trigger autocomplete on touch devices.
+ *
+ * @fires enter - When the user presses the Enter key. Detail: `{ value: string }`
+ * @fires tab - When the user presses the Tab key.
+ * @fires arrow-up - When the user presses the ArrowUp key.
+ * @fires arrow-down - When the user presses the ArrowDown key.
+ * @fires swipe-right - When the user performs a right swipe gesture on the component.
  */
 class CommandLine extends BaseComponent {
   /** @private {boolean} #isSecret - Flag indicating if the read mode is for secret (password) input. */
@@ -78,6 +89,9 @@ class CommandLine extends BaseComponent {
   #secretValue = '';
   /** @private {boolean} #isEnabled - Flag to control if the input should accept changes. */
   #isEnabled = true;
+  // Properties for swipe gesture detection
+  #touchStartX = 0;
+  #touchStartY = 0;
 
   /**
    * Creates an instance of CommandLine.
@@ -91,14 +105,49 @@ class CommandLine extends BaseComponent {
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, commandLineSpecificStyles];
 
     // Add touch event listeners for swipe-to-autocomplete gesture.
-    this.refs.footer.addEventListener('touchstart', (e) => this.#dispatch('touchstart', e.touches[0]), { passive: true });
-    this.refs.footer.addEventListener('touchend', (e) => this.#dispatch('touchend', e.changedTouches[0]), { passive: true });
+    this.refs.footer.addEventListener('touchstart', this.#handleTouchStart.bind(this), { passive: true });
+    this.refs.footer.addEventListener('touchend', this.#handleTouchEnd.bind(this), { passive: true });
     // Listen for input to handle manual password masking.
     this.refs.prompt.addEventListener('input', this.#onInput.bind(this));
     // Centralize keydown handling
     this.refs.prompt.addEventListener('keydown', this.#onKeyDown.bind(this));
   }
 
+  static get observedAttributes() {
+    return ['disabled', 'secret', 'placeholder', 'icon-text'];
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    switch (name) {
+      case 'disabled':
+        this.#isEnabled = !this.hasAttribute('disabled');
+        this.refs.prompt.disabled = !this.#isEnabled;
+        if (this.#isEnabled && !this.#isSecret) {
+          this.#setReadyIcon();
+          this.focus();
+        } else if (!this.#isEnabled) {
+          this.#setBusyIcon();
+        }
+        break;
+      case 'secret':
+        this.#isSecret = this.hasAttribute('secret');
+        this.#isSecret ? this.#setKeyIcon() : this.#setReadyIcon();
+        break;
+      case 'placeholder':
+        this.refs.prompt.placeholder = newValue || '';
+        break;
+      case 'icon-text':
+        if (newValue !== null) {
+          // If the attribute is being set, display the custom text.
+          if (this.refs.icon) this.refs.icon.setText(newValue);
+        } else {
+          // If the attribute is being removed, revert to the default state icon.
+          this.#isSecret ? this.#setKeyIcon() : this.#setReadyIcon();
+        }
+        break;
+    }
+  }
+  
   /**
    * Handles the input event to manually mask characters for secret (password) input.
    * This implementation correctly handles insertions, deletions, and replacements
@@ -108,7 +157,6 @@ class CommandLine extends BaseComponent {
    */
   #onInput(event) {
     if (!this.#isSecret) {
-      this.#dispatch('input', { realValue: this.refs.prompt.value });
       return;
     }
 
@@ -140,9 +188,6 @@ class CommandLine extends BaseComponent {
       // Restore the cursor position.
       input.setSelectionRange(newCursorPos, newCursorPos);
     });
-
-    // Dispatch the real value for external listeners.
-    this.#dispatch('input', { realValue: this.#secretValue });
   }
 
   /**
@@ -161,13 +206,44 @@ class CommandLine extends BaseComponent {
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      this.#dispatch('command-submit', this.refs.prompt.value);
-      // The input service will be responsible for clearing the input.
-    } else if (event.key === 'Tab' || event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      // For special keys that affect the input value, prevent the default browser action
-      // and forward the raw event to the InputService for handling.
+      this.#dispatch('enter', { value: this.getValue() });
+    } else if (event.key === 'Tab') {
       event.preventDefault();
-      this.#dispatch('keydown', event);
+      this.#dispatch('tab');
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.#dispatch('arrow-up');
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.#dispatch('arrow-down');
+    }
+  }
+
+  /**
+   * Records the starting position of a touch event for swipe detection.
+   * @param {TouchEvent} event - The touch event.
+   */
+  #handleTouchStart(event) {
+    const touch = event.touches[0];
+    if (!touch) return;
+    this.#touchStartX = touch.clientX;
+    this.#touchStartY = touch.clientY;
+  }
+
+  /**
+   * Calculates the gesture at the end of a touch and triggers the swipe right callback.
+   * @param {TouchEvent} event - The touch event.
+   */
+  #handleTouchEnd(event) {
+    const touch = event.changedTouches[0];
+    if (this.#touchStartX === 0 || !touch) return;
+
+    const deltaX = touch.clientX - this.#touchStartX;
+    const deltaY = touch.clientY - this.#touchStartY;
+
+    // Check for a right swipe: significant horizontal movement, minimal vertical movement.
+    if (deltaX > 50 && Math.abs(deltaY) < 50) {
+      this.#dispatch('swipe-right');
     }
   }
 
@@ -177,7 +253,7 @@ class CommandLine extends BaseComponent {
    * @param {string} name - The event name.
    * @param {*} detail - The event payload.
    */
-  #dispatch(name, detail) {
+  #dispatch(name, detail = {}) {
     this.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true, detail }));
   }
 
@@ -189,27 +265,28 @@ class CommandLine extends BaseComponent {
   }
 
   /**
-   * Retrieves the current command string from the input field.
-   * @returns {string} The current value of the input.
+   * Retrieves the real value from the input, whether in normal or secret mode.
+   * @returns {string} The current, unmasked value of the input.
    */
   getValue() {
+    if (this.#isSecret) {
+      return this.#secretValue;
+    }
     return this.refs.prompt.value;
   }
 
   /**
-   * Retrieves the current secret value when in secret mode.
-   * @returns {string} The current secret value.
-   */
-  getSecretValue() {
-    return this.#secretValue;
-  }
-
-  /**
    * Sets the value of the command prompt input field.
+   * In secret mode, this sets the internal real value and updates the display with masked characters.
    * @param {string} value - The string to set as the input's value.
    */
   setValue(value) {
-    this.refs.prompt.value = value;
+    if (this.#isSecret) {
+      this.#secretValue = value;
+      this.refs.prompt.value = '●'.repeat(value.length);
+    } else {
+      this.refs.prompt.value = value;
+    }
   }
 
   /**
@@ -236,65 +313,18 @@ class CommandLine extends BaseComponent {
     this.#secretValue = '';
   }
 
-  /**
-   * Sets the enabled or disabled state of the command prompt.
-   * @param {boolean} isEnabled - True to enable, false to disable.
-   */
-  setEnabled(isEnabled) {
-    this.#isEnabled = isEnabled;
-    if (isEnabled) {
-      this.refs.prompt.placeholder = ''; // Clear any temporary message.
-      this.setReadyIcon(); // Set icon back to ready state.
-      this.focus(); // Set focus back to the prompt.
-    } else {
-      this.setBusyIcon(); // Set icon to busy state when readOnly.
-      this.refs.prompt.placeholder = 'Running Command ...'; // Provide feedback to the user.
-    }
-  }
+  // --- Private Icon Methods ---
 
-  /**
-   * Sets the placeholder text of the input field.
-   * Note: This is used for prompts like 'Password:', not for status messages
-   * like 'Running Command...'.
-   * @param {string} text - The placeholder text.
-   */
-  setPlaceholder(text) {
-    this.refs.prompt.placeholder = text;
-  }
-
-  setReadyIcon() {
+  #setReadyIcon() {
     if (this.refs.icon) this.refs.icon.ready();
   }
 
-  /**
-   * Sets the icon to the busy state.
-   */
-  setBusyIcon() {
+  #setBusyIcon() {
     if (this.refs.icon) this.refs.icon.busy();
   }
 
-  /**
-   * Sets the icon to the key state for password prompts.
-   */
-  setKeyIcon() {
+  #setKeyIcon() {
     if (this.refs.icon) this.refs.icon.key();
-  }
-
-  /**
-   * Sets the icon to display a history index.
-   * @param {number} index - The history index to display.
-   */
-  setHistoryIcon(index) {
-    if (this.refs.icon) this.refs.icon.history(index);
-  }
-
-
-  /**
-   * Configures the component for secret (password) input mode.
-   * @param {boolean} isSecret - True to enable secret mode.
-   */
-  setSecret(isSecret) {
-    this.#isSecret = isSecret;
   }
 }
 

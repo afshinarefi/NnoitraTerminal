@@ -16,8 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { createLogger } from '../Managers/LogManager.js';
-const log = createLogger('BaseComponent');
-
 /**
  * @class ArefiBaseComponent
  * @extends HTMLElement
@@ -32,8 +30,11 @@ const log = createLogger('BaseComponent');
 class BaseComponent extends HTMLElement {
   /** @private {ShadowRoot} #shadow - The closed Shadow DOM root for the component. */
   #shadow;
-  /** @private {Object.<string, Element>} #refs - A map of elements within the Shadow DOM, keyed by their `part` attribute. */
-  #refs = {};
+  /** @protected {Object.<string, Element>} #internalRefs - A map of elements within the Shadow DOM, keyed by their `part` attribute. */
+  #internalRefs = {};
+  #log;
+
+  get log() { return this.#log; }
 
   /**
    * Creates an instance of ArefiBaseComponent.
@@ -44,7 +45,7 @@ class BaseComponent extends HTMLElement {
    */
   constructor(htmlTemplate, componentMap = {}) {
     super();
-
+    this.#log = createLogger(this.constructor.name);
     // --- 1. Define Shared Styles ---
     // These styles provide a consistent base aesthetic for all components extending ArefiBaseComponent.
     const sharedStyles = new CSSStyleSheet();
@@ -89,29 +90,30 @@ class BaseComponent extends HTMLElement {
 
   /**
    * Finds all elements in the shadow root that have a 'part' attribute
-   * and maps them to the `#refs` object using the 'part' value as the key.
+   * and maps them to the `#internalRefs` object using the 'part' value as the key.
    * This provides a convenient way to access internal elements of the component.
    * @private
    */
   #setupRefs() {
     // Query for all elements that have a 'part' attribute within the Shadow DOM.
     const elementsWithPart = this.#shadow.querySelectorAll('[part]');
-
     elementsWithPart.forEach(el => {
       const partName = el.getAttribute('part');
       // Use the part name as the key for the refs object.
-      log.log(`Mapping ref: "${partName}" to element`, el);
-      this.#refs[partName] = el;
+      this.log.log(`Mapping ref: "${partName}" to element`, el);
+      this.#internalRefs[partName] = el;
     });
   }
 
   /**
-   * Provides read-only access to the mapped element references.
-   * @returns {Object.<string, Element>} An object containing references to internal elements,
+   * Provides protected read-only access to the mapped element references for use by child classes.
+   * This should not be accessed from outside the component's class hierarchy.
+   * @protected
+   * @returns {Object.<string, Element>} An object containing references to internal elements
    *   keyed by their `part` attribute.
    */
   get refs() {
-    return this.#refs;
+    return this.#internalRefs;
   }
 
   /**
