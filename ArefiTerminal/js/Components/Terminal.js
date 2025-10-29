@@ -17,7 +17,7 @@
  */
 import { ServiceContainer } from '../Core/ServiceContainer.js';
 import { BaseComponent } from '../Core/BaseComponent.js';
-import { CommandLine } from './CommandLine.js';
+import { TerminalPrompt } from './TerminalPrompt.js';
 import { HintBox } from './HintBox.js';
 import { createLogger } from '../Managers/LogManager.js';
 
@@ -127,7 +127,7 @@ class Terminal extends BaseComponent {
    */
   constructor() {
     // Pass the template and map to the base constructor
-    super(TEMPLATE, { 'arefi-cmd': CommandLine, 'arefi-hint-box': HintBox });
+    super(TEMPLATE, { 'arefi-cmd': TerminalPrompt, 'arefi-hint-box': HintBox });
 
     // Apply component-specific styles
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalSpecificStyles];

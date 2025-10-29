@@ -54,11 +54,11 @@ class InputService extends BaseService{
     setView(view) {
         this.#view = view;
         // Listen for custom events from the command line component.
-        this.#view.addEventListener('enter', (e) => this.submitInput(e.detail.value));
-        this.#view.addEventListener('tab', () => this.requestAutocomplete());
-        this.#view.addEventListener('arrow-up', () => this.requestPreviousHistory());
-        this.#view.addEventListener('arrow-down', () => this.requestNextHistory());
-        this.#view.addEventListener('swipe-right', () => this.requestAutocomplete());
+        this.#view.addEventListener('enter', (e) => this.#submitInput(e.detail.value));
+        this.#view.addEventListener('tab', () => this.#requestAutocomplete());
+        this.#view.addEventListener('arrow-up', () => this.#requestPreviousHistory());
+        this.#view.addEventListener('arrow-down', () => this.#requestNextHistory());
+        this.#view.addEventListener('swipe-right', () => this.#requestAutocomplete());
         // Set the initial state to disabled.
         this.#view.setAttribute('disabled', ''); // The view is disabled until an input request is received.
     }
@@ -71,9 +71,9 @@ class InputService extends BaseService{
         };
     }
 
-    // --- Public Methods (called by Terminal.js in response to view events) ---
+    // --- Internal Event Handlers (called in response to view events) ---
 
-    submitInput(value) {
+    #submitInput(value) {
         // For any input, finish the read operation, which uses the `respond` function.
         // This handles both normal commands and interactive prompts consistently.
         if (this.respond) {
@@ -83,14 +83,14 @@ class InputService extends BaseService{
         }
     }
 
-    requestAutocomplete() {
+    #requestAutocomplete() {
         this.log.log('Tab key pressed - triggering autocomplete if allowed.', this.#allowAutocomplete);
         if (this.#allowAutocomplete) {
             this.#onAutocompleteRequest(this.#view.getValue());
         }
     }
 
-    requestPreviousHistory() {
+    #requestPreviousHistory() {
         if (this.#allowHistory) {
             if (!this.#isNavigatingHistory) {
                 this.#inputBuffer = this.#view.getValue();
@@ -101,7 +101,7 @@ class InputService extends BaseService{
         }
     }
 
-    requestNextHistory() {
+    #requestNextHistory() {
         this.log.log('ArrowDown key pressed - requesting next history if allowed.');
         if (this.#allowHistory && this.#isNavigatingHistory) {
             this.#view.setAttribute('disabled', '');
@@ -123,7 +123,7 @@ class InputService extends BaseService{
         }
     }
 
-    #startRead(prompt, options = {}, correlationId) {
+    #startRead(prompt, options = {}) {
         this.#isSecret = options.isSecret || false;
         // By default, a read operation should not allow history or autocomplete
         this.#allowHistory = options.allowHistory || false; // e.g. login prompt
@@ -146,20 +146,6 @@ class InputService extends BaseService{
         // The `respond` function is attached by the event bus's `request` method.
         this.respond({ value });
         this.#view.setAttribute('disabled', ''); // Disable prompt after responding.
-    }
-
-    #resetState() {
-        // Reset all state to default for a normal command prompt
-        this.#isSecret = false;
-        this.#allowHistory = true; // Normal prompt allows history
-        this.#allowAutocomplete = true; // Normal prompt allows autocomplete
-        this.#inputBuffer = '';
-        this.#isNavigatingHistory = false;
-
-        this.#view.clear();
-        this.#view.removeAttribute('disabled');
-        this.#view.setAttribute('placeholder', '');
-        this.#view.removeAttribute('secret');
     }
 
     // --- Listener Implementations ---

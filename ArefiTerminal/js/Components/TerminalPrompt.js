@@ -19,7 +19,7 @@ import { BaseComponent } from '../Core/BaseComponent.js';
 import { Icon } from './Icon.js';
 
 /**
- * @constant {string} TEMPLATE - HTML template for the CommandLine component's shadow DOM.
+ * @constant {string} TEMPLATE - HTML template for the TerminalPrompt component's shadow DOM.
  */
 const TEMPLATE = `
   <div part="footer">
@@ -29,7 +29,7 @@ const TEMPLATE = `
   `;
 
 /**
- * @constant {string} CSS - CSS styles for the CommandLine component's shadow DOM.
+ * @constant {string} CSS - CSS styles for the TerminalPrompt component's shadow DOM.
  */
 const CSS = `
 [part=footer] {
@@ -60,11 +60,11 @@ const CSS = `
 }
 `;
 // Define component-specific styles
-const commandLineSpecificStyles = new CSSStyleSheet();
-commandLineSpecificStyles.replaceSync(CSS);
+const terminalPromptSpecificStyles = new CSSStyleSheet();
+terminalPromptSpecificStyles.replaceSync(CSS);
 
 /**
- * @class CommandLine
+ * @class TerminalPrompt
  * @extends BaseComponent
  * @description A fully encapsulated, declarative Web Component for terminal input.
  *
@@ -82,7 +82,7 @@ commandLineSpecificStyles.replaceSync(CSS);
  * @fires arrow-down - When the user presses the ArrowDown key.
  * @fires swipe-right - When the user performs a right swipe gesture on the component.
  */
-class CommandLine extends BaseComponent {
+class TerminalPrompt extends BaseComponent {
   /** @private {boolean} #isSecret - Flag indicating if the read mode is for secret (password) input. */
   #isSecret = false;
   /** @private {string} #secretValue - Stores the actual value when in secret input mode. */
@@ -94,7 +94,7 @@ class CommandLine extends BaseComponent {
   #touchStartY = 0;
 
   /**
-   * Creates an instance of CommandLine.
+   * Creates an instance of TerminalPrompt.
    * Initializes the shadow DOM and applies component-specific styles.
    */
   constructor() {
@@ -102,7 +102,7 @@ class CommandLine extends BaseComponent {
     super(TEMPLATE, { 'arefi-icon': Icon });
 
     // Apply component-specific styles to the shadow DOM.
-    this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, commandLineSpecificStyles];
+    this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalPromptSpecificStyles];
 
     // Add touch event listeners for swipe-to-autocomplete gesture.
     this.refs.footer.addEventListener('touchstart', this.#handleTouchStart.bind(this), { passive: true });
@@ -329,6 +329,6 @@ class CommandLine extends BaseComponent {
 }
 
 // Define the custom element 'arefi-cmd'
-customElements.define('arefi-cmd', CommandLine);
+customElements.define('arefi-cmd', TerminalPrompt);
 
-export { CommandLine };
+export { TerminalPrompt };
