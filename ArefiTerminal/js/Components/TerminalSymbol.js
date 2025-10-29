@@ -54,88 +54,62 @@ iconSpecificStyles.replaceSync(CSS);
  * @description A custom element that displays various symbolic icons within the terminal,
  * indicating different states like ready, busy, or history index.
  */
-class Icon extends BaseComponent {
+class TerminalSymbol extends BaseComponent {
   /**
    * @private
    * @type {Object.<string, string>}
    * @description A map of icon names to their corresponding string representations.
    */
   #icons = {
-    ready: '>',
-    busy: '⧗',
-    history: 'H:',
-    indexed: ':>',
-    password: '⚷'
+    ready: '>', // The default prompt icon
+    busy: '⧗',  // The "spinner" for when a command is running
+    key: '⚷'   // The key symbol for password prompts
   };
 
   /**
    * Creates an instance of Icon.
-   * Initializes the shadow DOM, applies component-specific styles, and sets the icon to the 'ready' state.
+   * Initializes the shadow DOM and applies component-specific styles.
    */
   constructor() {
     super(TEMPLATE);
-
-    // Apply component-specific styles to the shadow DOM.
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, iconSpecificStyles];
-
-    // Set the initial icon to 'ready'.
-    this.ready();
-    log.log('Icon component created and set to ready.');
+    // Set a default state if no type is provided on creation.
+    if (!this.hasAttribute('type')) {
+      this.setAttribute('type', 'ready');
+    }
   }
 
-  /**
-   * Sets the icon to a key symbol, for password prompts.
-   */
-  key() {
-    log.log('Setting icon to: key');
-    this.refs.symbol.innerHTML = this.#icons.password;
+  static get observedAttributes() {
+    return ['type', 'value'];
   }
 
-  /**
-   * Sets the icon's text directly. Used for custom prompts like "Password:".
-   * @param {string} text - The text to display.
-   */
-  setText(text) {
-    log.log('Setting icon text to:', text);
-    this.refs.symbol.innerHTML = text;
+  attributeChangedCallback(name, oldValue, newValue) {
+    this.#render();
   }
 
-  /**
-   * Sets the icon to the 'ready' state, typically a prompt symbol.
-   */
-  ready() {
-    log.log('Setting icon to: ready');
-    this.refs.symbol.innerHTML = this.#icons.ready;
-  }
+  #render() {
+    const type = this.getAttribute('type') || 'ready';
+    const value = this.getAttribute('value');
+    let symbol = '';
 
-  /**
-   * Sets the icon to the 'busy' state, indicating an ongoing operation.
-   */
-  busy() {
-    log.log('Setting icon to: busy');
-    this.refs.symbol.innerHTML = this.#icons.busy;
-  }
-
-  /**
-   * Sets the icon to display a history index.
-   * @param {number} index - The history index to display.
-   */
-  history(index) {
-    log.log('Setting icon to: history', index);
-    this.refs.symbol.innerHTML = this.#icons.history + index;
-  }
-
-  /**
-   * Sets the icon to display an indexed item, typically for output.
-   * @param {number} index - The index of the item.
-   */
-  indexed(index) {
-    log.log('Setting icon to: indexed', index);
-    this.refs.symbol.innerHTML = index + this.#icons.indexed;
+    switch (type) {
+      case 'ready':
+      case 'busy':
+      case 'key':
+        symbol = this.#icons[type];
+        break;
+      case 'indexed':
+        symbol = `${value || ''}:>`;
+        break;
+      case 'text':
+        symbol = value || '';
+        break;
+    }
+    this.refs.symbol.innerHTML = symbol;
   }
 }
 
 // Define the custom element 'arefi-icon'
-customElements.define('arefi-icon', Icon);
+customElements.define('arefi-icon', TerminalSymbol);
 
-export { Icon };
+export { TerminalSymbol };

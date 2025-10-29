@@ -18,7 +18,7 @@
 import { BaseComponent } from '../Core/BaseComponent.js';
 import { createLogger } from '../Managers/LogManager.js';
 const log = createLogger('TerminalItem');
-import { Icon } from './Icon.js';
+import { TerminalSymbol } from './TerminalSymbol.js';
 
 /**
  * @constant {string} TEMPLATE - HTML template for the TerminalItem component's shadow DOM.
@@ -38,7 +38,7 @@ const TEMPLATE = `
 const CSS = `
 :host {
   display: block;
-  margin-bottom: 1px; /* Add some space between terminal items */
+  margin-bottom: 10px; /* Add some space between terminal items */
 }
 
 [part=header],
@@ -54,9 +54,6 @@ const CSS = `
 
 :host(.active) [part=output] {
   display: block;
-  margin-top: 3px;
-  margin-bottom: 7px;
-  padding: 0;
 }
 
 :host(.active) [part=command-container],
@@ -67,11 +64,6 @@ const CSS = `
 [part=command-container] {
   display: flex;
   align-items: center;
-  margin-right: 0px;
-  margin-left: 0px;
-  margin-top: 1px;
-  margin-bottom: 1px;
-  padding: 0px; /* Revert to pixel-based padding for consistency */
 }
 
 [part=command] {
@@ -81,29 +73,24 @@ const CSS = `
   margin-bottom: 3px;
   color: var(--arefi-color-text); /* VAR */
 }
-
 [part=header] {
   color: var(--arefi-color-text-highlight); /* VAR */
   background-color: var(--arefi-color-highlight); /* VAR */
-  padding: 3px 5px 5px 5px; /* Revert to pixel-based padding for consistency */
-  display: flex; /* Use flexbox for alignment */
-  align-items: center; /* Vertically center the text */
+  padding: 3px 5px;
   border-radius: 3px;
-  margin-right: 0px;
-  margin-left: 0px;
-  margin-top: 1px;
-  margin-bottom: 1px;
+  margin-right: 5px;
+  margin-top: 3px;
+  margin-bottom: 3px;
 }
 
 [part=header]::before {
-  content: '\\200b'; /* Zero-width space to act as a strut */
-  display: inline-block; /* Ensures it takes up vertical space */
-  width: 0;
+  content: '\\200b'; /* Zero-width space */
+  display: inline-block; /* Ensures it contributes to the line box */
 }
 [part=output] {
   color: var(--arefi-color-output);
-  margin: 0px;
-  padding: 0;
+  margin-top: 5px;
+  margin-bottom: 5px;
 }
 
 [part=output] pre {
@@ -144,7 +131,7 @@ class TerminalItem extends BaseComponent {
    */
   constructor() {
     // Pass the template and map to the base constructor, including the Icon component.
-    super(TEMPLATE, { 'arefi-icon': Icon });
+    super(TEMPLATE, { 'arefi-icon': TerminalSymbol });
 
     // Apply component-specific styles to the shadow DOM.
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalItemSpecificStyles];
@@ -183,7 +170,8 @@ class TerminalItem extends BaseComponent {
     }
     log.log(`Setting command content for ID ${this.#id}:`, { command });
     this.refs.command.textContent = command;
-    this.refs.icon.indexed(this.#id);
+    this.refs.icon.setAttribute('type', 'indexed');
+    this.refs.icon.setAttribute('value', this.#id);
     this.classList.add('active');
   }
 }

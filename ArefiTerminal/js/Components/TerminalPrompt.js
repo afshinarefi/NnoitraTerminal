@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { BaseComponent } from '../Core/BaseComponent.js';
-import { Icon } from './Icon.js';
+import { TerminalSymbol } from './TerminalSymbol.js';
 
 /**
  * @constant {string} TEMPLATE - HTML template for the TerminalPrompt component's shadow DOM.
@@ -99,7 +99,7 @@ class TerminalPrompt extends BaseComponent {
    */
   constructor() {
     // Pass the template and map to the base constructor, including the Icon component.
-    super(TEMPLATE, { 'arefi-icon': Icon });
+    super(TEMPLATE, { 'arefi-icon': TerminalSymbol });
 
     // Apply component-specific styles to the shadow DOM.
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalPromptSpecificStyles];
@@ -138,8 +138,9 @@ class TerminalPrompt extends BaseComponent {
         break;
       case 'icon-text':
         if (newValue !== null) {
-          // If the attribute is being set, display the custom text.
-          if (this.refs.icon) this.refs.icon.setText(newValue);
+          // If the attribute is being set, tell the icon to display custom text.
+          if (this.refs.icon) this.refs.icon.setAttribute('type', 'text');
+          if (this.refs.icon) this.refs.icon.setAttribute('value', newValue);
         } else {
           // If the attribute is being removed, revert to the default state icon.
           this.#isSecret ? this.#setKeyIcon() : this.#setReadyIcon();
@@ -316,15 +317,15 @@ class TerminalPrompt extends BaseComponent {
   // --- Private Icon Methods ---
 
   #setReadyIcon() {
-    if (this.refs.icon) this.refs.icon.ready();
+    if (this.refs.icon) this.refs.icon.setAttribute('type', 'ready');
   }
 
   #setBusyIcon() {
-    if (this.refs.icon) this.refs.icon.busy();
+    if (this.refs.icon) this.refs.icon.setAttribute('type', 'busy');
   }
 
   #setKeyIcon() {
-    if (this.refs.icon) this.refs.icon.key();
+    if (this.refs.icon) this.refs.icon.setAttribute('type', 'key');
   }
 }
 
