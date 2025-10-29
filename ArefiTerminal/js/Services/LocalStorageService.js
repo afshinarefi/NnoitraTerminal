@@ -39,6 +39,7 @@ class LocalStorageService extends BaseService {
             [EVENTS.SAVE_LOCAL_VAR]: this.#handleSaveLocalVar.bind(this),
             [EVENTS.LOAD_LOCAL_VAR]: this.#handleLoadLocalVar.bind(this),
             [EVENTS.RESET_LOCAL_VAR]: this.#handleResetLocalVar.bind(this),
+            [EVENTS.DELETE_LOCAL_VAR]: this.#handleDeleteLocalVar.bind(this),
         };
     }
 
@@ -82,6 +83,18 @@ class LocalStorageService extends BaseService {
         const allData = this.#readAllLocal(namespace);
         const value = key !== undefined ? allData[key] : allData;
         if (respond) respond({ value });
+    }
+
+    #handleDeleteLocalVar({ key, respond, namespace }) {
+        if (key === undefined) {
+            this.log.warn('DELETE_LOCAL_VAR requires a key.');
+            if (respond) respond({ success: false });
+            return;
+        }
+        let currentData = this.#readAllLocal(namespace);
+        delete currentData[key];
+        this.#writeAllLocal(currentData, namespace);
+        if (respond) respond({ success: true });
     }
 
     #handleResetLocalVar({ namespace }) {

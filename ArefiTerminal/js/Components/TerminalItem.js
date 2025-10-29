@@ -38,7 +38,7 @@ const TEMPLATE = `
 const CSS = `
 :host {
   display: block;
-  margin-bottom: 10px; /* Add some space between terminal items */
+  margin-bottom: 1px; /* Add some space between terminal items */
 }
 
 [part=header],
@@ -54,6 +54,9 @@ const CSS = `
 
 :host(.active) [part=output] {
   display: block;
+  margin-top: 3px;
+  margin-bottom: 7px;
+  padding: 0;
 }
 
 :host(.active) [part=command-container],
@@ -64,6 +67,11 @@ const CSS = `
 [part=command-container] {
   display: flex;
   align-items: center;
+  margin-right: 0px;
+  margin-left: 0px;
+  margin-top: 1px;
+  margin-bottom: 1px;
+  padding: 0px; /* Revert to pixel-based padding for consistency */
 }
 
 [part=command] {
@@ -73,19 +81,29 @@ const CSS = `
   margin-bottom: 3px;
   color: var(--arefi-color-text); /* VAR */
 }
+
 [part=header] {
   color: var(--arefi-color-text-highlight); /* VAR */
   background-color: var(--arefi-color-highlight); /* VAR */
-  padding: 3px 5px;
+  padding: 3px 5px 5px 5px; /* Revert to pixel-based padding for consistency */
+  display: flex; /* Use flexbox for alignment */
+  align-items: center; /* Vertically center the text */
   border-radius: 3px;
-  margin-right: 5px;
-  margin-top: 3px;
-  margin-bottom: 3px;
+  margin-right: 0px;
+  margin-left: 0px;
+  margin-top: 1px;
+  margin-bottom: 1px;
+}
+
+[part=header]::before {
+  content: '\\200b'; /* Zero-width space to act as a strut */
+  display: inline-block; /* Ensures it takes up vertical space */
+  width: 0;
 }
 [part=output] {
   color: var(--arefi-color-output);
-  margin-top: 5px;
-  margin-bottom: 5px;
+  margin: 0px;
+  padding: 0;
 }
 
 [part=output] pre {

@@ -24,12 +24,12 @@ import { parseAssignment } from '../Utils/ParseUtil.js';
 class Export extends BaseCommand {
     static DESCRIPTION = 'Set or display user environment variables.';
 
-    #exportVariable;
+    #setUserspaceVariable;
     #getAllCategorizedVariables;
 
     constructor(services) {
         super(services);
-        this.#exportVariable = this.services.exportVariable;
+        this.#setUserspaceVariable = this.services.setUserspaceVariable;
         this.#getAllCategorizedVariables = this.services.getAllCategorizedVariables;
     }
 
@@ -100,13 +100,18 @@ class Export extends BaseCommand {
         const newVar = parseAssignment(exportString);
 
         if (newVar) {
-            const success = await this.#exportVariable(newVar.name.toUpperCase(), newVar.value);
-            if (success.success) {
+            const upperVarName = newVar.name.toUpperCase();
+            // A variable can be exported if it's not a system/local/temp variable.
+            // The most direct check is to see if it exists in any category other than USERSPACE.
+            const isReadOnly = (allVars.SYSTEM && allVars.SYSTEM.hasOwnProperty(upperVarName)) ||
+                               (allVars.LOCAL && allVars.LOCAL.hasOwnProperty(upperVarName)) ||
+                               (allVars.TEMP && allVars.TEMP.hasOwnProperty(upperVarName));
+
+            if (!isReadOnly) {
+                this.#setUserspaceVariable(upperVarName, newVar.value);
                 this.log.log(`Set variable: ${newVar.name}='${newVar.value}'`);
-                // No output on successful export, which is standard shell behavior.
             } else {
                 output.textContent = `export: permission denied: \`${newVar.name}\` is a read-only variable.`;
-                this.log.warn(`Attempted to export non-userspace variable: ${newVar.name}`);
             }
         } else {
             output.textContent = `export: invalid format. Use name="value"`;

@@ -51,7 +51,6 @@ class EnvironmentService extends BaseService{
         return {
             [EVENTS.GET_ALL_CATEGORIZED_VARS_REQUEST]: this.#handleGetAllCategorized.bind(this),
             [EVENTS.USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this),
-            [EVENTS.VAR_EXPORT_REQUEST]: this.#handleExportVariable.bind(this),
             [EVENTS.VAR_GET_LOCAL_REQUEST]: this.#handleGetLocalVariable.bind(this),
             [EVENTS.VAR_GET_SYSTEM_REQUEST]: this.#handleGetSystemVariable.bind(this),
             [EVENTS.VAR_GET_TEMP_REQUEST]: this.#handleGetTempVariable.bind(this),
@@ -60,6 +59,10 @@ class EnvironmentService extends BaseService{
             [EVENTS.VAR_SET_SYSTEM_REQUEST]: this.#handleSetVariableRemote.bind(this),
             [EVENTS.VAR_SET_TEMP_REQUEST]: this.#handleSetTempVariable.bind(this),
             [EVENTS.VAR_SET_USERSPACE_REQUEST]: this.#handleSetVariableUserspace.bind(this),
+            [EVENTS.VAR_DEL_LOCAL_REQUEST]: this.#handleDeleteLocalVariable.bind(this),
+            [EVENTS.VAR_DEL_SYSTEM_REQUEST]: this.#handleDeleteSystemVariable.bind(this),
+            [EVENTS.VAR_DEL_TEMP_REQUEST]: this.#handleDeleteTempVariable.bind(this),
+            [EVENTS.VAR_DEL_USERSPACE_REQUEST]: this.#handleDeleteUserspaceVariable.bind(this),
         };
     }
 
@@ -146,6 +149,22 @@ class EnvironmentService extends BaseService{
         this.#setRemoteVariable(key.toUpperCase(), value, USERSPACE_NAMESPACE);
     }
 
+    #handleDeleteTempVariable({ key }) {
+        this.#deleteTempVariable(key.toUpperCase());
+    }
+
+    #handleDeleteLocalVariable({ key }) {
+        this.#deleteLocalVariable(key.toUpperCase());
+    }
+
+    #handleDeleteSystemVariable({ key }) {
+        this.#deleteRemoteVariable(key.toUpperCase(), SYSTEM_NAMESPACE);
+    }
+
+    #handleDeleteUserspaceVariable({ key }) {
+        this.#deleteRemoteVariable(key.toUpperCase(), USERSPACE_NAMESPACE);
+    }
+
     #validate(key, value) {
 		if (typeof value === 'number') {
 			value = String(value);
@@ -175,28 +194,16 @@ class EnvironmentService extends BaseService{
         this.dispatch(EVENTS.VAR_SAVE_REMOTE_REQUEST, { key, value, category });
     }
 
-	async isReadOnly(key) {
-		const upperKey = key.toUpperCase();
-        // A variable is considered read-only if it exists in any category other than USERSPACE.
-        // We must check each category.
-        if (this.#tempVariables.has(upperKey)) return true; // Check temp variables first.
-        const { value: localValue } = await this.request(EVENTS.LOAD_LOCAL_VAR, { key: upperKey, namespace: ENV_NAMESPACE });
-        if (localValue !== undefined) return true; // Check local variables
-        const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: SYSTEM_NAMESPACE });
-        if (remoteData && remoteData.hasOwnProperty(upperKey)) return true;
+    #deleteTempVariable(key) {
+        this.#tempVariables.delete(key);
+    }
 
-		return false; // Simplified: `export` command will now manage this logic.
-	}
+    #deleteLocalVariable(key) {
+        this.dispatch(EVENTS.DELETE_LOCAL_VAR, { key, namespace: ENV_NAMESPACE });
+    }
 
-    async #handleExportVariable({ key, value, respond }) {
-        const upperKey = key.toUpperCase();
-        const isReadonly = await this.isReadOnly(upperKey);
-        if (isReadonly) {
-            respond({ success: false });
-            return;
-        }
-        this.#setRemoteVariable(key, value, USERSPACE_NAMESPACE);
-        respond({ success: true });
+    #deleteRemoteVariable(key, category) {
+        this.dispatch(EVENTS.VAR_DEL_REMOTE_REQUEST, { key, category });
     }
 
     async #handleUserChanged() {

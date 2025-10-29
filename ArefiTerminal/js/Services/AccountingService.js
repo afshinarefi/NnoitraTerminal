@@ -58,6 +58,7 @@ class AccountingService extends BaseService {
             [EVENTS.ADD_USER_REQUEST]: this.#handleAddUserRequest.bind(this),
             [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
             [EVENTS.VAR_LOAD_REMOTE_REQUEST]: this.#handleLoadRemoteVariables.bind(this),
+            [EVENTS.VAR_DEL_REMOTE_REQUEST]: this.#handleDeleteRemoteVariable.bind(this),
             [EVENTS.IS_LOGGED_IN_REQUEST]: this.#handleIsLoggedInRequest.bind(this),
         };
     }
@@ -100,9 +101,9 @@ class AccountingService extends BaseService {
             const result = await this.#apiManager.post('logout', {}, token);
             if (result.status === 'success' || (result.status === 'error' && result.message.includes('expired'))) {
                 // Clear local session regardless of backend response if token is expired or logout is successful
-                this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN, value: '' });
+                this.dispatch(EVENTS.VAR_DEL_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
                 this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.USER, value: GUEST_USER });
-                this.dispatch(EVENTS.VAR_SET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN_EXPIRY, value: '' });
+                this.dispatch(EVENTS.VAR_DEL_LOCAL_REQUEST, { key: ENV_VARS.TOKEN_EXPIRY });
                 this.dispatch(EVENTS.USER_CHANGED_BROADCAST);
             }
             return result;
@@ -188,6 +189,20 @@ class AccountingService extends BaseService {
             }, token);
         }
     }
+
+    async #handleDeleteRemoteVariable(payload) {
+        const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
+        if (user === GUEST_USER) {
+            this.dispatch(EVENTS.DELETE_LOCAL_VAR, { namespace: `${GUEST_STORAGE_PREFIX}${payload.category}`, key: payload.key });
+        } else {
+            const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
+            this.#apiManager.post('delete_data', {
+                category: payload.category,
+                key: payload.key,
+            }, token);
+        }
+    }
+
 
     async #handlePersistCommand(payload) {
         

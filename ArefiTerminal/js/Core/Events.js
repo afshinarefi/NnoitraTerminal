@@ -31,11 +31,16 @@ export const EVENTS = {
     VAR_SET_SYSTEM_REQUEST: 'variable-set-system-request',
     VAR_SET_TEMP_REQUEST: 'variable-set-temp-request',
     VAR_SET_USERSPACE_REQUEST: 'variable-set-userspace-request',
+    VAR_DEL_LOCAL_REQUEST: 'variable-delete-local-request',
+    VAR_DEL_SYSTEM_REQUEST: 'variable-delete-system-request',
+    VAR_DEL_TEMP_REQUEST: 'variable-delete-temp-request',
+    VAR_DEL_USERSPACE_REQUEST: 'variable-delete-userspace-request',
     
     // Local Storage
     LOAD_LOCAL_VAR: 'load-local-variable', // For LocalStorageService
     RESET_LOCAL_VAR: 'reset-local-variable', // For LocalStorageService
     SAVE_LOCAL_VAR: 'save-local-variable', // For LocalStorageService
+    DELETE_LOCAL_VAR: 'delete-local-variable', // For LocalStorageService
     
     // Accounting & User
     VAR_UPDATE_DEFAULT_REQUEST: 'variable-update-default-request',
@@ -47,6 +52,7 @@ export const EVENTS = {
     IS_LOGGED_IN_REQUEST: 'is-logged-in-request',
     VAR_SAVE_REMOTE_REQUEST: 'variable-save-remote-request',
     VAR_LOAD_REMOTE_REQUEST: 'variable-load-remote-request',
+    VAR_DEL_REMOTE_REQUEST: 'variable-delete-remote-request',
 
     // History
     HISTORY_PREVIOUS_REQUEST: 'history-previous-request',

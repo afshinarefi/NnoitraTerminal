@@ -149,9 +149,8 @@ export class ServiceApiManager {
         this.#eventBus.dispatch(EVENTS.VAR_SET_USERSPACE_REQUEST, { key, value });
     }
 
-    async exportVariable(key, value) {
-        const response = await this.#eventBus.request(EVENTS.VAR_EXPORT_REQUEST, { key, value });
-        return response;
+    deleteUserspaceVariable(key) {
+        this.#eventBus.dispatch(EVENTS.VAR_DEL_USERSPACE_REQUEST, { key });
     }
 
     async getAllCategorizedVariables() {

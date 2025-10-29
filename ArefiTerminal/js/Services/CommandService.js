@@ -40,6 +40,7 @@ import { Passwd } from '../Commands/passwd.js';
 import { Alias } from '../Commands/alias.js';
 import { Unalias } from '../Commands/unalias.js';
 import { Export } from '../Commands/export.js';
+import { Unset } from '../Commands/unset.js';
 import { Theme } from '../Commands/theme.js';
 import { Version } from '../Commands/version.js';
 
@@ -85,7 +86,8 @@ class CommandService extends BaseService{
         this.register('passwd', Passwd, ['prompt', 'changePassword']);
         this.register('alias', Alias, ['getAliases', 'setAliases']);
         this.register('unalias', Unalias, ['getAliases', 'setAliases']);
-        this.register('export', Export, ['exportVariable', 'getAllCategorizedVariables']);
+        this.register('export', Export, ['setUserspaceVariable', 'getAllCategorizedVariables']);
+        this.register('unset', Unset, ['deleteUserspaceVariable', 'getAllCategorizedVariables']);
         this.register('theme', Theme, ['getValidThemes', 'setTheme', 'getSystemVariable']);
         this.register('version', Version, []);
     }
