@@ -48,16 +48,17 @@ export class AutocompleteService extends BaseService{
         const parts = tokenizedParts;
 
         // The token to complete is the last one. The rest are the preceding arguments.
-        const incompleteToken = parts.pop() || '';
+        const incompleteToken = parts.length > 0 ? parts[parts.length - 1] : '';
 
         let finalSuggestions = [];
         let completedToken = '';
         let description = '';
+        let prefixLength = 0;
 
         try {
             // 1. Ask the CommandService for the final list of suggestions.
             // The CommandService will delegate to the specific command if necessary.
-            const response = await this.request(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, { parts: [...parts, ''] });
+            const response = await this.request(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, { parts });
             const { suggestions: potentialOptions } = response;
             description = response.description;
 
@@ -73,13 +74,10 @@ export class AutocompleteService extends BaseService{
 
                 // 4. Determine the final suggestions and if a suffix should be added.
                 if (potentialOptions.length === 1 && potentialOptions[0] === completedToken) {
-                    // A single, exact match was found.
-                    // The suggestion provider is responsible for adding any trailing space or slash.
                     finalSuggestions = []; // No more options to show.
-                } else if (commonPrefix) {
-                    finalSuggestions = filteredOptions.map(s => s.substring(commonPrefix.length));
                 } else {
-                    finalSuggestions = filteredOptions; // No common prefix, but still options to show.
+                    finalSuggestions = filteredOptions;
+                    prefixLength = incompleteToken.length;
                 }
             } else if (description) {
                 // If there are no suggestions, but there is a description, pass it along.
@@ -99,6 +97,6 @@ export class AutocompleteService extends BaseService{
         const completionSuffix = completedToken.substring(incompleteToken.length);
         const newTextBeforeCursor = beforeCursorText + completionSuffix;
 
-        this.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, { newTextBeforeCursor, options: finalSuggestions, afterCursorText, description });
+        this.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, { newTextBeforeCursor, options: finalSuggestions, afterCursorText, description, prefixLength });
     }
 }

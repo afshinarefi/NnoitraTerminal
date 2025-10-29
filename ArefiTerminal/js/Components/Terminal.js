@@ -18,7 +18,7 @@
 import { ServiceContainer } from '../Core/ServiceContainer.js';
 import { BaseComponent } from '../Core/BaseComponent.js';
 import { TerminalPrompt } from './TerminalPrompt.js';
-import { HintBox } from './HintBox.js';
+import { SuggestionBox } from './SuggestionBox.js';
 import { createLogger } from '../Managers/LogManager.js';
 
 const log = createLogger('Terminal');
@@ -30,7 +30,7 @@ const TEMPLATE = `
   <div part="terminal">
   <div part="welcome-output"></div>
   <div part="output"></div>
-  <arefi-hint-box part="hint"></arefi-hint-box>
+  <arefi-hint-box part="hint" hidden></arefi-hint-box>
   </div>
   <arefi-cmd part="prompt"></arefi-cmd>
   `;
@@ -127,7 +127,7 @@ class Terminal extends BaseComponent {
    */
   constructor() {
     // Pass the template and map to the base constructor
-    super(TEMPLATE, { 'arefi-cmd': TerminalPrompt, 'arefi-hint-box': HintBox });
+    super(TEMPLATE, { 'arefi-cmd': TerminalPrompt, 'arefi-hint-box': SuggestionBox });
 
     // Apply component-specific styles
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalSpecificStyles];

@@ -66,29 +66,38 @@ class HintService extends BaseService{
      */
     #handleShowHints(payload) {
         if (!this.#view) return;
+        const { options = [], description, prefixLength } = payload;
 
-        const { newTextBeforeCursor, options, description } = payload;
+        // Clear existing hints first
+        this.#view.innerHTML = '';
 
         // Show hints if there are multiple options, or a single option that isn't empty,
         // or if a description is provided.
-        if ((options && (options.length > 1 || (options.length === 1 && options[0] !== ''))) || description) {
-            if (description) {
-                // If a description is provided, show it as-is with no prefix highlighting.
-                this.#view.show([description], 0);
-            } else {
-                // For normal suggestions, calculate the prefix to highlight.
-                const lastToken = newTextBeforeCursor.split(/[\s/]/).pop() || '';
-                const fullSuggestions = options.map(suffix => lastToken + suffix);
-                this.#view.show(fullSuggestions, lastToken.length);
-            }
+        if (description) {
+            const li = document.createElement('li');
+            li.textContent = description;
+            this.#view.appendChild(li);
+            this.#view.setAttribute('prefix-length', '0');
+            this.#view.removeAttribute('hidden');
+        } else if (options.length > 1) {
+            const fragment = document.createDocumentFragment();
+            options.forEach((fullSuggestion, index) => {
+                const li = document.createElement('li');
+                li.textContent = fullSuggestion;
+                fragment.appendChild(li);
+            });
+            this.#view.appendChild(fragment);
+            this.#view.setAttribute('prefix-length', prefixLength);
+            this.#view.removeAttribute('hidden');
         } else {
-            this.#view.hide();
+            this.#view.setAttribute('hidden', '');
         }
     }
 
     #handleHideHints() {
         if (this.#view) {
-            this.#view.hide();
+            this.#view.setAttribute('hidden', ''); // Hide the box
+            this.#view.innerHTML = ''; // Clear its content
         }
     }
 }
