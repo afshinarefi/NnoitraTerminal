@@ -1,5 +1,5 @@
 /**
- * Arefi Terminal
+ * Nnoitra Terminal
  * Copyright (C) 2025 Arefi
  *
  * This program is free software: you can redistribute it and/or modify

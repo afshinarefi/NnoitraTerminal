@@ -1,5 +1,5 @@
 /**
- * Arefi Terminal
+ * Nnoitra Terminal
  * Copyright (C) 2025 Arefi
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,14 +17,14 @@
  */
 import { createLogger } from '../Managers/LogManager.js';
 /**
- * @class ArefiBaseComponent
+ * @class NnoitraBaseComponent
  * @extends HTMLElement
- * @description Provides a foundational class for all Arefi custom components.
+ * @description Provides a foundational class for all Nnoitra custom components.
  * It automates the setup of a closed Shadow DOM, applies shared styles,
  * and provides a mechanism for mapping elements with `part` attributes to `refs` for easy access.
  *
  * To use this base component:
- * 1. Extend `ArefiBaseComponent` instead of `HTMLElement`.
+ * 1. Extend `NnoitraBaseComponent` instead of `HTMLElement`.
  * 2. Call `super(htmlTemplate, componentMap)` in the constructor of the derived class.
  */
 class BaseComponent extends HTMLElement {
@@ -37,14 +37,14 @@ class BaseComponent extends HTMLElement {
   get log() { return this.#log; }
 
   /**
-   * Creates an instance of ArefiBaseComponent.
+   * Creates an instance of NnoitraBaseComponent.
    * @param {string} htmlTemplate - The HTML string that defines the structure of the component's Shadow DOM.
    */
   constructor(htmlTemplate) {
     super();
     this.#log = createLogger(this.constructor.name);
     // --- 1. Define Shared Styles ---
-    // These styles provide a consistent base aesthetic for all components extending ArefiBaseComponent.
+    // These styles provide a consistent base aesthetic for all components extending NnoitraBaseComponent.
     const sharedStyles = new CSSStyleSheet();
     sharedStyles.replaceSync(`
       /* Styles for encapsulation and structural fundamentals remain here.

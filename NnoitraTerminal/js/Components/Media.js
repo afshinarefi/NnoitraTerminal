@@ -1,5 +1,5 @@
 /**
- * Arefi Terminal
+ * Nnoitra Terminal
  * Copyright (C) 2025 Arefi
  *
  * This program is free software: you can redistribute it and/or modify
@@ -43,7 +43,7 @@ const mediaSpecificStyles = new CSSStyleSheet();
 mediaSpecificStyles.replaceSync(CSS);
 
 /**
- * @class ArefiMedia
+ * @class NnoitraMedia
  * @extends BaseComponent
  * @description A custom element for displaying images or videos. It handles the loading
  * of media and dispatches a 'media-loaded' event upon completion to solve scroll timing issues.
