@@ -23,6 +23,8 @@ import { createLogger } from '../Managers/LogManager.js';
 
 const log = createLogger('Terminal');
 
+const FONT_PATH = '../../fonts/ubuntu/UbuntuMono-R.ttf';
+
 /**
  * @constant {string} TEMPLATE - HTML template for the Terminal component's shadow DOM.
  */
@@ -38,21 +40,6 @@ const TEMPLATE = `
 /**
  * @constant {string} CSS - CSS styles for the Terminal component's shadow DOM.
  */
-const FONT_STYLES = `
-@font-face {
-  font-family: 'Ubuntu Mono'; src: url('/fonts/ubuntu/UbuntuMono-R.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'Ubuntu Mono'; src: url('/fonts/ubuntu/UbuntuMono-B.ttf') format('truetype'); font-weight: bold; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'Ubuntu Mono'; src: url('/fonts/ubuntu/UbuntuMono-RI.ttf') format('truetype'); font-weight: normal; font-style: italic; font-display: swap;
-}
-@font-face {
-  font-family: 'Ubuntu Mono'; src: url('/fonts/ubuntu/UbuntuMono-BI.ttf') format('truetype'); font-weight: bold; font-style: italic; font-display: swap;
-}
-`;
-
 const HOST_STYLES = `
 :host {
   /* Default Theme & Font Variables */
@@ -69,7 +56,7 @@ const HOST_STYLES = `
   --nnoitra-color-highlight: var(--nnoitra-color-theme);
   --nnoitra-color-text-highlight: var(--nnoitra-color-black);
   --nnoitra-font-family: 'Ubuntu Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  --nnoitra-font-size: clamp(0.8rem, 3vw, 1.1rem);
+  --nnoitra-font-size: clamp(0.9rem, 3vw, 1.2rem);
 
 
   /* Default Layout & Appearance */
@@ -103,7 +90,7 @@ const COMPONENT_STYLES = `
 
 `;
 
-const CSS = FONT_STYLES + HOST_STYLES + COMPONENT_STYLES;
+const CSS = HOST_STYLES + COMPONENT_STYLES;
 
 // Define component-specific styles (now much smaller)
 const terminalSpecificStyles = new CSSStyleSheet();
@@ -131,6 +118,8 @@ class Terminal extends BaseComponent {
   constructor() {
     // Pass the template and map to the base constructor
     super(TEMPLATE);
+
+    this.#loadFont();
 
     // Apply component-specific styles
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalSpecificStyles];
@@ -184,6 +173,19 @@ class Terminal extends BaseComponent {
     // 3. Attach UI event listeners.
     this.#attachEventListeners();
     log.log('Terminal bootstrapped successfully.');
+  }
+
+  #loadFont() {
+    const fontUrl = new URL(FONT_PATH, import.meta.url);
+    const font = new FontFace('Ubuntu Mono', `url(${fontUrl.href})`);
+    font.display = 'swap'; // Ensure font-display: swap is applied
+
+    font.load().then(() => {
+      document.fonts.add(font);
+      this.log.log('MyDigitalFont loaded programmatically and added to document.fonts.');
+    }).catch(error => {
+      this.log.error('Failed to load MyDigitalFont programmatically:', error);
+    });
   }
 
   /**
