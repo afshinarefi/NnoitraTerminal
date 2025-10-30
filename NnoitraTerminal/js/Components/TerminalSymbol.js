@@ -29,7 +29,7 @@ const TEMPLATE = `<span part="symbol-container"></span>`;
 const CSS = `
 :host {
   height: 100%;
-  width: 100%;
+  aspect-ratio: 1;
   margin: 0;
   padding: 0;
 }

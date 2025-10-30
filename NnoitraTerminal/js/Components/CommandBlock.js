@@ -35,8 +35,12 @@ const TEMPLATE = `
  */
 const CSS = `
 :host {
+  --line-height: 2em;
+  --line-margin: 3px;
   display: block;
-  margin-bottom: 10px; /* Add some space between terminal items */
+  margin: 0;
+  margin-top: var(--line-margin);
+  padding: 0;
 }
 
 [part=header],
@@ -52,33 +56,54 @@ const CSS = `
 
 :host(.active) [part=output] {
   display: block;
+  margin-top: var(--line-margin);
 }
 
-:host(.active) [part=command-container],
+:host(.active) [part=command-container] {
+  display: flex; /* Ensure it's a flex container when active */
+}
+
 :host(.active) [part=icon] {
-  display: inline-block;
+  display: block; /* Make the icon visible when its container is active */
+}
+
+[part=icon] {
+  margin: 0;
+  padding: 0;
+  /* Other styling for the icon is handled by the nnoitra-icon component itself */
 }
 
 [part=command-container] {
-  display: flex;
   align-items: center;
+  height: var(--line-height);
+  padding: 0; /* Match header's padding */
+  border-radius: 3px;
+  margin: 0;
+  margin-top: var(--line-margin);
 }
 
 [part=command] {
   word-break: break-all;
   white-space: pre-wrap;
-  margin-top: 3px;
-  margin-bottom: 3px;
+  align-items: center;
+  flex-grow: 1; /* Take up remaining space */
   color: var(--nnoitra-color-text); /* VAR */
+  margin: 0;
+  padding: 0;
+  margin-left: 5px; /* Space between icon and command */
+
 }
 [part=header] {
+  flex-grow: 1; /* Take up remaining space */
+  min-height: var(--line-height);
+  line-height: var(--line-height);
+  align-items: center;     /* Center vertically */
   color: var(--nnoitra-color-text-highlight); /* VAR */
   background-color: var(--nnoitra-color-highlight); /* VAR */
-  padding: 3px 5px;
+  padding: 0px 5px;
   border-radius: 3px;
-  margin-right: 5px;
-  margin-top: 3px;
-  margin-bottom: 3px;
+  margin: 0px;
+  margin-top: var(--line-margin);
 }
 
 [part=header]::before {
@@ -87,8 +112,7 @@ const CSS = `
 }
 [part=output] {
   color: var(--nnoitra-color-output);
-  margin-top: 5px;
-  margin-bottom: 5px;
+  margin: 0;
 }
 
 [part=output] pre {

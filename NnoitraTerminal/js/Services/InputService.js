@@ -79,7 +79,9 @@ class InputService extends BaseService{
         if (this.respond) {
             this.#finishRead(value);
             this.#isNavigatingHistory = false; // Reset on command submission
+            //this.#view.setAttribute('disabled', '');
             this.#view.clear();
+            
         }
     }
 
