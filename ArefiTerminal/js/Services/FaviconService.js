@@ -71,26 +71,22 @@ class FaviconService extends BaseService{
         ctx.fillStyle = bgColor;
         ctx.fill();
 
-        // Draw border
-        ctx.lineWidth = borderWidth;
-        ctx.strokeStyle = borderColor;
-        ctx.stroke();
-
-        // Draw the '>' symbol with lines
-        const symbolWidth = size * 0.4;
-        const symbolHeight = size * 0.3;
-        const symbolWeight = Math.max(1, size * 0.12);
+        // Draw a filled circle symbol
+        const outerCircleRadius = size * 0.3; // Radius of the inner circle.
 
         ctx.beginPath();
-        ctx.moveTo((size - symbolWidth) / 2, (size - symbolHeight) / 2);
-        ctx.lineTo((size + symbolWidth) / 2, size / 2);
-        ctx.lineTo((size - symbolWidth) / 2, (size + symbolHeight) / 2);
+        // Draw a full circle in the center of the canvas.
+        ctx.arc(size / 2, size / 2, outerCircleRadius, 0, 2 * Math.PI);
+        ctx.fillStyle = symbolColor;
+        ctx.fill();
 
-        ctx.strokeStyle = symbolColor;
-        ctx.lineWidth = symbolWeight;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.stroke();
+        const innerCircleRadius = size * 0.22; // Radius of the inner circle.
+
+        ctx.beginPath();
+        // Draw a full circle in the center of the canvas.
+        ctx.arc(size * 0.47, size * 0.39, innerCircleRadius, 0, 2 * Math.PI);
+        ctx.fillStyle = bgColor;
+        ctx.fill();
 
         return c.toDataURL('image/png');
     }
@@ -118,6 +114,7 @@ class FaviconService extends BaseService{
 
         FaviconService.#SIZES.forEach(size => {
             const url = this.#drawIcon({ ...drawOptions, size });
+            this.log.log(url);
             const link = document.createElement('link');
             link.rel = size === 180 ? 'apple-touch-icon' : 'icon';
             link.type = 'image/png';
