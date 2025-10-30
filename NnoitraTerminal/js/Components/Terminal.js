@@ -23,10 +23,10 @@ import { createLogger } from '../Managers/LogManager.js';
 
 const log = createLogger('Terminal');
 
-const FONT_REGULAR_PATH = '../../fonts/ubuntu/UbuntuMono-R.ttf';
-const FONT_BOLD_PATH = '../../fonts/ubuntu/UbuntuMono-B.ttf';
-const FONT_REGULAR_ITALIC_PATH = '../../fonts/ubuntu/UbuntuMono-R.ttf';
-const FONT_BOLD_ITALIC_PATH = '../../fonts/ubuntu/UbuntuMono-B.ttf';
+const FONT_REGULAR_PATH = new URL('../../fonts/ubuntu/UbuntuMono-R.ttf', import.meta.url);
+const FONT_BOLD_PATH = new URL('../../fonts/ubuntu/UbuntuMono-B.ttf', import.meta.url);
+const FONT_REGULAR_ITALIC_PATH = new URL('../../fonts/ubuntu/UbuntuMono-RI.ttf', import.meta.url);
+const FONT_BOLD_ITALIC_PATH = new URL('../../fonts/ubuntu/UbuntuMono-BI.ttf', import.meta.url);
 
 /**
  * @constant {string} TEMPLATE - HTML template for the Terminal component's shadow DOM.
@@ -194,7 +194,7 @@ class Terminal extends BaseComponent {
 
   #loadFont(fontPath, options = {}) {
     const { weight = 'normal', style = 'normal' } = options;
-    const fontUrl = new URL(fontPath, import.meta.url);
+    const fontUrl = fontPath;
     const font = new FontFace('Ubuntu Mono', `url(${fontUrl.href})`, {
       weight,
       style,
