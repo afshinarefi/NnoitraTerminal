@@ -147,7 +147,7 @@ class TerminalSymbol extends BaseComponent {
   #setIcon(container, drawFunction) {
       const styles = getComputedStyle(this);
       const drawOptions = {
-          bgColor: styles.getPropertyValue('--nnoitra-color-highlight').trim(),
+          bgColor: 'transparent',
           symbolColor: styles.getPropertyValue('--nnoitra-color-text-highlight').trim()
       };
       const img = document.createElement('img');

@@ -40,13 +40,20 @@ export function drawLogoIcon(options) {
     ctx.beginPath();
     ctx.arc(size / 2, size / 2, outerCircleRadius, 0, 2 * Math.PI);
     ctx.fillStyle = symbolColor;
-    ctx.fill();
+    ctx.fill(); // Draw the outer circle
 
     const innerCircleRadius = size * 0.22;
     ctx.beginPath();
     ctx.arc(size * 0.47, size * 0.39, innerCircleRadius, 0, 2 * Math.PI);
-    ctx.fillStyle = bgColor;
-    ctx.fill();
+    // Use 'destination-out' to erase the overlapping part of the outer circle
+    if (bgColor == 'transparent') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fill(); // "Erase" the inner circle area from the outer circle
+        ctx.globalCompositeOperation = 'source-over'; // Reset to default compositing mode
+    } else {
+        ctx.fillStyle = bgColor;
+        ctx.fill(); // Draw the inner circle
+    }
 
     return c.toDataURL('image/png');
 }
@@ -113,7 +120,7 @@ export function drawKeyIcon(options) {
     // --- Draw the key symbol ---
     ctx.fillStyle = symbolColor;
     ctx.strokeStyle = symbolColor;
-    const lineWidth = Math.max(1, size * 0.08);
+    const lineWidth = Math.max(1, size * 0.15);
     ctx.lineWidth = lineWidth;
 
     // Key head (circle)
@@ -126,8 +133,7 @@ export function drawKeyIcon(options) {
     ctx.beginPath();
     ctx.moveTo(size * 0.45, size * 0.45); // Start of body
     ctx.lineTo(size * 0.7, size * 0.7);   // End of body
-    ctx.moveTo(size * 0.6, size * 0.7);   // Tooth start
-    ctx.lineTo(size * 0.7, size * 0.7);   // Tooth end
+    ctx.lineTo(size * 0.6, size * 0.8);   // Tooth end
     ctx.stroke();
 
     return c.toDataURL('image/png');
