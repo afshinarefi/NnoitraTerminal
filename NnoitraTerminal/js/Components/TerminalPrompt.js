@@ -137,10 +137,8 @@ class TerminalPrompt extends BaseComponent {
     switch (name) {
       case 'disabled':
         this.#isEnabled = !this.hasAttribute('disabled');
-        this.refs.prompt.disabled = !this.#isEnabled;
         if (this.#isEnabled && !this.#isSecret) {
           this.#setReadyIcon();
-          this.focus();
         } else if (!this.#isEnabled) {
           this.#setBusyIcon();
         }
@@ -164,7 +162,7 @@ class TerminalPrompt extends BaseComponent {
         break;
     }
   }
-  
+
   /**
    * Handles the input event to manually mask characters for secret (password) input.
    * This implementation correctly handles insertions, deletions, and replacements
