@@ -36,6 +36,7 @@ const ACTIVE_LOG_CATEGORIES = new Map([
     ['ThemeService', true],
     ['FaviconService', true],
     ['LocalStorageService', true],
+    ['AutocompleteService', true],
     // --- Components ---
     ['TerminalPrompt', false],
     ['TerminalSymbol', false],

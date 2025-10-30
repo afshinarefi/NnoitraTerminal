@@ -43,12 +43,11 @@ export class AutocompleteService extends BaseService{
     async #handleAutocompleteRequest({ beforeCursorText, afterCursorText }) {
         this.log.log('Autocomplete request received:', { beforeCursorText, afterCursorText });
 
-        const tokenizedParts = tokenize(beforeCursorText);
-        // The new tokenizer preserves delimiters, so we pass the raw tokens.
-        const parts = tokenizedParts;
+        const parts = tokenize(beforeCursorText);
 
         // The token to complete is the last one. The rest are the preceding arguments.
-        const incompleteToken = parts.length > 0 ? parts[parts.length - 1] : '';
+        const incompleteToken = parts.pop();
+        parts.push('');
 
         let finalSuggestions = [];
         let completedToken = '';
@@ -61,7 +60,7 @@ export class AutocompleteService extends BaseService{
             const response = await this.request(EVENTS.GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, { parts });
             const { suggestions: potentialOptions } = response;
             description = response.description;
-
+            
             if (potentialOptions && potentialOptions.length > 0) {
 
                 // 2. Find the common prefix of the options.
@@ -95,8 +94,10 @@ export class AutocompleteService extends BaseService{
         // The most robust way to create the new text is to append the "newly completed"
         // part of the token to the original text.
         const completionSuffix = completedToken.substring(incompleteToken.length);
+        prefixLength += completionSuffix.length;
         const newTextBeforeCursor = beforeCursorText + completionSuffix;
-
-        this.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, { newTextBeforeCursor, options: finalSuggestions, afterCursorText, description, prefixLength });
+        const payload = { newTextBeforeCursor, options: finalSuggestions, afterCursorText, description, prefixLength };
+        this.log.warn(payload)
+        this.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, payload);
     }
 }
