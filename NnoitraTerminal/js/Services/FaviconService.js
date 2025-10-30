@@ -17,6 +17,7 @@
  */
 import { EVENTS } from '../Core/Events.js';
 import { BaseService } from '../Core/BaseService.js';
+import { drawIcon } from '../Utils/IconUtil.js';
 
 /**
  * @class FaviconService
@@ -50,48 +51,6 @@ class FaviconService extends BaseService{
     }
 
     /**
-     * Draws a rounded square icon with a path-based symbol and returns it as a data URL.
-     * @private
-     * @param {object} options - The drawing options.
-     * @returns {string} The data URL of the generated icon.
-     */
-    #drawIcon(options) {
-        const { size, bgColor, symbolColor, borderColor, borderWidth } = options;
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        const canvasSize = size * dpr;
-        const c = document.createElement('canvas');
-        c.width = c.height = canvasSize;
-        const ctx = c.getContext('2d');
-        ctx.scale(dpr, dpr);
-
-        // Draw rounded background
-        const inset = borderWidth / 2;
-        const radius = Math.max(2, size * 0.15);
-        ctx.roundRect(inset, inset, size - inset * 2, size - inset * 2, radius);
-        ctx.fillStyle = bgColor;
-        ctx.fill();
-
-        // Draw a filled circle symbol
-        const outerCircleRadius = size * 0.3; // Radius of the inner circle.
-
-        ctx.beginPath();
-        // Draw a full circle in the center of the canvas.
-        ctx.arc(size / 2, size / 2, outerCircleRadius, 0, 2 * Math.PI);
-        ctx.fillStyle = symbolColor;
-        ctx.fill();
-
-        const innerCircleRadius = size * 0.22; // Radius of the inner circle.
-
-        ctx.beginPath();
-        // Draw a full circle in the center of the canvas.
-        ctx.arc(size * 0.47, size * 0.39, innerCircleRadius, 0, 2 * Math.PI);
-        ctx.fillStyle = bgColor;
-        ctx.fill();
-
-        return c.toDataURL('image/png');
-    }
-
-    /**
      * Renders and sets the favicon by reading current CSS custom properties.
      * @private
      */
@@ -103,9 +62,9 @@ class FaviconService extends BaseService{
 
         const styles = getComputedStyle(this.#view);
         const drawOptions = {
-            bgColor: styles.getPropertyValue('--arefi-color-theme').trim() || 'green',
-            symbolColor: styles.getPropertyValue('--arefi-color-text-highlight').trim() || '#000',
-            borderColor: styles.getPropertyValue('--arefi-color-text-highlight').trim() || '#000',
+            bgColor: styles.getPropertyValue('--nnoitra-color-theme').trim() || 'green',
+            symbolColor: styles.getPropertyValue('--nnoitra-color-text-highlight').trim() || '#000',
+            borderColor: styles.getPropertyValue('--nnoitra-color-text-highlight').trim() || '#000',
             borderWidth: 1
         };
 
@@ -113,7 +72,7 @@ class FaviconService extends BaseService{
         document.querySelectorAll("link[rel~='icon'], link[rel='apple-touch-icon']").forEach(el => el.remove());
 
         FaviconService.#SIZES.forEach(size => {
-            const url = this.#drawIcon({ ...drawOptions, size });
+            const url = drawIcon({ ...drawOptions, size });
             this.log.log(url);
             const link = document.createElement('link');
             link.rel = size === 180 ? 'apple-touch-icon' : 'icon';

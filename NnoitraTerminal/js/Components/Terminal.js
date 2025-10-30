@@ -30,9 +30,9 @@ const TEMPLATE = `
   <div part="terminal">
   <div part="welcome-output"></div>
   <div part="output"></div>
-  <arefi-hint-box part="hint" hidden></arefi-hint-box>
+  <nnoitra-hint-box part="hint" hidden></nnoitra-hint-box>
   </div>
-  <arefi-cmd part="prompt"></arefi-cmd>
+  <nnoitra-cmd part="prompt"></nnoitra-cmd>
   `;
 
 /**
@@ -56,19 +56,19 @@ const FONT_STYLES = `
 const HOST_STYLES = `
 :host {
   /* Default Theme & Font Variables */
-  --arefi-color-green: #5CB338;
-  --arefi-color-yellow: #ECE852;
-  --arefi-color-orange: #FFC145;
-  --arefi-color-red: #FB4141;
-  --arefi-color-black: #000000;
-  --arefi-color-white: #FFFFFF;
-  --arefi-color-theme: var(--arefi-color-green);
-  --arefi-color-muted: color-mix(in srgb, var(--arefi-color-theme), black 40%);
-  --arefi-color-placeholder: var(--arefi-color-muted);
-  --arefi-color-output: var(--arefi-color-white);
-  --arefi-color-highlight: var(--arefi-color-theme);
-  --arefi-color-text-highlight: var(--arefi-color-black);
-  --arefi-font-family: 'Ubuntu Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --nnoitra-color-green: #5CB338;
+  --nnoitra-color-yellow: #ECE852;
+  --nnoitra-color-orange: #FFC145;
+  --nnoitra-color-red: #FB4141;
+  --nnoitra-color-black: #000000;
+  --nnoitra-color-white: #FFFFFF;
+  --nnoitra-color-theme: var(--nnoitra-color-green);
+  --nnoitra-color-muted: color-mix(in srgb, var(--nnoitra-color-theme), black 40%);
+  --nnoitra-color-placeholder: var(--nnoitra-color-muted);
+  --nnoitra-color-output: var(--nnoitra-color-white);
+  --nnoitra-color-highlight: var(--nnoitra-color-theme);
+  --nnoitra-color-text-highlight: var(--nnoitra-color-black);
+  --nnoitra-font-family: 'Ubuntu Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
   /* Default Layout & Appearance */
   display: flex;
@@ -76,8 +76,8 @@ const HOST_STYLES = `
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: var(--arefi-color-black);
-  color: var(--arefi-color-theme);
+  background-color: var(--nnoitra-color-black);
+  color: var(--nnoitra-color-theme);
   font-size: clamp(0.8rem, 3vw, 1.1rem);
 }
 `;
@@ -302,7 +302,7 @@ class Terminal extends BaseComponent {
   }
 }
 
-// Define the custom element 'arefi-terminal'
-customElements.define('arefi-terminal', Terminal);
+// Define the custom element 'nnoitra-terminal'
+customElements.define('nnoitra-terminal', Terminal);
 
 export { Terminal };

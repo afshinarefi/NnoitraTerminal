@@ -59,7 +59,7 @@ export function createDirectoryList(contents) {
 
     const directoryItems = directories.map(dir => ({
         text: `${dir.name}/`,
-        style: { color: 'var(--arefi-color-directory)' }
+        style: { color: 'var(--nnoitra-color-directory)' }
     }));
 
     const fileItems = files.map(file => {

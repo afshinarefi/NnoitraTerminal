@@ -99,7 +99,7 @@ class Media extends BaseComponent {
   }
 }
 
-// Define the custom element 'arefi-media'
-customElements.define('arefi-media', Media);
+// Define the custom element 'nnoitra-media'
+customElements.define('nnoitra-media', Media);
 
 export { Media };

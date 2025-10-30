@@ -94,10 +94,10 @@ class ThemeService extends BaseService{
         const finalTheme = ThemeService.VALID_THEMES.includes(themeName) ? themeName : DEFAULT_THEME;
 
         if (this.#view) {
-            const themeColor = `var(--arefi-color-${finalTheme})`;
+            const themeColor = `var(--nnoitra-color-${finalTheme})`;
             // Set the CSS variable directly on the host component, not the global document.
             // This ensures each terminal instance can have its own independent theme.
-            this.#view.style.setProperty('--arefi-color-theme', themeColor);
+            this.#view.style.setProperty('--nnoitra-color-theme', themeColor);
         }
 
         this.dispatch(EVENTS.THEME_CHANGED_BROADCAST, { themeName: finalTheme });

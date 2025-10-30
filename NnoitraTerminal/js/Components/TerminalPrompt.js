@@ -23,7 +23,7 @@ import { TerminalSymbol } from './TerminalSymbol.js';
  */
 const TEMPLATE = `
   <div part="footer">
-  <arefi-icon part="icon"></arefi-icon>
+  <nnoitra-icon part="icon"></nnoitra-icon>
   <input type="text" autocomplete="off" spellcheck="false" autocapitalize="off" part="prompt">
   </div>
   `;
@@ -36,26 +36,26 @@ const CSS = `
   padding: 5px;
   display: flex;
   align-items: center;
-  border-top: 1px solid var(--arefi-color-highlight); /* VAR */
-  background-color: var(--arefi-color-background); /* VAR */
+  border-top: 1px solid var(--nnoitra-color-highlight); /* VAR */
+  background-color: var(--nnoitra-color-background); /* VAR */
   box-sizing: border-box;
   z-index: 100;
-  font-size: var(--arefi-font-size);
+  font-size: var(--nnoitra-font-size);
 }
 [part=prompt] {
   background: none;
   border: none;
   outline: none;
-  color: var(--arefi-color-text); /* VAR */
+  color: var(--nnoitra-color-text); /* VAR */
   min-width: 0; /* Prevents overflow in flex container */
   flex-grow: 1;
-  font-family: var(--arefi-font-family);
-  font-size: var(--arefi-font-size);
+  font-family: var(--nnoitra-font-family);
+  font-size: var(--nnoitra-font-size);
 }
 [part=prompt]::placeholder {
-  color: var(--arefi-color-placeholder);
-  font-family: var(--arefi-font-family);
-  font-size: var(--arefi-font-size);
+  color: var(--nnoitra-color-placeholder);
+  font-family: var(--nnoitra-font-family);
+  font-size: var(--nnoitra-font-size);
   opacity: 1; /* Firefox has a lower default opacity for placeholders */
 }
 `;
@@ -329,7 +329,7 @@ class TerminalPrompt extends BaseComponent {
   }
 }
 
-// Define the custom element 'arefi-cmd'
-customElements.define('arefi-cmd', TerminalPrompt);
+// Define the custom element 'nnoitra-cmd'
+customElements.define('nnoitra-cmd', TerminalPrompt);
 
 export { TerminalPrompt };

@@ -33,15 +33,15 @@ const CSS = `
 }
 
 [part=box] {
-  color: var(--arefi-color-text); /* VAR */
-  background-color: var(--arefi-color-background); /* VAR */
+  color: var(--nnoitra-color-text); /* VAR */
+  background-color: var(--nnoitra-color-background); /* VAR */
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   list-style: none;
   width: 100%;
   margin: 0;
-  border-left: 3px solid var(--arefi-color-highlight);
+  border-left: 3px solid var(--nnoitra-color-highlight);
   padding: 5px 0 0 10px;
 }
 
@@ -63,7 +63,7 @@ const CSS = `
 }
 
 .prefix {
-  color: var(--arefi-color-muted);
+  color: var(--nnoitra-color-muted);
 }
 
 .suffix {
@@ -138,7 +138,7 @@ class SuggestionBox extends BaseComponent {
   }
 }
 
-// Define the custom element 'arefi-hint-box'
-customElements.define('arefi-hint-box', SuggestionBox);
+// Define the custom element 'nnoitra-hint-box'
+customElements.define('nnoitra-hint-box', SuggestionBox);
 
 export { SuggestionBox };

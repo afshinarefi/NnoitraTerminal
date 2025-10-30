@@ -61,9 +61,9 @@ class BaseComponent extends HTMLElement {
        * These custom properties should be defined at a higher level (e.g., :root or body).
        */
       :host {
-        font-family: var(--arefi-font-family);
-        color: var(--arefi-color-text);
-        font-size: var(--arefi-font-size);
+        font-family: var(--nnoitra-font-family);
+        color: var(--nnoitra-color-text);
+        font-size: var(--nnoitra-font-size);
       }
       `);
 

@@ -24,7 +24,7 @@ import { TerminalSymbol } from './TerminalSymbol.js';
 const TEMPLATE = `
   <div part='header'></div>
   <div part='command-container'>
-  <arefi-icon part='icon'></arefi-icon>
+  <nnoitra-icon part='icon'></nnoitra-icon>
   <span part='command'></span>
   </div>
   <div part='output'><slot></slot></div>
@@ -69,11 +69,11 @@ const CSS = `
   white-space: pre-wrap;
   margin-top: 3px;
   margin-bottom: 3px;
-  color: var(--arefi-color-text); /* VAR */
+  color: var(--nnoitra-color-text); /* VAR */
 }
 [part=header] {
-  color: var(--arefi-color-text-highlight); /* VAR */
-  background-color: var(--arefi-color-highlight); /* VAR */
+  color: var(--nnoitra-color-text-highlight); /* VAR */
+  background-color: var(--nnoitra-color-highlight); /* VAR */
   padding: 3px 5px;
   border-radius: 3px;
   margin-right: 5px;
@@ -86,7 +86,7 @@ const CSS = `
   display: inline-block; /* Ensures it contributes to the line box */
 }
 [part=output] {
-  color: var(--arefi-color-output);
+  color: var(--nnoitra-color-output);
   margin-top: 5px;
   margin-bottom: 5px;
 }
@@ -164,7 +164,7 @@ class CommandBlock extends BaseComponent {
   }
 }
 
-// Define the custom element 'arefi-term-item'
-customElements.define('arefi-term-item', CommandBlock);
+// Define the custom element 'nnoitra-term-item'
+customElements.define('nnoitra-term-item', CommandBlock);
 
 export { CommandBlock };
