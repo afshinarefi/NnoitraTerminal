@@ -23,7 +23,10 @@ import { createLogger } from '../Managers/LogManager.js';
 
 const log = createLogger('Terminal');
 
-const FONT_PATH = '../../fonts/ubuntu/UbuntuMono-R.ttf';
+const FONT_REGULAR_PATH = '../../fonts/ubuntu/UbuntuMono-R.ttf';
+const FONT_BOLD_PATH = '../../fonts/ubuntu/UbuntuMono-B.ttf';
+const FONT_REGULAR_ITALIC_PATH = '../../fonts/ubuntu/UbuntuMono-R.ttf';
+const FONT_BOLD_ITALIC_PATH = '../../fonts/ubuntu/UbuntuMono-B.ttf';
 
 /**
  * @constant {string} TEMPLATE - HTML template for the Terminal component's shadow DOM.
@@ -69,6 +72,17 @@ const HOST_STYLES = `
   color: var(--nnoitra-color-theme);
   font-size: var(--nnoitra-font-size);
   font-family: var(--nnoitra-font-family);
+}
+
+/* Styles for links injected by commands like 'about' */
+a {
+    color: var(--nnoitra-color-theme);
+    text-decoration: none; /* Remove underline for a cleaner look */
+}
+
+/* Styles for 'about' command content */
+.about-title {
+    font-weight: bold;
 }
 `;
 
@@ -119,7 +133,10 @@ class Terminal extends BaseComponent {
     // Pass the template and map to the base constructor
     super(TEMPLATE);
 
-    this.#loadFont();
+    this.#loadFont(FONT_REGULAR_PATH, { weight: 'normal' });
+    this.#loadFont(FONT_BOLD_PATH, { weight: 'bold' });
+    this.#loadFont(FONT_REGULAR_ITALIC_PATH, { weight: 'normal', style: 'italic'});
+    this.#loadFont(FONT_BOLD_ITALIC_PATH, { weight: 'bold', style: 'italic'});
 
     // Apply component-specific styles
     this.shadowRoot.adoptedStyleSheets = [...this.shadowRoot.adoptedStyleSheets, terminalSpecificStyles];
@@ -175,16 +192,20 @@ class Terminal extends BaseComponent {
     log.log('Terminal bootstrapped successfully.');
   }
 
-  #loadFont() {
-    const fontUrl = new URL(FONT_PATH, import.meta.url);
-    const font = new FontFace('Ubuntu Mono', `url(${fontUrl.href})`);
-    font.display = 'swap'; // Ensure font-display: swap is applied
+  #loadFont(fontPath, options = {}) {
+    const { weight = 'normal', style = 'normal' } = options;
+    const fontUrl = new URL(fontPath, import.meta.url);
+    const font = new FontFace('Ubuntu Mono', `url(${fontUrl.href})`, {
+      weight,
+      style,
+      display: 'swap' // Ensure font-display: swap is applied
+    });
 
     font.load().then(() => {
       document.fonts.add(font);
-      this.log.log('MyDigitalFont loaded programmatically and added to document.fonts.');
+      this.log.log(`Font loaded: Ubuntu Mono ${weight} ${style}`);
     }).catch(error => {
-      this.log.error('Failed to load MyDigitalFont programmatically:', error);
+      this.log.error(`Failed to load font: Ubuntu Mono ${weight} ${style}`, error);
     });
   }
 

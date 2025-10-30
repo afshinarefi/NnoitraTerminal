@@ -120,17 +120,6 @@ const CSS = `
   word-wrap: break-word; /* Ensure long words without spaces also break */
   margin: 0; /* Reset default margins on pre for consistency */
 }
-
-/* Styles for 'about' command content */
-.about-title {
-    font-weight: bold;
-}
-
-/* Styles for links injected by commands like 'about' */
-[part=output] a {
-    color: inherit; /* Inherit color from the output part */
-    text-decoration: none; /* Remove underline for a cleaner look */
-}
 `;
 
 // Define component-specific styles

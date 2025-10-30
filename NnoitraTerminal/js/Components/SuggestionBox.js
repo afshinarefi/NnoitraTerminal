@@ -33,7 +33,7 @@ const CSS = `
 }
 
 [part=box] {
-  color: var(--nnoitra-color-text); /* VAR */
+  color: var(--nnoitra-color-theme); /* VAR */
   background-color: var(--nnoitra-color-background); /* VAR */
   display: flex;
   flex-direction: row;

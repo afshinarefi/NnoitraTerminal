@@ -53,7 +53,7 @@ const CSS = `
   padding-right: 0.5em;
   margin: 0;
   flex-grow: 1;
-  color: var(--nnoitra-color-text); /* VAR */
+  color: var(--nnoitra-color-theme); /* VAR */
   min-width: 0; /* Prevents overflow in flex container */
   flex-grow: 1;
   font-family: var(--nnoitra-font-family);

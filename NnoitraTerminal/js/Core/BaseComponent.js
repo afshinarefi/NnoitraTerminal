@@ -62,7 +62,7 @@ class BaseComponent extends HTMLElement {
        */
       :host {
         font-family: var(--nnoitra-font-family);
-        color: var(--nnoitra-color-text);
+        color: var(--nnoitra-color-theme);
         font-size: var(--nnoitra-font-size);
       }
       `);
