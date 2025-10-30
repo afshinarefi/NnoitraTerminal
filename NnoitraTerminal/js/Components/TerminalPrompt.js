@@ -33,30 +33,46 @@ const TEMPLATE = `
  */
 const CSS = `
 [part=footer] {
-  padding: 5px;
+  margin: 0;
+  padding: 3px;
   display: flex;
-  align-items: center;
+  align-items: stretch; /* Change to stretch */
   border-top: 1px solid var(--nnoitra-color-highlight); /* VAR */
   background-color: var(--nnoitra-color-background); /* VAR */
   box-sizing: border-box;
   z-index: 100;
   font-size: var(--nnoitra-font-size);
+  height: 2.2em;
 }
 [part=prompt] {
   background: none;
   border: none;
   outline: none;
+  padding: 0;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  margin: 0;
+  flex-grow: 1;
   color: var(--nnoitra-color-text); /* VAR */
   min-width: 0; /* Prevents overflow in flex container */
   flex-grow: 1;
   font-family: var(--nnoitra-font-family);
   font-size: var(--nnoitra-font-size);
+  width: 100%;
 }
 [part=prompt]::placeholder {
   color: var(--nnoitra-color-placeholder);
   font-family: var(--nnoitra-font-family);
   font-size: var(--nnoitra-font-size);
   opacity: 1; /* Firefox has a lower default opacity for placeholders */
+  width: 100%;
+}
+
+[part=icon] {
+  height: 100%;
+  aspect-ratio: 1;
+  margin: 0;
+  padding: 0;
 }
 `;
 // Define component-specific styles

@@ -25,15 +25,14 @@
  * @param {number} options.borderWidth - The width of the border.
  * @returns {string} The data URL of the generated icon.
  */
-export function drawIcon(options) {
-    const { size, bgColor, symbolColor, borderWidth } = options;
+export function drawLogoIcon(options) {
+    const { size, bgColor, symbolColor } = options;
     const c = document.createElement('canvas');
     c.width = c.height = size;
     const ctx = c.getContext('2d');
 
-    const inset = borderWidth / 2;
     const radius = Math.max(2, size * 0.15);
-    ctx.roundRect(inset, inset, size - inset * 2, size - inset * 2, radius);
+    ctx.roundRect(0, 0, size, size, radius);
     ctx.fillStyle = bgColor;
     ctx.fill();
 
@@ -48,6 +47,88 @@ export function drawIcon(options) {
     ctx.arc(size * 0.47, size * 0.39, innerCircleRadius, 0, 2 * Math.PI);
     ctx.fillStyle = bgColor;
     ctx.fill();
+
+    return c.toDataURL('image/png');
+}
+
+/**
+ * Draws an hourglass icon and returns it as a data URL.
+ * @param {object} options - The drawing options.
+ * @param {number} options.size - The dimension of the icon.
+ * @param {string} options.bgColor - The background color.
+ * @param {string} options.symbolColor - The color of the symbol.
+ * @returns {string} The data URL of the generated icon.
+ */
+export function drawHourGlassIcon(options) {
+    const { size, bgColor, symbolColor } = options;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+
+    // Draw the background rounded rectangle
+    const radius = Math.max(2, size * 0.15);
+    ctx.roundRect(0, 0, size, size, radius);
+    ctx.fillStyle = bgColor;
+    ctx.fill();
+
+    // Draw the hourglass shape
+    const padding = size * 0.2;
+    const top = padding;
+    const bottom = size - padding;
+    const left = padding;
+    const right = size - padding;
+
+    ctx.beginPath();
+    ctx.moveTo(left, top);
+    ctx.lineTo(right, top);
+    ctx.lineTo(left, bottom);
+    ctx.lineTo(right, bottom);
+    ctx.closePath();
+    ctx.fillStyle = symbolColor;
+    ctx.fill();
+
+    return c.toDataURL('image/png');
+}
+
+/**
+ * Draws a key icon and returns it as a data URL.
+ * @param {object} options - The drawing options.
+ * @param {number} options.size - The dimension of the icon.
+ * @param {string} options.bgColor - The background color.
+ * @param {string} options.symbolColor - The color of the symbol.
+ * @returns {string} The data URL of the generated icon.
+ */
+export function drawKeyIcon(options) {
+    const { size, bgColor, symbolColor } = options;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+
+    // Draw the background rounded rectangle
+    const radius = Math.max(2, size * 0.15);
+    ctx.roundRect(0, 0, size, size, radius);
+    ctx.fillStyle = bgColor;
+    ctx.fill();
+
+    // --- Draw the key symbol ---
+    ctx.fillStyle = symbolColor;
+    ctx.strokeStyle = symbolColor;
+    const lineWidth = Math.max(1, size * 0.08);
+    ctx.lineWidth = lineWidth;
+
+    // Key head (circle)
+    const headRadius = size * 0.15;
+    ctx.beginPath();
+    ctx.arc(size * 0.35, size * 0.35, headRadius, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    // Key body and tooth
+    ctx.beginPath();
+    ctx.moveTo(size * 0.45, size * 0.45); // Start of body
+    ctx.lineTo(size * 0.7, size * 0.7);   // End of body
+    ctx.moveTo(size * 0.6, size * 0.7);   // Tooth start
+    ctx.lineTo(size * 0.7, size * 0.7);   // Tooth end
+    ctx.stroke();
 
     return c.toDataURL('image/png');
 }

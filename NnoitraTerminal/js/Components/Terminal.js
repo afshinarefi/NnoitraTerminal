@@ -69,6 +69,8 @@ const HOST_STYLES = `
   --nnoitra-color-highlight: var(--nnoitra-color-theme);
   --nnoitra-color-text-highlight: var(--nnoitra-color-black);
   --nnoitra-font-family: 'Ubuntu Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --nnoitra-font-size: clamp(0.8rem, 3vw, 1.1rem);
+
 
   /* Default Layout & Appearance */
   display: flex;
@@ -78,7 +80,8 @@ const HOST_STYLES = `
   overflow: hidden;
   background-color: var(--nnoitra-color-black);
   color: var(--nnoitra-color-theme);
-  font-size: clamp(0.8rem, 3vw, 1.1rem);
+  font-size: var(--nnoitra-font-size);
+  font-family: var(--nnoitra-font-family);
 }
 `;
 

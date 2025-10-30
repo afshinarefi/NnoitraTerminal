@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { BaseComponent } from '../Core/BaseComponent.js';
-import { drawIcon } from '../Utils/IconUtil.js';
+import { drawLogoIcon, drawHourGlassIcon, drawKeyIcon } from '../Utils/IconUtil.js';
 
 /**
  * @constant {string} TEMPLATE - HTML template for the Icon component's shadow DOM.
@@ -27,6 +27,13 @@ const TEMPLATE = `<span part="symbol-container"></span>`;
  * @constant {string} CSS - CSS styles for the Icon component's shadow DOM.
  */
 const CSS = `
+:host {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 [part=symbol] {
   font-family: var(--nnoitra-font-family);
   font-size: inherit;
@@ -36,10 +43,13 @@ const CSS = `
   justify-content: center; /* Center horizontally */
   align-items: center;     /* Center vertically */
   border-radius: 3px;
-  margin: 3px 3px 3px 0px;
+  margin: 0;
   min-width: 1.5em;
-  height: 1.5em;
-  padding: 0.25em;
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  padding-left: 0.2em;
+  padding-right: 0.2em;
 }
 
 [part=symbol-container] {
@@ -47,6 +57,9 @@ const CSS = `
   align-items: center;
   justify-content: center;
   margin-right: 3px;
+  padding: 0;
+  height: 100%;
+  width: 100%;  
 }
 `;
 
@@ -104,11 +117,10 @@ class TerminalSymbol extends BaseComponent {
 
     switch (type) {
       case 'busy':
+        this.#setIcon(container, drawHourGlassIcon);
+        break;
       case 'key':
-        const textSymbol = document.createElement('span');
-        textSymbol.part = 'symbol';
-        textSymbol.textContent = this.#icons[type];
-        container.appendChild(textSymbol);
+        this.#setIcon(container, drawKeyIcon);
         break;
       case 'indexed':
         const indexedSymbol = document.createElement('span');
@@ -123,28 +135,33 @@ class TerminalSymbol extends BaseComponent {
         container.appendChild(customTextSymbol);
         break;
       case 'ready':
+        this.#setIcon(container, drawLogoIcon);
+        break;
       default:
-        const styles = getComputedStyle(this);
-        const drawOptions = {
-            bgColor: styles.getPropertyValue('--nnoitra-color-highlight').trim(),
-            symbolColor: styles.getPropertyValue('--nnoitra-color-text-highlight').trim(),
-            borderWidth: 0 // No border for the inline icon
-        };
-        const img = document.createElement('img');
-        img.part = 'symbol'; // Revert to using the standard symbol part
-        img.style.padding = '0'; // Remove padding for the image to fill its container
-        img.style.borderRadius = '3px'; // Apply the border-radius directly
-        
-        img.src = drawIcon({ ...drawOptions, size: 32 }); // Default src
-        img.srcset = TerminalSymbol.#ICON_SIZES
-            .map(size => `${drawIcon({ ...drawOptions, size })} ${size}w`)
-            .join(', ');
-        container.appendChild(img);
+
         break;
     }
   }
-}
 
+
+  #setIcon(container, drawFunction) {
+      const styles = getComputedStyle(this);
+      const drawOptions = {
+          bgColor: styles.getPropertyValue('--nnoitra-color-highlight').trim(),
+          symbolColor: styles.getPropertyValue('--nnoitra-color-text-highlight').trim()
+      };
+      const img = document.createElement('img');
+      img.part = 'symbol'; // Revert to using the standard symbol part
+      img.style.padding = '0'; // Remove padding for the image to fill its container
+      img.style.borderRadius = '3px'; // Apply the border-radius directly
+      
+      img.src = drawLogoIcon({ ...drawOptions, size: 32 }); // Default src
+      img.srcset = TerminalSymbol.#ICON_SIZES
+          .map(size => `${drawFunction({ ...drawOptions, size })} ${size}w`)
+          .join(', ');
+      container.appendChild(img);
+  }
+}
 // Define the custom element 'nnoitra-icon'
 customElements.define('nnoitra-icon', TerminalSymbol);
 

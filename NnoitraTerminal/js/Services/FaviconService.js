@@ -17,7 +17,7 @@
  */
 import { EVENTS } from '../Core/Events.js';
 import { BaseService } from '../Core/BaseService.js';
-import { drawIcon } from '../Utils/IconUtil.js';
+import { drawLogoIcon } from '../Utils/IconUtil.js';
 
 /**
  * @class FaviconService
@@ -63,16 +63,14 @@ class FaviconService extends BaseService{
         const styles = getComputedStyle(this.#view);
         const drawOptions = {
             bgColor: styles.getPropertyValue('--nnoitra-color-theme').trim() || 'green',
-            symbolColor: styles.getPropertyValue('--nnoitra-color-text-highlight').trim() || '#000',
-            borderColor: styles.getPropertyValue('--nnoitra-color-text-highlight').trim() || '#000',
-            borderWidth: 1
+            symbolColor: styles.getPropertyValue('--nnoitra-color-text-highlight').trim() || '#000'
         };
 
         // Remove any existing favicon links
         document.querySelectorAll("link[rel~='icon'], link[rel='apple-touch-icon']").forEach(el => el.remove());
 
         FaviconService.#SIZES.forEach(size => {
-            const url = drawIcon({ ...drawOptions, size });
+            const url = drawLogoIcon({ ...drawOptions, size });
             this.log.log(url);
             const link = document.createElement('link');
             link.rel = size === 180 ? 'apple-touch-icon' : 'icon';
