@@ -32,7 +32,16 @@
 </head>
 <body>  
   <!-- The script below registers the <nnoitra-terminal> custom element. -->
-  <script type="module" src="./NnoitraTerminal/NnoitraTerminal.js"></script>
+  <script type="module">
+    (async () => {
+      try {
+        await import('./dist/Nnoitra.min.js');
+      } catch (e) {
+        console.warn('Could not load minified module, falling back to source.', e);
+        import('./NnoitraTerminal/NnoitraTerminal.js');
+      }
+    })();
+  </script>
 
   <!-- The terminal component is used declaratively. -->
   <nnoitra-terminal 

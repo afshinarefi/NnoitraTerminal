@@ -1,0 +1,16 @@
+{
+  "name": "nnoitra-terminal",
+  "version": "2.1.0",
+  "type": "module",
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "npm run clean && parcel build NnoitraTerminal/NnoitraTerminal.js --dist-dir dist --no-source-maps",
+    "minify": "npx terser dist/NnoitraTerminal.js -o dist/Nnoitra.min.js -c -m --comments false",
+    "release": "npm install && npm run build && npm run minify"
+  },
+  "devDependencies": {
+    "parcel": "^2.13.0",
+    "terser": "^5.34.0",
+    "rimraf": "^6.0.0"
+  }
+}

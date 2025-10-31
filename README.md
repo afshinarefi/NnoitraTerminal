@@ -20,6 +20,20 @@ Nnoitra Terminal is a sophisticated, web-based terminal simulator built entirely
 
 [View the live demo here](https://arefi.info/)
 
+## Getting Started
+
+This project is written in dependency-free vanilla JavaScript. However, Node.js and npm are used for the development build process to bundle and minify the source code for production.
+
+### Building for Production
+
+1.  **Prerequisites**: Make sure you have Node.js and npm installed.
+
+2.  **Create Production Build**: From the root of the project, run the following command to install dependencies, bundle, and minify the source files:
+    ```bash
+    npm run release
+    ```
+    This will generate an optimized `dist/Nnoitra.min.js` file. The `index.html` page is already configured to use this file if it exists, and will automatically fall back to the raw source modules if it doesn't.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a pull request or open an issue for any bugs or feature requests.

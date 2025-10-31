@@ -16,12 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { BaseCommand } from '../Core/BaseCommand.js';
+import { data } from '../../data/about.js'; // Still needed for data'
 /**
  * @class About
  * @description Implements the 'about' command, which displays personal information from a JSON file.
  */
 class About extends BaseCommand {
-    static DATA_FILE = new URL('../../data/about.json', import.meta.url);
     static DESCRIPTION = 'A short introduction.';
     #requestMedia;
 
@@ -42,13 +42,6 @@ class About extends BaseCommand {
         this.log.log('Executing...');
         const outputDiv = document.createElement('div');
         try {
-            const response = await fetch(About.DATA_FILE); // Use static property
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            this.log.log('Successfully fetched about.json');
-            const data = await response.json();
-
             for (const item of data) {
                 const wrapper = document.createElement('div');
                 let element;

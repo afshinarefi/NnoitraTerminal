@@ -1,4 +1,4 @@
-[
+const data = [
     {
         "Type": "Image",
         "Source": "/fs/photos/2024/2024.04.08.jpg",
@@ -25,3 +25,5 @@
         "Value": "https://www.linkedin.com/in/arefiafshin/"
     }
 ]
+
+export { data }
