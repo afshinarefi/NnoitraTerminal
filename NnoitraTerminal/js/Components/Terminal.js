@@ -77,7 +77,7 @@ const HOST_STYLES = `
 /* Styles for links injected by commands like 'about' */
 a {
     color: var(--nnoitra-color-theme);
-    //text-decoration: none; /* Remove underline for a cleaner look */
+    text-decoration: none; /* Remove underline for a cleaner look */
 }
 
 /* Styles for 'about' command content */

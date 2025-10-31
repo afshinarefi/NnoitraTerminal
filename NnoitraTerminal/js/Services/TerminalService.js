@@ -23,6 +23,7 @@ import { BaseService } from '../Core/BaseService.js';
 
 const DEFAULT_PS1 = '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}';
 const DEFAULT_HOST = window.location.hostname;
+const DEFAULT_UUID = '00000000-0000-0000-0000-000000000000';
 
 /**
  * @class TerminalService
@@ -88,6 +89,10 @@ class TerminalService extends BaseService{
                 break;
             case ENV_VARS.HOST:
                 respond({ value: DEFAULT_HOST });
+                break;
+            case 'UUID':
+                const uuid = this.#view?.getAttribute('uuid') || DEFAULT_UUID;
+                respond({ value: uuid });
                 break;
         }
     }

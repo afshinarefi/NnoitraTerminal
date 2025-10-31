@@ -1,129 +1,2664 @@
-(()=>{function e(e){if(e=n.i?.[e]||e,!t)try{throw Error()}catch(r){var s=(""+r.stack).match(/(https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/[^)\n]+/g);if(!s)return i+e;t=s[0]}return new URL(i+e,t).toString()}var t,s=globalThis,i="./",r={},a={},n=s.parcelRequire166b;null==n&&((n=function(e){if(e in r)return r[e].exports;if(e in a){var t=a[e];delete a[e];var s={id:e,exports:{}};return r[e]=s,t.call(s.exports,s,s.exports),s.exports}var i=Error("Cannot find module '"+e+"'");throw i.code="MODULE_NOT_FOUND",i}).register=function(e,t){a[e]=t},s.parcelRequire166b=n),n.register,Object.assign(n.i??={},{cdQpk:"motd.6d76bb23.txt","6eguK":"version.a151142a.txt",h1BFt:"UbuntuMono-R.54fdcd79.ttf",h01Zq:"UbuntuMono-B.1f21d913.ttf",lAJo3:"UbuntuMono-RI.0df7809e.ttf",dYGdR:"UbuntuMono-BI.2127d1cf.ttf"});let o=new Map([["EventBus",!0],["EnvironmentService",!0],["AccountingService",!0],["CommandService",!0],["FilesystemService",!0],["HistoryService",!0],["HintService",!0],["InputService",!0],["TerminalService",!0],["ThemeService",!0],["FaviconService",!0],["LocalStorageService",!0],["AutocompleteService",!0],["TerminalPrompt",!1],["TerminalSymbol",!1],["HintBox",!1],["Terminal",!1],["CommandBlock",!1],["login",!1],["logout",!1],["ls",!1],["cat",!1],["env",!0],["history",!1],["history",!0],["cd",!0],["view",!0]]),l=()=>{},h=new Map;function c(e){if(h.has(e))return h.get(e);let t=o.get(e)||!1,s={log:t?console.log.bind(console,`[${e}]`):l,warn:t?console.warn.bind(console,`[${e}]`):l,error:t?console.error.bind(console,`[${e}]`):l};return h.set(e,s),s}let d=c("EventBus");class u{#e=new Map;#t=new Map;constructor(){d.log("Initializing...")}listen(e,t,s="anonymous"){this.#e.has(e)||this.#e.set(e,[]),this.#e.get(e).push({callback:t,name:s})}dispatch(e,t){d.log(`Dispatching event "${e}" with payload: ${JSON.stringify(t)}`),this.#e.has(e)&&Promise.resolve().then(async()=>{let s=this.#e.get(e);s&&s.forEach(s=>{d.log(`Dispatching event "${e}" to listener "${s.name}"`),Promise.resolve().then(()=>s.callback(t))})})}request(e,t={},s=6e3){let i=`${e}-${Date.now()}-${Math.random()}`;return new Promise((r,a)=>{this.#t.set(i,{resolve:r,reject:a});let n=null;s>0&&(n=setTimeout(()=>{this.#t.has(i)&&(this.#t.get(i).reject(Error(`Request timed out for event "${e} with payload: ${JSON.stringify(t)}"`)),this.#t.delete(i))},s));let o={...t,respond:t=>!!this.#t.has(i)&&(n&&clearTimeout(n),d.log(`Response received for event "${e}": ${JSON.stringify(t)}`),this.#t.get(i).resolve(t),this.#t.delete(i),!0)};this.dispatch(e,o)})}}let m="get-all-categorized-vars-request",p="variable-get-local-request",g="variable-get-system-request",y="variable-get-temp-request",v="variable-get-userspace-request",w="variable-set-local-request",f="variable-set-system-request",b="variable-set-temp-request",S="variable-set-userspace-request",C="variable-delete-local-request",x="variable-delete-userspace-request",E="load-local-variable",A="save-local-variable",I="delete-local-variable",T="variable-update-default-request",R="user-changed-broadcast",q="login-request",k="logout-request",P="password-change-request",V="add-user-request",D="is-logged-in-request",L="variable-save-remote-request",$="variable-load-remote-request",N="variable-delete-remote-request",O="history-previous-request",M="history-next-request",U="history-indexed-response",H="history-load-request",z="history-get-all-request",F="command-persist-request",B="command-execute-broadcast",_="command-execution-finished-broadcast",j="autocomplete-request",G="autocomplete-broadcast",Y="get-autocomplete-suggestions-request",W="get-aliases-request",X="set-aliases-request",K="get-command-list-request",J="get-command-meta-request",Z="input-request",Q="clear-screen-request",ee="theme-changed-broadcast",et="ui-scroll-to-bottom-request",es="set-theme-request",ei="get-valid-themes-request",er="media-request",ea="fs-change-directory-request",en="fs-get-directory-contents-request",eo="fs-get-file-contents-request",el="fs-get-public-url-request",eh="fs-resolve-path-request";class ec{#s;#i;constructor(e){if(!e)throw Error("BaseService requires an eventBus.");this.#s=e,this.#i=c(this.constructor.name),this.log.log("Initializing...")}static create(e,t={}){let s=new this(e,t);return s.#r(),s}start(){}get log(){return this.#i}dispatch(e,t={}){this.#s.dispatch(e,t)}request(e,t,s=0){return this.#s.request(e,t,s)}get eventHandlers(){return{}}#r(){for(let[e,t]of Object.entries(this.eventHandlers))this.#s.listen(e,t,this.constructor.name)}}let ed="SYSTEM",eu="USERSPACE";class em extends ec{#a=new Map;constructor(e){super(e),this.log.log("Initializing...")}get eventHandlers(){return{[m]:this.#n.bind(this),[R]:this.#o.bind(this),[p]:this.#l.bind(this),[g]:this.#h.bind(this),[y]:this.#c.bind(this),[v]:this.#d.bind(this),[w]:this.#u.bind(this),[f]:this.#m.bind(this),[b]:this.#p.bind(this),[S]:this.#g.bind(this),[C]:this.#y.bind(this),"variable-delete-system-request":this.#v.bind(this),"variable-delete-temp-request":this.#w.bind(this),[x]:this.#f.bind(this)}}start(){}async #c({key:e,respond:t}){let s=e.toUpperCase(),i=this.#a.get(s);void 0===i&&(this.log.log(`Temp variable "${s}" is undefined, requesting its default value.`),void 0!==(i=(await this.request(T,{key:s})).value)&&this.#b(s,i)),t({value:i})}async #l({key:e,respond:t}){let s=e.toUpperCase(),{value:i}=await this.request(E,{key:s,namespace:"ENV"}),r=i;void 0===r&&(this.log.log(`Local variable "${s}" is undefined, requesting its default value.`),void 0!==(r=(await this.request(T,{key:s})).value)&&this.#S(s,r)),t({value:r})}async #d({key:e,respond:t}){return this.#C({key:e,respond:t},eu)}async #h({key:e,respond:t}){return this.#C({key:e,respond:t},ed)}async #C({key:e,respond:t},s){let i,r=e.toUpperCase(),{variables:a}=await this.request($,{key:r,category:s});void 0===(i=a?a[r]:void 0)&&(this.log.log(`Remote/Userspace variable "${r}" is undefined, requesting its default value.`),void 0!==(i=(await this.request(T,{key:r})).value)&&this.#x(r,i,s)),t({value:i})}#p({key:e,value:t}){this.#b(e.toUpperCase(),t)}#u({key:e,value:t}){this.#S(e.toUpperCase(),t)}#m({key:e,value:t}){this.#x(e.toUpperCase(),t,ed)}#g({key:e,value:t}){this.#x(e.toUpperCase(),t,eu)}#w({key:e}){this.#E(e.toUpperCase())}#y({key:e}){this.#A(e.toUpperCase())}#v({key:e}){this.#I(e.toUpperCase(),ed)}#f({key:e}){this.#I(e.toUpperCase(),eu)}#T(e,t){return"number"==typeof t&&(t=String(t)),!!e&&(null===t||"string"==typeof t)||(this.log.error("Invalid key or value provided to setVariable:",{key:e,value:t,type:typeof t}),!1)}#b(e,t){this.#T(e,t)&&this.#a.set(e,t)}#S(e,t){this.#T(e,t)&&this.dispatch(A,{key:e,value:t,namespace:"ENV"})}#x(e,t,s){this.#T(e,t)&&this.dispatch(L,{key:e,value:t,category:s})}#E(e){this.#a.delete(e)}#A(e){this.dispatch(I,{key:e,namespace:"ENV"})}#I(e,t){this.dispatch(N,{key:e,category:t})}async #o(){this.#a.clear()}#n({respond:e}){(async()=>{let t={TEMP:{},LOCAL:{},SYSTEM:{},USERSPACE:{}};t.TEMP=Object.fromEntries(this.#a),t.LOCAL=(await this.request(E,{namespace:"ENV"})).value;let{variables:s}=await this.request($,{category:[ed,eu]});Object.assign(t.SYSTEM,s.SYSTEM||{}),Object.assign(t.USERSPACE,s.USERSPACE||{}),e({categorized:t})})()}}let ep=c("ApiManager");class eg{#R;constructor(e){this.#R=e}async post(e,t={},s=null){let i=new FormData;for(let[e,r]of(s&&i.append("token",s),Object.entries(t)))i.append(e,r);ep.log(`Making API call: action=${e}`);let r=await fetch(`${this.#R}?action=${e}`,{method:"POST",body:i});if(!r.ok)throw Error(`API request failed with status ${r.status}: ${r.statusText}`);let a=r.headers.get("content-type");if(!a||!a.includes("application/json"))throw Error(`Invalid response from server: Expected JSON but received ${a}. Is the server running with the --cgi flag?`);return r.json()}async get(e={}){let t=new URL(this.#R,window.location.origin);for(let[s,i]of Object.entries(e))t.searchParams.append(s,i);ep.log(`Making API call (GET): url=${t}`);let s=await fetch(t,{method:"GET"});if(!s.ok)throw Error(`API request failed with status ${s.status}: ${s.statusText}`);let i=s.headers.get("content-type");if(!i||!i.includes("application/json"))throw Error(`Invalid response from server: Expected JSON but received ${i}. Is the server running with the --cgi flag?`);return s.json()}}let ey="HOST",ev="USER",ew="HISTSIZE",ef="ALIAS",eb="TOKEN",eS="TOKEN_EXPIRY",eC="guest",ex="GUEST_STORAGE_",eE="HISTORY";class eA extends ec{#q;constructor(e,t={}){super(e),this.#q=new eg(t.apiUrl),this.log.log("Initializing...")}get eventHandlers(){return{[L]:this.#k.bind(this),[F]:this.#P.bind(this),[H]:this.#V.bind(this),[q]:this.#D.bind(this),[k]:this.#L.bind(this),[P]:this.#$.bind(this),[V]:this.#N.bind(this),[T]:this.#O.bind(this),[$]:this.#M.bind(this),[N]:this.#U.bind(this),[D]:this.#H.bind(this)}}async isLoggedIn(){let{value:e}=await this.request(p,{key:eb});return!!e}async start(){this.dispatch(R)}async login(e,t){try{this.log.log(`Attempting login for user: "${e}"`);let s=await this.#q.post("login",{username:e,password:t},null);return"success"===s.status&&(this.log.log("Login successful. Setting session variables."),this.dispatch(w,{key:eb,value:s.token}),this.dispatch(w,{key:ev,value:s.user}),this.dispatch(w,{key:eS,value:s.expires_at}),this.dispatch(R)),s}catch(e){return this.log.error("Network or parsing error during login:",e),{status:"error",message:`Error: ${e.message}`}}}async logout(){try{let{value:e}=await this.request(p,{key:eb}),t=await this.#q.post("logout",{},e);return("success"===t.status||"error"===t.status&&t.message.includes("expired"))&&(this.dispatch(C,{key:eb}),this.dispatch(w,{key:ev,value:eC}),this.dispatch(C,{key:eS}),this.dispatch(R)),t}catch(e){return this.log.error("Network or parsing error during logout:",e),{status:"error",message:`Error: ${e.message}`}}}async #D({username:e,password:t,respond:s}){s(await this.login(e,t))}async #L({respond:e}){e(await this.logout())}async #z(e,t){try{return await this.#q.post("add_user",{username:e,password:t})}catch(e){return this.log.error("Network or parsing error during user creation:",e),{status:"error",message:`Error: ${e.message}`}}}async #N({username:e,password:t,respond:s}){s(await this.#z(e,t))}async #F(e,t){let{value:s}=await this.request(p,{key:eb});if(!s)return{status:"error",message:"Not logged in."};try{return this.log.log("Attempting password change..."),this.log.log("Old password:",e),this.log.log("New password:",t),await this.#q.post("change_password",{old_password:e,new_password:t},s)}catch(e){return this.log.error("Network or parsing error during password change:",e),{status:"error",message:`Error: ${e.message}`}}}async #$({oldPassword:e,newPassword:t,respond:s}){s(await this.#F(e,t))}async #H({respond:e}){e({isLoggedIn:await this.isLoggedIn()})}#O({key:e,respond:t}){switch(e){case ev:t({value:eC});break;case eb:t({value:""})}}async #k(e){let{value:t}=await this.request(p,{key:ev});if(t===eC)this.dispatch(A,{namespace:`${ex}${e.category}`,key:e.key,value:e.value});else{let{value:t}=await this.request(p,{key:eb});this.#q.post("set_data",{category:e.category,key:e.key,value:e.value},t)}}async #U(e){let{value:t}=await this.request(p,{key:ev});if(t===eC)this.dispatch(I,{namespace:`${ex}${e.category}`,key:e.key});else{let{value:t}=await this.request(p,{key:eb});this.#q.post("delete_data",{category:e.category,key:e.key},t)}}async #P(e){let{value:t}=await this.request(p,{key:ev});if(t===eC)this.dispatch(A,{namespace:`${ex}${eE}`,key:Date.now(),value:e.command});else{let{value:t}=await this.request(p,{key:eb});this.#q.post("set_data",{category:eE,key:Date.now(),value:e.command},t)}}async #V({respond:e}){let{value:t}=await this.request(p,{key:ev});if(t===eC){let{value:t}=await this.request(E,{namespace:`${ex}${eE}`});e&&e({history:t||{}})}else try{let{value:t}=await this.request(p,{key:eb}),s=await this.#q.post("get_data",{category:eE},t);this.log.log("History data received from server:",s),e&&e({history:s.data||[]})}catch(t){this.log.error("Failed to load history from server:",t),e&&e({history:[],error:t})}}async #M({key:e,category:t,respond:s}){let{value:i}=await this.request(p,{key:ev});if(i===eC){let i={};for(let s of Array.isArray(t)?t:[t]){let r=`${ex}${s}`,{value:a}=await this.request(E,{namespace:r,key:e});void 0!==e?void 0!==a&&(i[e]=a):Array.isArray(t)?i[s]=a||{}:Object.assign(i,a||{})}s&&s({variables:i})}else try{let{value:i}=await this.request(p,{key:eb}),r=await this.#q.post("get_data",{category:t,key:e},i);this.log.log("Remote variables received from server:",r),s&&s({variables:r.data||{}})}catch(e){this.log.error("Failed to load remote variables from server:",e),s&&s({variables:{},error:e})}}}let eI="1000";class eT extends ec{#B=[];#_=0;#j=parseInt(eI,10);constructor(e){super(e),this.log.log("Initializing...")}get eventHandlers(){return{[O]:this.#G.bind(this),[M]:this.#Y.bind(this),[B]:this.#W.bind(this),[z]:this.#X.bind(this),[T]:this.#O.bind(this),[R]:this.#o.bind(this)}}#W({commandString:e}){this.addCommand(e)}#O({key:e,respond:t}){e===ew&&t({value:eI})}async #o(){let{history:e}=await this.request(H);this.loadHistory(e)}#K(e){let t=parseInt(e,10);!isNaN(t)&&t>=0?this.#j=t:(this.log.warn(`Invalid HISTSIZE value "${e}". Resetting to default: ${eI}`),this.#j=parseInt(eI,10))}async addCommand(e){let t=e.trim();if(!t||this.#B.length>0&&this.#B[0]===t)return;this.#B.unshift(t),this.dispatch(F,{command:t});let{value:s}=await this.request(g,{key:ew});this.#K(s||eI),this.#B.length>this.#j&&this.#B.pop(),this.resetCursor()}resetCursor(){this.#_=0}#G(){this.#_<this.#B.length&&this.#_++;let e={command:this.#B[this.#_-1]||"",index:this.#_};this.dispatch(U,e)}#Y(){this.#_>0&&this.#_--;let e={command:this.#B[this.#_-1]||"",index:this.#_};this.dispatch(U,e)}#X({respond:e}){e({history:this.#B.slice().reverse()})}loadHistory(e){if(e){let t=Object.keys(e).sort().map(t=>e[t]);this.#B=t.reverse(),this.resetCursor(),this.log.log(`Loaded ${this.#B.length} commands into history.`)}}clearHistory(){this.#B=[],this.resetCursor()}}c("ServiceApiManager");class eR{#s;constructor(e){this.#s=e}async prompt(e,t={}){return(await this.#s.request(Z,{prompt:e,options:t},0)).value}clearScreen(){this.#s.dispatch(Q)}scrollToBottom(){this.#s.dispatch(et)}async requestMedia(e){return(await this.#s.request(er,{src:e})).mediaElement}async login(e,t){return await this.#s.request(q,{username:e,password:t})}async logout(){return await this.#s.request(k,{})}async changePassword(e,t){return await this.#s.request(P,{oldPassword:e,newPassword:t})}async addUser(e,t){return await this.#s.request(V,{username:e,password:t})}async isLoggedIn(){return(await this.#s.request(D,{})).isLoggedIn}async isDirectory(e){return(await this.#s.request("fs-is-directory-request",{path:e})).isDirectory}async getDirectoryContents(e){let t=await this.#s.request(en,{path:e});if(t.error)throw Error(t.error.message||"Failed to get directory contents.");return t.contents}async getFileContents(e){let t=await this.#s.request(eo,{path:e});if(t.error)throw Error(t.error.message||"Failed to get file contents.");return t.contents}async getPublicUrl(e){return(await this.#s.request(el,{path:e})).url}async resolvePath(e,t=!1){let s=await this.#s.request(eh,{path:e,mustBeDir:t});if(s.error)throw s.error;return s.path}async getHistory(){return(await this.#s.request(z,{})).history}async changeDirectory(e){let t=await this.#s.request(ea,{path:e});if(t.error)throw t.error}setTempVariable(e,t){this.#s.dispatch(b,{key:e,value:t})}setLocalVariable(e,t){this.#s.dispatch(w,{key:e,value:t})}setSystemVariable(e,t){this.#s.dispatch(f,{key:e,value:t})}async getSystemVariable(e,t){return await this.#s.request(g,{key:e})}setUserspaceVariable(e,t){this.#s.dispatch(S,{key:e,value:t})}deleteUserspaceVariable(e){this.#s.dispatch(x,{key:e})}async getAllCategorizedVariables(){let{categorized:e}=await this.#s.request(m,{});return e}async getAliases(){return(await this.#s.request(W,{})).aliases}setAliases(e){this.#s.dispatch(X,{aliases:e})}async getCommandList(){return(await this.#s.request(K,{})).commands}async getCommandMeta(e,t){return(await this.#s.request(J,{commandName:e,metaKey:t})).value}async setTheme(e){return(await this.#s.request(es,{themeName:e})).theme}async getValidThemes(){return(await this.#s.request(ei,{})).themes}}function eq(e){let t=[],s=[" ","/","="],i=["'",'"'],r=["\\"],a="",n=null,o=!1,l=(e="")=>{t.push(a+e),a=""};for(let t=0;t<e.length;t++){let h=e[t];o?(a+=h,o=!1):i.includes(h)?n=n===h?null:n||h:r.includes(h)?o=!0:n?a+=h:s.includes(h)?l(h):a+=h}return l(),t}class ek{#J;#i;constructor(e){this.#J=e,this.#i=c(this.constructor.name.toLowerCase()),this.#i.log("Initializing...")}get services(){return this.#J}get log(){return this.#i}async autocompleteArgs(e){return[]}async execute(e){throw Error(`Command '${this.constructor.name}' must implement the 'execute' method.`)}}async function eP(e){let t=await fetch(e);if(!t.ok)throw Error(`HTTP error! status: ${t.status} for url: ${e}`);return t.text()}var eV={};eV=e("cdQpk");class eD extends ek{static DATA_FILE=new URL(eV);static DESCRIPTION="A short introduction.";constructor(e){super(e)}async execute(e){this.log.log("Executing...");let t=document.createElement("div");t.style.whiteSpace="pre-wrap";try{let e=await eP(eD.DATA_FILE);this.log.log(`Welcome message loaded successfully. ${e.length} characters.`),t.innerText=e}catch(e){this.log.error("Error loading welcome message:",e),t.innerText="Error: Could not load welcome message."}return t}static man(){return`NAME
-       welcome - A friendly introduction to the terminal.
+(() => {
 
-DESCRIPTION
-       The welcome command displays a greeting message and basic instructions for using the terminal.
-       It is typically the first command executed when the terminal starts.
+function $parcel$extendImportMap(map) {
+  Object.assign(parcelRequire.i ??= {}, map);
+}
 
-USAGE
-       welcome
+var $parcel$bundleURL;
+function $parcel$resolve(url) {
+  url = parcelRequire.i?.[url] || url;
+  if (!$parcel$bundleURL) {
+    try {
+      throw new Error();
+    } catch (err) {
+      var matches = ('' + err.stack).match(
+        /(https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/[^)\n]+/g,
+      );
+      if (matches) {
+        $parcel$bundleURL = matches[0];
+      } else {
+        return $parcel$distDir + url;
+      }
+    }
+  }
+  return new URL($parcel$distDir + url, $parcel$bundleURL).toString();
+}
 
-       This command takes no arguments.
+      var $parcel$global = globalThis;
+    var $parcel$distDir = "./";
 
-EXAMPLES
-       $ welcome
-       (Displays the welcome message.)`}}let eL=[{Type:"Image",Source:"/fs/photos/2024/2024.04.08.jpg",Id:"profile-picture"},{Type:"Text",Title:"Name",Value:"Afshin Arefi"},{Type:"Text",Title:"Description",Value:"I am a software engineer mostly interested in low level programming, data pipelines, and data manipulation. Currently I am working at Huawei as a Senior Compiler Engineer working with llvm, the kernel, and the loader."},{Type:"Text",Title:"Email",Value:"arefi.afshin@gmail.com"},{Type:"Text",Title:"LinkedIn",Value:"https://www.linkedin.com/in/arefiafshin/"}];class e$ extends ek{static DESCRIPTION="A short introduction.";#Z;constructor(e){super(e),this.#Z=e.requestMedia}static man(){return`NAME
-       about - Display information about the author.
+var $parcel$modules = {};
+var $parcel$inits = {};
 
-SYNOPSIS
-       about
+var parcelRequire = $parcel$global["parcelRequire166b"];
 
-DESCRIPTION
-       The about command displays a short bio, contact information, and a profile picture.`}async autocompleteArgs(e){return[]}async execute(e){this.log.log("Executing...");let t=document.createElement("div");try{for(let e of eL){let s,i=document.createElement("div");if("Text"===e.Type){s=document.createElement("p");let t=document.createElement("span");if(t.textContent=e.Title,t.classList.add("about-title"),s.appendChild(t),s.appendChild(document.createTextNode(": ")),e.Value.startsWith("http")){let t=document.createElement("a");t.href=e.Value,t.textContent=e.Value,t.target="_blank",s.appendChild(t)}else s.appendChild(document.createTextNode(e.Value))}else"Image"===e.Type&&((s=await this.#Z(e.Source)).id=e.Id);s&&(i.appendChild(s),t.appendChild(i))}}catch(e){this.log.error("Failed to fetch about information:",e),t.textContent=`Error: ${e.message}`}return t}}class eN extends ek{static DESCRIPTION="List current environment variables.";#Q;constructor(e){super(e),this.#Q=this.services.getAllCategorizedVariables}async execute(e){this.log.log("Executing...");let t=document.createElement("pre"),s=await this.#Q(),i="",r=(e,t)=>{if(0===Object.keys(t).length)return"";let s=`
-# ${e} Variables
-`;for(let[e,i]of Object.entries(t))"string"==typeof i&&(/\s/.test(i)||i.startsWith("{")&&i.endsWith("}"))?s+=`${e}="${i}"
-`:s+=`${e}=${i}
-`;return s};return i+=r("Session (In-Memory)",s.TEMP||{}),i+=r("Local (Browser Storage)",s.LOCAL),i+=r("Remote (User Account)",s.SYSTEM),t.innerText=(i+=r("User (Configurable)",s.USERSPACE)).trim(),t}static man(){return`NAME
-       env - Display environment variables.
+if (parcelRequire == null) {
+  parcelRequire = function(id) {
+    if (id in $parcel$modules) {
+      return $parcel$modules[id].exports;
+    }
+    if (id in $parcel$inits) {
+      var init = $parcel$inits[id];
+      delete $parcel$inits[id];
+      var module = {id: id, exports: {}};
+      $parcel$modules[id] = module;
+      init.call(module.exports, module, module.exports);
+      return module.exports;
+    }
+    var err = new Error("Cannot find module '" + id + "'");
+    err.code = 'MODULE_NOT_FOUND';
+    throw err;
+  };
 
-SYNOPSIS
-       env [OPTION]...
+  parcelRequire.register = function register(id, init) {
+    $parcel$inits[id] = init;
+  };
 
-DESCRIPTION
-       The env command prints the current environment variables to standard output.
-       Each variable is displayed on a new line in the format KEY=VALUE.
+  $parcel$global["parcelRequire166b"] = parcelRequire;
+}
 
-OPTIONS
-       Currently, this command does not support any options.
+var parcelRegister = parcelRequire.register;
+var $e415f539f646a2f9$exports = {};
+$parcel$extendImportMap({
+    "H44nx": "motd.6d76bb23.txt",
+    "ccCIq": "version.46c3666d.txt",
+    "euAS4": "UbuntuMono-R.54fdcd79.ttf",
+    "4acmQ": "UbuntuMono-B.1f21d913.ttf",
+    "jRB9m": "UbuntuMono-RI.0df7809e.ttf",
+    "6rugH": "UbuntuMono-BI.2127d1cf.ttf"
+});
 
-EXAMPLES
-       $ env
-       (Displays all current environment variables.)`}}class eO extends ek{static DESCRIPTION="Lists available commands.";#ee;#et;constructor(e){super(e),this.#ee=this.services.getCommandList,this.#et=this.services.getCommandMeta}static man(){return`NAME
-       help - Display information about available commands.
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ // By importing the Terminal component, we ensure its custom element is defined.
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * @description A set of categories to enable for logging.
+ * To disable all logging, make this set empty: `new Set()`.
+ * To enable all logging, you can use a special '*' value or list all categories.
+ * Example categories: 'FS', 'CommandService', 'Autocomplete', 'Terminal'
+ */ const $ffd8896b0637a9c5$var$ACTIVE_LOG_CATEGORIES = new Map([
+    // --- Services ---
+    [
+        'EventBus',
+        true
+    ],
+    [
+        'EnvironmentService',
+        true
+    ],
+    [
+        'AccountingService',
+        true
+    ],
+    [
+        'CommandService',
+        true
+    ],
+    [
+        'FilesystemService',
+        true
+    ],
+    [
+        'HistoryService',
+        true
+    ],
+    [
+        'HintService',
+        true
+    ],
+    [
+        'InputService',
+        true
+    ],
+    [
+        'TerminalService',
+        true
+    ],
+    [
+        'ThemeService',
+        true
+    ],
+    [
+        'FaviconService',
+        true
+    ],
+    [
+        'LocalStorageService',
+        true
+    ],
+    [
+        'AutocompleteService',
+        true
+    ],
+    // --- Components ---
+    [
+        'TerminalPrompt',
+        false
+    ],
+    [
+        'TerminalSymbol',
+        false
+    ],
+    [
+        'HintBox',
+        false
+    ],
+    [
+        'Terminal',
+        false
+    ],
+    [
+        'CommandBlock',
+        false
+    ],
+    // --- Commands ---
+    [
+        'login',
+        false
+    ],
+    [
+        'logout',
+        false
+    ],
+    [
+        'ls',
+        false
+    ],
+    [
+        'cat',
+        false
+    ],
+    [
+        'env',
+        true
+    ],
+    [
+        'history',
+        false
+    ],
+    [
+        'history',
+        true
+    ],
+    [
+        'cd',
+        true
+    ],
+    [
+        'view',
+        true
+    ]
+]);
+const $ffd8896b0637a9c5$var$noop = ()=>{}; // The no-operation function.
+const $ffd8896b0637a9c5$var$loggerCache = new Map();
+function $ffd8896b0637a9c5$export$fe2e61603b61130d(category) {
+    if ($ffd8896b0637a9c5$var$loggerCache.has(category)) return $ffd8896b0637a9c5$var$loggerCache.get(category);
+    const isEnabled = $ffd8896b0637a9c5$var$ACTIVE_LOG_CATEGORIES.get(category) || false;
+    const logger = {
+        log: isEnabled ? console.log.bind(console, `[${category}]`) : $ffd8896b0637a9c5$var$noop,
+        warn: isEnabled ? console.warn.bind(console, `[${category}]`) : $ffd8896b0637a9c5$var$noop,
+        error: isEnabled ? console.error.bind(console, `[${category}]`) : $ffd8896b0637a9c5$var$noop
+    };
+    $ffd8896b0637a9c5$var$loggerCache.set(category, logger);
+    return logger;
+}
 
-SYNOPSIS
-       help
 
-DESCRIPTION
-       The help command lists all commands available in the terminal, along with a brief description for each.
-       It is useful for discovering what commands can be used.
+const $9919a9f5491eef72$var$log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)('EventBus');
+/**
+ * @class EventBusService
+ * @description A simple, central event bus for decoupled communication between services.
+ */ class $9919a9f5491eef72$export$5087227eb54526 {
+    #listeners = new Map();
+    #pendingRequests = new Map();
+    constructor(){
+        $9919a9f5491eef72$var$log.log('Initializing...');
+    }
+    /**
+     * Registers a listener for an event.
+     * @param {string} eventName - The name of the event to listen for.
+     * @param {Function} callback - The function to execute when the event is dispatched.
+     * @param {string} [listenerName='anonymous'] - The name of the service or component listening.
+     */ listen(eventName, callback, listenerName = 'anonymous') {
+        if (!this.#listeners.has(eventName)) this.#listeners.set(eventName, []);
+        this.#listeners.get(eventName).push({
+            callback: callback,
+            name: listenerName
+        });
+    }
+    /**
+     * Dispatches an event to all registered listeners.
+     * @param {string} eventName - The name of the event to dispatch.
+     * @param {*} [payload] - The data to pass to the listeners.
+     */ dispatch(eventName, payload) {
+        $9919a9f5491eef72$var$log.log(`Dispatching event "${eventName}" with payload: ${JSON.stringify(payload)}`);
+        if (this.#listeners.has(eventName)) // Schedule the execution of listeners asynchronously.
+        // This allows the dispatch method to return immediately (fire-and-forget).
+        Promise.resolve().then(async ()=>{
+            // We get the list of listeners at the time of execution.
+            const listeners = this.#listeners.get(eventName);
+            if (listeners) // Execute each listener in its own asynchronous microtask.
+            // This prevents one listener from blocking another.                    
+            listeners.forEach((listener)=>{
+                // We don't await here. This ensures each listener is
+                // invoked independently.
+                $9919a9f5491eef72$var$log.log(`Dispatching event "${eventName}" to listener "${listener.name}"`);
+                Promise.resolve().then(()=>listener.callback(payload));
+            });
+        });
+    }
+    /**
+     * Dispatches a request and returns a promise that resolves with the response.
+     * The dispatched event payload will be augmented with a `respond` function.
+     * @param {string} eventName - The name of the request event to dispatch.
+     * @param {*} payload - The data for the request.
+     * @param {number} [timeout=5000] - Timeout in milliseconds.
+     * @returns {Promise<any>} A promise that resolves with the response payload.
+     */ request(eventName, payload = {}, timeout = 6000) {
+        const correlationId = `${eventName}-${Date.now()}-${Math.random()}`;
+        return new Promise((resolve, reject)=>{
+            // Store the promise handlers
+            this.#pendingRequests.set(correlationId, {
+                resolve: resolve,
+                reject: reject
+            });
+            // Set up a timeout to reject the promise if no response is received
+            let timeoutId = null;
+            if (timeout > 0) timeoutId = setTimeout(()=>{
+                if (this.#pendingRequests.has(correlationId)) {
+                    this.#pendingRequests.get(correlationId).reject(new Error(`Request timed out for event "${eventName} with payload: ${JSON.stringify(payload)}"`));
+                    this.#pendingRequests.delete(correlationId);
+                }
+            }, timeout);
+            // Create the payload for the dispatched event, including the `respond` function
+            const requestPayload = {
+                ...payload,
+                respond: (responsePayload)=>{
+                    if (this.#pendingRequests.has(correlationId)) {
+                        if (timeoutId) clearTimeout(timeoutId); // Clear the timeout since we got a response
+                        $9919a9f5491eef72$var$log.log(`Response received for event "${eventName}": ${JSON.stringify(responsePayload)}`);
+                        this.#pendingRequests.get(correlationId).resolve(responsePayload);
+                        this.#pendingRequests.delete(correlationId);
+                        return true; // Response was successfully delivered
+                    }
+                    // The request timed out or was already fulfilled.
+                    return false;
+                }
+            };
+            this.dispatch(eventName, requestPayload);
+        });
+    }
+}
 
-USAGE
-       help
 
-       This command takes no arguments.
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ // Define constants for hardcoded strings to improve maintainability.
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * @description Central repository for all event names used in the application's event bus.
+ */ const $e7af321b64423fde$export$fa3d5b535a2458a1 = {
+    // Environment
+    GET_ALL_CATEGORIZED_VARS_REQUEST: 'get-all-categorized-vars-request',
+    VAR_EXPORT_REQUEST: 'variable-export-request',
+    VAR_GET_LOCAL_REQUEST: 'variable-get-local-request',
+    VAR_GET_SYSTEM_REQUEST: 'variable-get-system-request',
+    VAR_GET_TEMP_REQUEST: 'variable-get-temp-request',
+    VAR_GET_USERSPACE_REQUEST: 'variable-get-userspace-request',
+    VAR_SET_LOCAL_REQUEST: 'variable-set-local-request',
+    VAR_SET_SYSTEM_REQUEST: 'variable-set-system-request',
+    VAR_SET_TEMP_REQUEST: 'variable-set-temp-request',
+    VAR_SET_USERSPACE_REQUEST: 'variable-set-userspace-request',
+    VAR_DEL_LOCAL_REQUEST: 'variable-delete-local-request',
+    VAR_DEL_SYSTEM_REQUEST: 'variable-delete-system-request',
+    VAR_DEL_TEMP_REQUEST: 'variable-delete-temp-request',
+    VAR_DEL_USERSPACE_REQUEST: 'variable-delete-userspace-request',
+    // Local Storage
+    LOAD_LOCAL_VAR: 'load-local-variable',
+    RESET_LOCAL_VAR: 'reset-local-variable',
+    SAVE_LOCAL_VAR: 'save-local-variable',
+    DELETE_LOCAL_VAR: 'delete-local-variable',
+    // Accounting & User
+    VAR_UPDATE_DEFAULT_REQUEST: 'variable-update-default-request',
+    USER_CHANGED_BROADCAST: 'user-changed-broadcast',
+    LOGIN_REQUEST: 'login-request',
+    LOGOUT_REQUEST: 'logout-request',
+    PASSWORD_CHANGE_REQUEST: 'password-change-request',
+    ADD_USER_REQUEST: 'add-user-request',
+    IS_LOGGED_IN_REQUEST: 'is-logged-in-request',
+    VAR_SAVE_REMOTE_REQUEST: 'variable-save-remote-request',
+    VAR_LOAD_REMOTE_REQUEST: 'variable-load-remote-request',
+    VAR_DEL_REMOTE_REQUEST: 'variable-delete-remote-request',
+    // History
+    HISTORY_PREVIOUS_REQUEST: 'history-previous-request',
+    HISTORY_NEXT_REQUEST: 'history-next-request',
+    HISTORY_INDEXED_RESPONSE: 'history-indexed-response',
+    HISTORY_LOAD_REQUEST: 'history-load-request',
+    HISTORY_GET_ALL_REQUEST: 'history-get-all-request',
+    COMMAND_PERSIST_REQUEST: 'command-persist-request',
+    // Command & Execution
+    COMMAND_EXECUTE_BROADCAST: 'command-execute-broadcast',
+    COMMAND_EXECUTION_FINISHED_BROADCAST: 'command-execution-finished-broadcast',
+    AUTOCOMPLETE_REQUEST: 'autocomplete-request',
+    AUTOCOMPLETE_BROADCAST: 'autocomplete-broadcast',
+    GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST: 'get-autocomplete-suggestions-request',
+    GET_ALIASES_REQUEST: 'get-aliases-request',
+    SET_ALIASES_REQUEST: 'set-aliases-request',
+    GET_COMMAND_LIST_REQUEST: 'get-command-list-request',
+    GET_COMMAND_META_REQUEST: 'get-command-meta-request',
+    // Input
+    INPUT_REQUEST: 'input-request',
+    // UI
+    CLEAR_SCREEN_REQUEST: 'clear-screen-request',
+    THEME_CHANGED_BROADCAST: 'theme-changed-broadcast',
+    UI_SCROLL_TO_BOTTOM_REQUEST: 'ui-scroll-to-bottom-request',
+    SET_THEME_REQUEST: 'set-theme-request',
+    GET_VALID_THEMES_REQUEST: 'get-valid-themes-request',
+    MEDIA_REQUEST: 'media-request',
+    // Filesystem
+    FS_CHANGE_DIRECTORY_REQUEST: 'fs-change-directory-request',
+    FS_IS_DIR_REQUEST: 'fs-is-directory-request',
+    FS_GET_DIRECTORY_CONTENTS_REQUEST: 'fs-get-directory-contents-request',
+    FS_GET_FILE_CONTENTS_REQUEST: 'fs-get-file-contents-request',
+    FS_GET_PUBLIC_URL_REQUEST: 'fs-get-public-url-request',
+    FS_RESOLVE_PATH_REQUEST: 'fs-resolve-path-request'
+};
 
-EXAMPLES
-       $ help
-       (Displays a list of all commands and their descriptions.)`}async execute(e){this.log.log("Executing...");let t=document.createElement("div"),s=await this.#ee();if(0===s.length)return t.textContent="No commands available.",t;let i=Math.max(...s.map(e=>e.length))+4;t.style.whiteSpace="pre-wrap";let r="";for(let e of s){let t=await this.#et(e,"DESCRIPTION")||"No description available.";r+=`${e.padEnd(i)} : ${t}
-`}return t.textContent=r.trim(),t}}class eM extends ek{static DESCRIPTION="Shows the manual page for a command.";#ee;#et;constructor(e){super(e),this.#ee=this.services.getCommandList,this.#et=this.services.getCommandMeta}static man(){return`NAME
-       man - Display the manual page for a command.
 
-SYNOPSIS
-       man <command>
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class BaseService
+ * @description Provides a foundational class for all services. It automates
+ * the setup of the event bus, logger, and event listener registration.
+ */ class $6684178f93132198$export$3b34f4e23c444fa8 {
+    #eventBus;
+    #log;
+    constructor(eventBus){
+        if (!eventBus) throw new Error('BaseService requires an eventBus.');
+        this.#eventBus = eventBus;
+        this.#log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)(this.constructor.name);
+        this.log.log('Initializing...');
+    }
+    /**
+     * Factory method to create and initialize a service instance.
+     * This ensures the instance is fully constructed before `start()` is called,
+     * resolving initialization order issues with private fields in child classes.
+     * @param {EventBus} eventBus The application's event bus.
+     * @returns {this} A new, initialized instance of the service.
+     */ static create(eventBus, config = {}) {
+        const instance = new this(eventBus, config);
+        instance.#registerListeners();
+        return instance;
+    }
+    /**
+     * Child classes can override this method to perform specific startup logic
+     * after all services have been constructed and listeners are registered.
+     * This method is called by the main application entry point.
+     */ start() {
+    // To be overridden by child classes for post-initialization logic.
+    }
+    get log() {
+        return this.#log;
+    }
+    /**
+     * Dispatches an event on the event bus.
+     * @param {string} eventName - The name of the event to dispatch.
+     * @param {object} [payload] - The data to send with the event.
+     */ dispatch(eventName, payload = {}) {
+        this.#eventBus.dispatch(eventName, payload);
+    }
+    /**
+     * Sends a request on the event bus and awaits a response.
+     * @param {string} eventName - The name of the request event.
+     * @param {object} [payload] - The data to send with the request.
+     * @returns {Promise<any>} A promise that resolves with the response.
+     */ request(eventName, payload, timeout = 0) {
+        return this.#eventBus.request(eventName, payload, timeout);
+    }
+    /**
+     * Child classes must override this getter to return a map of event names
+     * to their corresponding handler methods. The handlers will be automatically
+     * bound and registered.
+     * @returns {Object.<string, Function>}
+     */ get eventHandlers() {
+        return {};
+    }
+    #registerListeners() {
+        const handlers = this.eventHandlers;
+        for (const [eventName, handler] of Object.entries(handlers))this.#eventBus.listen(eventName, handler, this.constructor.name);
+    }
+}
 
-DESCRIPTION
-       The man command displays the manual page for the specified command.
-       If no command is specified, it will prompt for a command name.
 
-USAGE
-       man <command>
+const $1b934ed4cb64b454$var$TEMP_NAMESPACE = 'TEMP';
+const $1b934ed4cb64b454$var$LOCAL_NAMESPACE = 'LOCAL';
+const $1b934ed4cb64b454$var$ENV_NAMESPACE = 'ENV';
+const $1b934ed4cb64b454$var$SYSTEM_NAMESPACE = 'SYSTEM';
+const $1b934ed4cb64b454$var$USERSPACE_NAMESPACE = 'USERSPACE';
+class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    #tempVariables = new Map();
+    constructor(eventBus){
+        super(eventBus);
+        this.log.log('Initializing...');
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_ALL_CATEGORIZED_VARS_REQUEST]: this.#handleGetAllCategorized.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST]: this.#handleGetLocalVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_SYSTEM_REQUEST]: this.#handleGetSystemVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST]: this.#handleGetTempVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_USERSPACE_REQUEST]: this.#handleGetUserSpaceVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_LOCAL_REQUEST]: this.#handleSetLocalVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_SYSTEM_REQUEST]: this.#handleSetVariableRemote.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_TEMP_REQUEST]: this.#handleSetTempVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_USERSPACE_REQUEST]: this.#handleSetVariableUserspace.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_DEL_LOCAL_REQUEST]: this.#handleDeleteLocalVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_DEL_SYSTEM_REQUEST]: this.#handleDeleteSystemVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_DEL_TEMP_REQUEST]: this.#handleDeleteTempVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_DEL_USERSPACE_REQUEST]: this.#handleDeleteUserspaceVariable.bind(this)
+        };
+    }
+    start() {
+    // No longer loading from storage at startup. This is now lazy.
+    // No startup logic needed.
+    }
+    async #handleGetTempVariable({ key: key, respond: respond }) {
+        const upperKey = key.toUpperCase();
+        let value = this.#tempVariables.get(upperKey);
+        if (value === undefined) {
+            this.log.log(`Temp variable "${upperKey}" is undefined, requesting its default value.`);
+            const response = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST, {
+                key: upperKey
+            });
+            value = response.value;
+            // The owner provides the default, and we set it here.
+            if (value !== undefined) this.#setTempVariable(upperKey, value);
+        }
+        respond({
+            value: value
+        });
+    }
+    async #handleGetLocalVariable({ key: key, respond: respond }) {
+        const upperKey = key.toUpperCase();
+        const { value: storedValue } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOAD_LOCAL_VAR, {
+            key: upperKey,
+            namespace: $1b934ed4cb64b454$var$ENV_NAMESPACE
+        });
+        let value = storedValue;
+        if (value === undefined) {
+            this.log.log(`Local variable "${upperKey}" is undefined, requesting its default value.`);
+            const response = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST, {
+                key: upperKey
+            });
+            value = response.value;
+            // The owner provides the default, and we set it here.
+            if (value !== undefined) this.#setLocalVariable(upperKey, value);
+        }
+        respond({
+            value: value
+        });
+    }
+    async #handleGetUserSpaceVariable({ key: key, respond: respond }) {
+        return this.#handleGetRemoteVariable({
+            key: key,
+            respond: respond
+        }, $1b934ed4cb64b454$var$USERSPACE_NAMESPACE);
+    }
+    async #handleGetSystemVariable({ key: key, respond: respond }) {
+        return this.#handleGetRemoteVariable({
+            key: key,
+            respond: respond
+        }, $1b934ed4cb64b454$var$SYSTEM_NAMESPACE);
+    }
+    async #handleGetRemoteVariable({ key: key, respond: respond }, category) {
+        const upperKey = key.toUpperCase();
+        let value;
+        // Request from AccountingService on-demand.
+        const { variables: variables } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_LOAD_REMOTE_REQUEST, {
+            key: upperKey,
+            category: category
+        });
+        value = variables ? variables[upperKey] : undefined;
+        if (value === undefined) {
+            this.log.log(`Remote/Userspace variable "${upperKey}" is undefined, requesting its default value.`);
+            const response = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST, {
+                key: upperKey
+            });
+            value = response.value;
+            // The owner provides the default, and we set it here.
+            if (value !== undefined) this.#setRemoteVariable(upperKey, value, category);
+        }
+        respond({
+            value: value
+        });
+    }
+    #handleSetTempVariable({ key: key, value: value }) {
+        this.#setTempVariable(key.toUpperCase(), value);
+    }
+    #handleSetLocalVariable({ key: key, value: value }) {
+        this.#setLocalVariable(key.toUpperCase(), value);
+    }
+    #handleSetVariableRemote({ key: key, value: value }) {
+        this.#setRemoteVariable(key.toUpperCase(), value, $1b934ed4cb64b454$var$SYSTEM_NAMESPACE);
+    }
+    #handleSetVariableUserspace({ key: key, value: value }) {
+        this.#setRemoteVariable(key.toUpperCase(), value, $1b934ed4cb64b454$var$USERSPACE_NAMESPACE);
+    }
+    #handleDeleteTempVariable({ key: key }) {
+        this.#deleteTempVariable(key.toUpperCase());
+    }
+    #handleDeleteLocalVariable({ key: key }) {
+        this.#deleteLocalVariable(key.toUpperCase());
+    }
+    #handleDeleteSystemVariable({ key: key }) {
+        this.#deleteRemoteVariable(key.toUpperCase(), $1b934ed4cb64b454$var$SYSTEM_NAMESPACE);
+    }
+    #handleDeleteUserspaceVariable({ key: key }) {
+        this.#deleteRemoteVariable(key.toUpperCase(), $1b934ed4cb64b454$var$USERSPACE_NAMESPACE);
+    }
+    #validate(key, value) {
+        if (typeof value === 'number') value = String(value);
+        if (!key || value !== null && typeof value !== 'string') {
+            this.log.error("Invalid key or value provided to setVariable:", {
+                key: key,
+                value: value,
+                type: typeof value
+            });
+            return false;
+        }
+        return true;
+    }
+    #setTempVariable(key, value) {
+        if (!this.#validate(key, value)) return;
+        this.#tempVariables.set(key, value);
+    }
+    #setLocalVariable(key, value) {
+        if (!this.#validate(key, value)) return;
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).SAVE_LOCAL_VAR, {
+            key: key,
+            value: value,
+            namespace: $1b934ed4cb64b454$var$ENV_NAMESPACE
+        });
+    }
+    #setRemoteVariable(key, value, category) {
+        if (!this.#validate(key, value)) return;
+        // The `persist` flag is now implicitly true for remote variables.
+        // Default values are handled by the getter methods and don't call this.
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SAVE_REMOTE_REQUEST, {
+            key: key,
+            value: value,
+            category: category
+        });
+    }
+    #deleteTempVariable(key) {
+        this.#tempVariables.delete(key);
+    }
+    #deleteLocalVariable(key) {
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).DELETE_LOCAL_VAR, {
+            key: key,
+            namespace: $1b934ed4cb64b454$var$ENV_NAMESPACE
+        });
+    }
+    #deleteRemoteVariable(key, category) {
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_DEL_REMOTE_REQUEST, {
+            key: key,
+            category: category
+        });
+    }
+    async #handleUserChanged() {
+        this.#tempVariables.clear();
+    }
+    #handleGetAllCategorized({ respond: respond }) {
+        // This is now an async operation as it needs to fetch remote data.
+        (async ()=>{
+            const categorized = {
+                TEMP: {},
+                LOCAL: {},
+                SYSTEM: {},
+                USERSPACE: {}
+            };
+            categorized.TEMP = Object.fromEntries(this.#tempVariables);
+            categorized.LOCAL = (await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOAD_LOCAL_VAR, {
+                namespace: $1b934ed4cb64b454$var$ENV_NAMESPACE
+            })).value;
+            const { variables: remoteData } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_LOAD_REMOTE_REQUEST, {
+                category: [
+                    $1b934ed4cb64b454$var$SYSTEM_NAMESPACE,
+                    $1b934ed4cb64b454$var$USERSPACE_NAMESPACE
+                ]
+            });
+            Object.assign(categorized.SYSTEM, remoteData.SYSTEM || {});
+            Object.assign(categorized.USERSPACE, remoteData.USERSPACE || {});
+            respond({
+                categorized: categorized
+            });
+        })();
+    }
+}
 
-EXAMPLES
-       $ man help
-       (Displays the manual page for the 'help' command.)`}async autocompleteArgs(e){if(e.length>1)return[];let t=await this.#ee(),s=e[0]||"";return t.includes(s)?[]:s?t.filter(e=>e.startsWith(s)):[]}async execute(e){this.log.log("Executing with args:",e);let t=document.createElement("div");if(e.length<=1)return t.textContent="Usage: man <command>\nPlease specify a command name.",t;let s=e[1];if(!s){let e=document.createElement("p");return e.textContent="Usage: man <command>\nPlease specify a command name.",t.appendChild(e),t}let i=s.toLowerCase(),r=await this.#ee();this.log.log("Searching for command:",i);let a=r.find(e=>e.toLowerCase()===i),n=a?await this.#et(a,"man"):void 0;if(this.log.log("Exact match found:",a),!n){let e=r.filter(e=>e.toLowerCase().startsWith(i));if(this.log.log("Partial matches found:",e),1===e.length)n=await this.#et(e[0],"man"),this.log.log("Unique partial match found:",e[0]);else if(e.length>1)return t.textContent=`man: ambiguous command '${s}'; possibilities: ${e.join(" ")}`,this.log.warn("Ambiguous command:",{input:s,matches:e}),t;else return t.textContent=`No manual entry for '${s}'.`,t}return n?(this.log.log("Displaying man page."),t.style.whiteSpace="pre-wrap",t.textContent=n):(this.log.warn(`No man page function found for command: "${s}"`),t.textContent=`No manual entry for '${s}'.`),t}}class eU extends ek{static DESCRIPTION="Shows the command history.";#es;constructor(e){super(e),this.#es=this.services.getHistory}static man(){return`NAME
-       history - Display the command history.
 
-SYNOPSIS
-       history
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+const $fa0ff2eef523a395$var$log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)('ApiManager');
+class $fa0ff2eef523a395$export$cd2fa11040f69795 {
+    #apiEndpoint;
+    constructor(endpoint){
+        this.#apiEndpoint = endpoint;
+    }
+    /**
+     * Makes a POST request to the backend API, automatically including the session token.
+     * @param {string} action - The action to perform (e.g., 'login', 'get_env').
+     * @param {Object} [data={}] - An object containing the data to send.
+     * @param {string|null} [token=null] - The session token to include, if any.
+     * @returns {Promise<object>} The JSON response from the server.
+     */ async post(action, data = {}, token = null) {
+        const formData = new FormData();
+        if (token) formData.append('token', token);
+        for (const [key, value] of Object.entries(data))formData.append(key, value);
+        $fa0ff2eef523a395$var$log.log(`Making API call: action=${action}`);
+        const response = await fetch(`${this.#apiEndpoint}?action=${action}`, {
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) throw new Error(`Invalid response from server: Expected JSON but received ${contentType}. Is the server running with the --cgi flag?`);
+        return response.json();
+    }
+    /**
+     * Makes a GET request to the backend API.
+     * @param {Object} [data={}] - An object containing data to be sent as URL query parameters.
+     * @returns {Promise<object>} The JSON response from the server.
+     */ async get(data = {}) {
+        const url = new URL(this.#apiEndpoint, window.location.origin);
+        for (const [key, value] of Object.entries(data))url.searchParams.append(key, value);
+        $fa0ff2eef523a395$var$log.log(`Making API call (GET): url=${url}`);
+        const response = await fetch(url, {
+            method: 'GET'
+        });
+        if (!response.ok) throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) throw new Error(`Invalid response from server: Expected JSON but received ${contentType}. Is the server running with the --cgi flag?`);
+        return response.json();
+    }
+}
 
-DESCRIPTION
-       The history command displays a list of previously entered commands.
 
-USAGE
-       history
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * @description Central repository for shared constant values, such as environment variable names.
+ */ const $f3db42d7289ab17e$export$d71b24b7fe068ed = {
+    // Core Prompt/System Variables
+    PS1: 'PS1',
+    HOST: 'HOST',
+    PWD: 'PWD',
+    USER: 'USER',
+    // User-configurable Variables
+    HISTSIZE: 'HISTSIZE',
+    THEME: 'THEME',
+    ALIAS: 'ALIAS',
+    // Session/Authentication Variables
+    TOKEN: 'TOKEN',
+    TOKEN_EXPIRY: 'TOKEN_EXPIRY'
+};
 
-EXAMPLES
-       $ history
-       (Displays the list of commands entered in this session.)`}async execute(e){this.log.log("Executing...");let t=document.createElement("div"),s=await this.#es();if(!s||0===s.length)return t.textContent="No history available.",t;let i=String(s.length).length;return t.style.whiteSpace="pre-wrap",t.textContent=s.map((e,t)=>` ${String(s.length-t).padStart(i)}:  ${e}`).join("\n"),t}}class eH extends ek{#ei;#er;constructor(e){super(e),this.#ei=this.services.getDirectoryContents,this.#er=this.services.autocompletePath}static man(){return`NAME
-       ls - List directory contents.
 
-SYNOPSIS
-       ls [directory]
 
-DESCRIPTION
-       The ls command lists files and directories in the specified location.
-       If no location is given, it lists the current directory.`}async autocompleteArgs(e){let t=e.filter(e=>!e.trim().startsWith("-")).join("");try{let e=await this.#ei(t||"."),s=(e.directories||[]).map(e=>e.name+"/"),i=(e.files||[]).map(e=>e.name);return[...s,...i].sort()}catch(e){return this.log.warn(`Autocomplete failed for path "${t}":`,e),[]}}async execute(e){this.log.log("Executing with args:",e);let t=document.createElement("div"),s=e[1]||".";try{let e=await this.#ei(s);if("string"==typeof e){let s=document.createElement("pre");return s.innerText=e,t.appendChild(s),t}let i=function(e){let t=Array.isArray(e?.files)?e.files:[],s=[...(Array.isArray(e?.directories)?e.directories:[]).map(e=>({text:`${e.name}/`,style:{color:"var(--nnoitra-color-directory)"}})),...t.map(e=>{let t=null!==e.size?`(${e.size}b)`:"";return`${e.name} ${t}`})];var i=s.length>0?s:["(empty directory)"];let r=document.createElement("ul");if(r.style.listStyle="none",r.style.padding="0",r.style.margin="0",i&&0!==i.length)i.forEach(e=>{let t=document.createElement("li");"string"==typeof e?t.textContent=e:"object"==typeof e&&e.text&&(t.textContent=e.text,Object.assign(t.style,e.style)),r.appendChild(t)});else{let e=document.createElement("li");e.textContent="(empty)",r.appendChild(e)}return r}(e);t.appendChild(i)}catch(e){this.log.warn(`Cannot access path: "${s}"`,e),t.textContent=`ls: cannot access '${s}': ${e.message}`}return t}}class ez extends ek{static DESCRIPTION="Change the current working directory.";#ea;#ei;constructor(e){super(e),this.#ea=this.services.changeDirectory,this.#ei=this.services.getDirectoryContents}static man(){return`NAME
-       cd - Change the current directory.
 
-SYNOPSIS
-       cd [directory]
+// Define constants for hardcoded strings to improve maintainability.
+const $34004656f0914987$var$GUEST_USER = 'guest';
+const $34004656f0914987$var$GUEST_STORAGE_PREFIX = 'GUEST_STORAGE_';
+const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
+/**
+ * @class AccountingService
+ * @description Handles user authentication and session management via the event bus.
+ *
+ * @listens for `variable-persist-request` - Handles requests to save environment variables.
+ * @listens for `command-persist-request` - Handles requests to save history commands.
+ * @listens for `history-load-request` - Handles requests to load remote history.
+ *
+ * @dispatches `user-changed-broadcast` - When the user logs in or out.
+ * @dispatches `variable-set-request` - To set session-related environment variables.
+ * @dispatches `variable-get-request` - To get session-related environment variables.
+ * @dispatches `environment-reset-request` - To reset the environment service.
+ */ class $34004656f0914987$export$f63b2c629ff23c50 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    #apiManager;
+    constructor(eventBus, config = {}){
+        super(eventBus);
+        this.#apiManager = new (0, $fa0ff2eef523a395$export$cd2fa11040f69795)(config.apiUrl);
+        this.log.log('Initializing...');
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SAVE_REMOTE_REQUEST]: this.#handlePersistVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_PERSIST_REQUEST]: this.#handlePersistCommand.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_LOAD_REQUEST]: this.#handleHistoryLoad.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOGIN_REQUEST]: this.#handleLoginRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOGOUT_REQUEST]: this.#handleLogoutRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).PASSWORD_CHANGE_REQUEST]: this.#handleChangePasswordRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).ADD_USER_REQUEST]: this.#handleAddUserRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_LOAD_REMOTE_REQUEST]: this.#handleLoadRemoteVariables.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_DEL_REMOTE_REQUEST]: this.#handleDeleteRemoteVariable.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).IS_LOGGED_IN_REQUEST]: this.#handleIsLoggedInRequest.bind(this)
+        };
+    }
+    async isLoggedIn() {
+        const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
+        });
+        return !!token;
+    }
+    async start() {
+        // On startup, broadcast the initial login state. This allows services
+        // like HistoryService to load remote data for a logged-in user on page refresh.
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).USER_CHANGED_BROADCAST);
+    }
+    async login(username, password) {
+        try {
+            this.log.log(`Attempting login for user: "${username}"`);
+            const result = await this.#apiManager.post('login', {
+                username: username,
+                password: password
+            }, null);
+            if (result.status === 'success') {
+                this.log.log('Login successful. Setting session variables.');
+                this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_LOCAL_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN,
+                    value: result.token
+                }); // Set new ones
+                this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_LOCAL_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER,
+                    value: result.user
+                });
+                this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_LOCAL_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN_EXPIRY,
+                    value: result.expires_at
+                });
+                this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).USER_CHANGED_BROADCAST);
+            }
+            return result;
+        } catch (error) {
+            this.log.error('Network or parsing error during login:', error);
+            return {
+                status: 'error',
+                message: `Error: ${error.message}`
+            };
+        }
+    }
+    async logout() {
+        try {
+            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
+            });
+            const result = await this.#apiManager.post('logout', {}, token);
+            if (result.status === 'success' || result.status === 'error' && result.message.includes('expired')) {
+                // Clear local session regardless of backend response if token is expired or logout is successful
+                this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_DEL_LOCAL_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
+                });
+                this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_LOCAL_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER,
+                    value: $34004656f0914987$var$GUEST_USER
+                });
+                this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_DEL_LOCAL_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN_EXPIRY
+                });
+                this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).USER_CHANGED_BROADCAST);
+            }
+            return result;
+        } catch (error) {
+            this.log.error('Network or parsing error during logout:', error);
+            return {
+                status: 'error',
+                message: `Error: ${error.message}`
+            };
+        }
+    }
+    async #handleLoginRequest({ username: username, password: password, respond: respond }) {
+        const result = await this.login(username, password);
+        respond(result);
+    }
+    async #handleLogoutRequest({ respond: respond }) {
+        const result = await this.logout();
+        respond(result);
+    }
+    async #addUser(username, password) {
+        try {
+            const result = await this.#apiManager.post('add_user', {
+                username: username,
+                password: password
+            });
+            return result;
+        } catch (error) {
+            this.log.error('Network or parsing error during user creation:', error);
+            return {
+                status: 'error',
+                message: `Error: ${error.message}`
+            };
+        }
+    }
+    async #handleAddUserRequest({ username: username, password: password, respond: respond }) {
+        const result = await this.#addUser(username, password);
+        respond(result);
+    }
+    async #changePassword(oldPassword, newPassword) {
+        const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
+        });
+        if (!token) return {
+            status: 'error',
+            message: 'Not logged in.'
+        };
+        try {
+            this.log.log('Attempting password change...');
+            this.log.log('Old password:', oldPassword);
+            this.log.log('New password:', newPassword);
+            const result = await this.#apiManager.post('change_password', {
+                old_password: oldPassword,
+                new_password: newPassword
+            }, token);
+            return result;
+        } catch (error) {
+            this.log.error('Network or parsing error during password change:', error);
+            return {
+                status: 'error',
+                message: `Error: ${error.message}`
+            };
+        }
+    }
+    async #handleChangePasswordRequest({ oldPassword: oldPassword, newPassword: newPassword, respond: respond }) {
+        const result = await this.#changePassword(oldPassword, newPassword);
+        respond(result);
+    }
+    async #handleIsLoggedInRequest({ respond: respond }) {
+        const loggedIn = await this.isLoggedIn();
+        respond({
+            isLoggedIn: loggedIn
+        });
+    }
+    #handleUpdateDefaultRequest({ key: key, respond: respond }) {
+        switch(key){
+            case (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER:
+                respond({
+                    value: $34004656f0914987$var$GUEST_USER
+                });
+                break;
+            case (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN:
+                respond({
+                    value: ''
+                });
+                break;
+        }
+    }
+    async #handlePersistVariable(payload) {
+        const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
+        });
+        if (user === $34004656f0914987$var$GUEST_USER) this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).SAVE_LOCAL_VAR, {
+            namespace: `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${payload.category}`,
+            key: payload.key,
+            value: payload.value
+        });
+        else {
+            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
+            });
+            this.#apiManager.post('set_data', {
+                category: payload.category,
+                key: payload.key,
+                value: payload.value
+            }, token);
+        }
+    }
+    async #handleDeleteRemoteVariable(payload) {
+        const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
+        });
+        if (user === $34004656f0914987$var$GUEST_USER) this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).DELETE_LOCAL_VAR, {
+            namespace: `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${payload.category}`,
+            key: payload.key
+        });
+        else {
+            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
+            });
+            this.#apiManager.post('delete_data', {
+                category: payload.category,
+                key: payload.key
+            }, token);
+        }
+    }
+    async #handlePersistCommand(payload) {
+        const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
+        });
+        if (user === $34004656f0914987$var$GUEST_USER) this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).SAVE_LOCAL_VAR, {
+            namespace: `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`,
+            key: Date.now(),
+            value: payload.command
+        });
+        else {
+            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
+            });
+            this.#apiManager.post('set_data', {
+                category: $34004656f0914987$var$HISTORY_CATEGORY,
+                key: Date.now(),
+                value: payload.command
+            }, token);
+        }
+    }
+    async #handleHistoryLoad({ respond: respond }) {
+        const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
+        });
+        if (user === $34004656f0914987$var$GUEST_USER) {
+            const { value: guestHistory } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOAD_LOCAL_VAR, {
+                namespace: `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`
+            });
+            if (respond) respond({
+                history: guestHistory || {}
+            });
+        } else try {
+            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
+            });
+            const result = await this.#apiManager.post('get_data', {
+                category: $34004656f0914987$var$HISTORY_CATEGORY
+            }, token);
+            this.log.log("History data received from server:", result);
+            if (respond) respond({
+                history: result.data || []
+            });
+        } catch (error) {
+            this.log.error("Failed to load history from server:", error);
+            if (respond) respond({
+                history: [],
+                error: error
+            });
+        }
+    }
+    async #handleLoadRemoteVariables({ key: key, category: category, respond: respond }) {
+        const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
+        });
+        if (user === $34004656f0914987$var$GUEST_USER) {
+            const variables = {};
+            const categories = Array.isArray(category) ? category : [
+                category
+            ];
+            for (const cat of categories){
+                const namespace = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${cat}`;
+                // If a key is provided, we are fetching a single variable.
+                // If no key, we are fetching all variables for the category (or categories).
+                const { value: value } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOAD_LOCAL_VAR, {
+                    namespace: namespace,
+                    key: key
+                });
+                if (key !== undefined) // If a key was requested, the value is the variable's value.
+                // The expected response format is { [key]: value }.
+                {
+                    if (value !== undefined) variables[key] = value;
+                } else // If no key, value is an object of all variables for that category.
+                if (Array.isArray(category)) // If multiple categories were requested, nest the results.
+                variables[cat] = value || {};
+                else // If a single category was requested, merge into the top level.
+                Object.assign(variables, value || {});
+            }
+            if (respond) respond({
+                variables: variables
+            });
+        } else try {
+            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
+            });
+            const result = await this.#apiManager.post('get_data', {
+                category: category,
+                key: key // Pass key along, though backend might not use it for 'ENV'
+            }, token);
+            this.log.log("Remote variables received from server:", result);
+            if (respond) respond({
+                variables: result.data || {}
+            });
+        } catch (error) {
+            this.log.error("Failed to load remote variables from server:", error);
+            if (respond) respond({
+                variables: {},
+                error: error
+            });
+        }
+    }
+}
 
-DESCRIPTION
-       The cd command changes the current working directory to the specified location.
-       If no location is given, it changes to the root directory.`}async autocompleteArgs(e){let t=e.join(""),s=t.lastIndexOf("/"),i=-1===s?".":t.substring(0,s+1)||"/";try{return((await this.#ei(i)).directories||[]).map(e=>e.name+"/").sort()}catch(e){return this.log.warn(`Autocomplete failed for path "${t}":`,e),[]}}async execute(e){this.log.log("Executing with args:",e);let t=document.createElement("div"),s=e.slice(1).join("").trim()||"/";try{await this.#ea(s)}catch(e){t.textContent=`cd: ${s}: ${e.message}`}return t}}class eF extends ek{static DESCRIPTION="Print the content of a FILE";#en;#ei;constructor(e){super(e),this.#en=this.services.getFileContents,this.#ei=this.services.getDirectoryContents}static man(){return`NAME
-       cat - Concatenate and print files.
 
-SYNOPSIS
-       cat [FILE]...
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
 
-DESCRIPTION
-       The cat command reads files sequentially, writing them to the standard output.`}async autocompleteArgs(e){let t=e.join("");try{let e=await this.#ei(t||"."),s=/\.txt$/i,i=(e.directories||[]).map(e=>e.name+"/"),r=(e.files||[]).filter(e=>s.test(e.name)).map(e=>e.name);return[...i,...r].sort()}catch(e){return this.log.warn(`Autocomplete failed for path "${t}":`,e),[]}}async execute(e){this.log.log("Executing with args:",e);let t=document.createElement("pre"),s=e.slice(1).join("").trim();if(!s)return this.log.warn("Missing file operand."),t.textContent="cat: missing file operand",t;try{t.textContent=await this.#en(s)}catch(e){this.log.error(`Failed to get file content for "${s}":`,e),t.textContent=`cat: ${s}: ${e.message}`}return t}}class eB extends ek{static DESCRIPTION="Clear the terminal output.";#eo;constructor(e){super(e),this.#eo=this.services.clearScreen}execute(e){return this.log.log("Executing clear command."),this.#eo(),document.createElement("div")}static man(){return`NAME
+
+const $aa7bd8a129968d33$var$DEFAULT_HISTSIZE = '1000';
+/**
+ * @class HistoryBusService
+ * @description Manages command history, communicating exclusively via the event bus.
+ *
+ * @listens for `HISTORY_PREVIOUS_REQUEST` - Responds with the previous command in history.
+ * @listens for `HISTORY_NEXT_REQUEST` - Responds with the next command in history.
+ * @listens for `COMMAND_EXECUTE_BROADCAST` - Adds the executed command to its internal history.
+ * @listens for `VAR_GET_RESPONSE` - For the HISTSIZE value.
+ *
+ * @dispatches `COMMAND_PERSIST_REQUEST` - When a new command needs to be saved remotely.
+ * @dispatches `HISTORY_LOAD_REQUEST` - To request the loading of remote history.
+ * @dispatches `HISTORY_INDEXED_RESPONSE` - The requested history item.
+ * @dispatches `VAR_GET_REQUEST` - To get the HISTSIZE variable.
+ * @dispatches `VAR_SET_REQUEST` - To set the HISTSIZE variable.
+ */ class $aa7bd8a129968d33$export$682fe5af4326291 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    #history = [];
+    #cursorIndex = 0;
+    #maxSize = parseInt($aa7bd8a129968d33$var$DEFAULT_HISTSIZE, 10);
+    constructor(eventBus){
+        super(eventBus);
+        this.log.log('Initializing...');
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_PREVIOUS_REQUEST]: this.#handleGetPrevious.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_NEXT_REQUEST]: this.#handleGetNext.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_EXECUTE_BROADCAST]: this.#handleAddCommand.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_GET_ALL_REQUEST]: this.#handleGetAllHistory.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this)
+        };
+    }
+    #handleAddCommand({ commandString: commandString }) {
+        this.addCommand(commandString);
+    }
+    #handleUpdateDefaultRequest({ key: key, respond: respond }) {
+        if (key === (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HISTSIZE) respond({
+            value: $aa7bd8a129968d33$var$DEFAULT_HISTSIZE
+        });
+    }
+    async #handleUserChanged() {
+        const { history: history } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_LOAD_REQUEST);
+        this.loadHistory(history);
+    }
+    #updateMaxSize(histSizeValue) {
+        const parsedSize = parseInt(histSizeValue, 10);
+        if (!isNaN(parsedSize) && parsedSize >= 0) this.#maxSize = parsedSize;
+        else {
+            this.log.warn(`Invalid HISTSIZE value "${histSizeValue}". Resetting to default: ${$aa7bd8a129968d33$var$DEFAULT_HISTSIZE}`);
+            this.#maxSize = parseInt($aa7bd8a129968d33$var$DEFAULT_HISTSIZE, 10);
+        }
+    }
+    async addCommand(command) {
+        const trimmedCommand = command.trim();
+        if (!trimmedCommand || this.#history.length > 0 && this.#history[0] === trimmedCommand) return; // Don't add empty or duplicate consecutive commands
+        this.#history.unshift(trimmedCommand);
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_PERSIST_REQUEST, {
+            command: trimmedCommand
+        });
+        // Lazily get HISTSIZE and update the internal max size.
+        const { value: value } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_SYSTEM_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HISTSIZE
+        });
+        this.#updateMaxSize(value || $aa7bd8a129968d33$var$DEFAULT_HISTSIZE);
+        if (this.#history.length > this.#maxSize) this.#history.pop();
+        this.resetCursor();
+    }
+    resetCursor() {
+        this.#cursorIndex = 0;
+    }
+    #handleGetPrevious() {
+        if (this.#cursorIndex < this.#history.length) this.#cursorIndex++;
+        const response = {
+            command: this.#history[this.#cursorIndex - 1] || '',
+            index: this.#cursorIndex
+        };
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_INDEXED_RESPONSE, response);
+    }
+    #handleGetNext() {
+        if (this.#cursorIndex > 0) this.#cursorIndex--;
+        const response = {
+            command: this.#history[this.#cursorIndex - 1] || '',
+            index: this.#cursorIndex
+        };
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_INDEXED_RESPONSE, response);
+    }
+    #handleGetAllHistory({ respond: respond }) {
+        // The history is stored with the most recent command at index 0.
+        // For display, we reverse it to show oldest to newest.
+        const displayHistory = this.#history.slice().reverse();
+        respond({
+            history: displayHistory
+        });
+    }
+    loadHistory(data) {
+        if (data) {
+            // The backend returns an object with timestamps as keys. We want the values, sorted by key (timestamp).
+            const sortedCommands = Object.keys(data).sort().map((key)=>data[key]);
+            // The local history is newest-first, so we need to reverse the loaded history which is oldest-first.
+            this.#history = sortedCommands.reverse();
+            this.resetCursor();
+            this.log.log(`Loaded ${this.#history.length} commands into history.`);
+        }
+    }
+    clearHistory() {
+        this.#history = [];
+        this.resetCursor();
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+const $a669e8ae43fdb238$var$log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)('ServiceApiManager');
+class $a669e8ae43fdb238$export$241fc32970302a31 {
+    #eventBus;
+    constructor(eventBus){
+        this.#eventBus = eventBus;
+    }
+    // --- UI Gateway Methods ---
+    async prompt(promptText, options = {}) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).INPUT_REQUEST, {
+            prompt: promptText,
+            options: options
+        }, 0);
+        return response.value;
+    }
+    clearScreen() {
+        this.#eventBus.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).CLEAR_SCREEN_REQUEST);
+    }
+    scrollToBottom() {
+        this.#eventBus.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).UI_SCROLL_TO_BOTTOM_REQUEST);
+    }
+    async requestMedia(src) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).MEDIA_REQUEST, {
+            src: src
+        });
+        return response.mediaElement;
+    }
+    // --- User/Accounting Gateway Methods ---
+    async login(username, password) {
+        return await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOGIN_REQUEST, {
+            username: username,
+            password: password
+        });
+    }
+    async logout() {
+        return await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOGOUT_REQUEST, {});
+    }
+    async changePassword(oldPassword, newPassword) {
+        return await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).PASSWORD_CHANGE_REQUEST, {
+            oldPassword: oldPassword,
+            newPassword: newPassword
+        });
+    }
+    async addUser(username, password) {
+        return await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).ADD_USER_REQUEST, {
+            username: username,
+            password: password
+        });
+    }
+    async isLoggedIn() {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).IS_LOGGED_IN_REQUEST, {});
+        return response.isLoggedIn;
+    }
+    // --- Filesystem Gateway Methods ---
+    async isDirectory(path) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_IS_DIR_REQUEST, {
+            path: path
+        });
+        return response.isDirectory;
+    }
+    async getDirectoryContents(path) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_DIRECTORY_CONTENTS_REQUEST, {
+            path: path
+        });
+        if (response.error) throw new Error(response.error.message || 'Failed to get directory contents.');
+        return response.contents;
+    }
+    async getFileContents(path) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_FILE_CONTENTS_REQUEST, {
+            path: path
+        });
+        if (response.error) throw new Error(response.error.message || 'Failed to get file contents.');
+        return response.contents;
+    }
+    async getPublicUrl(path) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_PUBLIC_URL_REQUEST, {
+            path: path
+        });
+        return response.url;
+    }
+    async resolvePath(path, mustBeDir = false) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_RESOLVE_PATH_REQUEST, {
+            path: path,
+            mustBeDir: mustBeDir
+        });
+        if (response.error) throw response.error;
+        return response.path;
+    }
+    // --- History Gateway Methods ---
+    async getHistory() {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_GET_ALL_REQUEST, {});
+        return response.history;
+    }
+    // --- Environment Gateway Methods ---
+    async changeDirectory(path) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_CHANGE_DIRECTORY_REQUEST, {
+            path: path
+        });
+        if (response.error) // The error object from the service is a standard Error, so we can re-throw it.
+        throw response.error;
+    }
+    setTempVariable(key, value) {
+        this.#eventBus.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_TEMP_REQUEST, {
+            key: key,
+            value: value
+        });
+    }
+    setLocalVariable(key, value) {
+        this.#eventBus.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_LOCAL_REQUEST, {
+            key: key,
+            value: value
+        });
+    }
+    setSystemVariable(key, value) {
+        this.#eventBus.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_SYSTEM_REQUEST, {
+            key: key,
+            value: value
+        });
+    }
+    async getSystemVariable(key, value) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_SYSTEM_REQUEST, {
+            key: key
+        });
+        return response;
+    }
+    setUserspaceVariable(key, value) {
+        this.#eventBus.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_USERSPACE_REQUEST, {
+            key: key,
+            value: value
+        });
+    }
+    deleteUserspaceVariable(key) {
+        this.#eventBus.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_DEL_USERSPACE_REQUEST, {
+            key: key
+        });
+    }
+    async getAllCategorizedVariables() {
+        const { categorized: categorized } = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_ALL_CATEGORIZED_VARS_REQUEST, {});
+        return categorized;
+    }
+    // --- Alias Gateway Methods ---
+    async getAliases() {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_ALIASES_REQUEST, {});
+        return response.aliases;
+    }
+    setAliases(aliases) {
+        // This is a fire-and-forget dispatch
+        this.#eventBus.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).SET_ALIASES_REQUEST, {
+            aliases: aliases
+        });
+    }
+    // --- Command Introspection Gateway Methods ---
+    async getCommandList() {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_COMMAND_LIST_REQUEST, {});
+        return response.commands;
+    }
+    async getCommandMeta(commandName, metaKey) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_COMMAND_META_REQUEST, {
+            commandName: commandName,
+            metaKey: metaKey
+        });
+        return response.value;
+    }
+    // --- Theme Gateway Methods ---
+    async setTheme(themeName) {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).SET_THEME_REQUEST, {
+            themeName: themeName
+        });
+        return response.theme;
+    }
+    async getValidThemes() {
+        const response = await this.#eventBus.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_VALID_THEMES_REQUEST, {});
+        return response.themes;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Tokenizes an input string based on shell-like rules for quotes and escapes.
+ *
+ * - Special characters (delimiters): space, slash, equals.
+ * - Backslash `\` escapes the next character.
+ * - Single `'` and double `"` quotes create string literals where delimiters are ignored.
+ * - Unclosed quotes extend to the end of the input.
+ * - Delimiters are appended to the token preceding them.
+ *
+ * @param {string} inputText The string to tokenize.
+ * @returns {string[]} An array of tokens.
+ */ function $8a497e5e96e95e64$export$660b2ee2d4fb4eff(inputText) {
+    const tokens = [];
+    const tokenizers = [
+        ' ',
+        '/',
+        '='
+    ];
+    const quotes = [
+        "'",
+        '"'
+    ];
+    const escapes = [
+        '\\'
+    ];
+    let currentToken = '';
+    let inQuote = null; // Can be ' or "
+    let isEscaped = false;
+    const finalizeToken = (delimiter = '')=>{
+        tokens.push(currentToken + delimiter);
+        currentToken = '';
+    };
+    for(let i = 0; i < inputText.length; i++){
+        const char = inputText[i];
+        if (isEscaped) {
+            currentToken += char;
+            isEscaped = false;
+        } else if (quotes.includes(char)) inQuote = inQuote === char ? null : inQuote || char;
+        else if (escapes.includes(char)) isEscaped = true;
+        else if (inQuote) currentToken += char; // Always a generic character when in a quote
+        else if (tokenizers.includes(char)) finalizeToken(char);
+        else currentToken += char;
+    }
+    finalizeToken();
+    return tokens;
+}
+function $8a497e5e96e95e64$export$fac44ee5b035f737(tokens) {
+    const tokenizers = [
+        ' ',
+        '/',
+        '='
+    ];
+    const specialChars = [
+        ' ',
+        '/',
+        '=',
+        "'",
+        '"',
+        '\\'
+    ];
+    return tokens.map((token)=>{
+        if (!token) return ''; // Handle empty tokens
+        let body = token;
+        let delimiter = '';
+        const lastChar = token.slice(-1);
+        // If the token ends with a delimiter, separate it from the body.
+        if (token.length > 0 && tokenizers.includes(lastChar)) {
+            body = token.slice(0, -1);
+            delimiter = lastChar;
+        }
+        let escapedBody = '';
+        for (const char of body)if (specialChars.includes(char)) escapedBody += '\\' + char;
+        else escapedBody += char;
+        return escapedBody + delimiter;
+    }).join(''); // The original tokenize function includes delimiters in the tokens.
+}
+
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class BaseCommand
+ * @description Provides a foundational class for all terminal commands.
+ * It automates logger creation and provides default implementations for common command methods.
+ */ class $0a4c644366d85fc4$export$da09ae580dcf9f05 {
+    /** @protected {object} services - A collection of service functions injected by CommandService. */ #services;
+    /** @protected {Logger} log - A logger instance for the command. */ #log;
+    /**
+     * Creates an instance of BaseCommand.
+     * @param {object} services - A collection of service functions injected by CommandService.
+     */ constructor(services){
+        this.#services = services;
+        // The logger name will be the class name of the concrete command.
+        this.#log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)(this.constructor.name.toLowerCase());
+        this.#log.log('Initializing...');
+    }
+    /**
+     * Provides access to the injected services.
+     * @returns {object} The services object.
+     */ get services() {
+        return this.#services;
+    }
+    /**
+     * Provides access to the command's logger.
+     * @returns {Logger} The logger instance.
+     */ get log() {
+        return this.#log;
+    }
+    /**
+     * Provides autocomplete suggestions for the arguments of the command.
+     * Child classes should override this if they need custom autocomplete logic.
+     * @param {string[]} currentArgs - The arguments typed so far.
+     * @returns {Promise<string[]|{suggestions: string[], description: string}>} An array of suggested arguments or an object with suggestions and a description.
+     */ async autocompleteArgs(currentArgs) {
+        return []; // By default, commands take no arguments or have no autocomplete.
+    }
+    /**
+     * Executes the command. Child classes MUST override this.
+     * @param {string[]} args - An array of arguments passed to the command.
+     * @returns {Promise<HTMLElement>} A promise that resolves with an HTML element containing the command's output.
+     * @throws {Error} If not overridden by a child class.
+     */ async execute(args) {
+        throw new Error(`Command '${this.constructor.name}' must implement the 'execute' method.`);
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Fetches and parses a JSON file from a given URL.
+ * @param {string} url - The URL of the JSON file to fetch.
+ * @returns {Promise<object>} A promise that resolves with the parsed JSON object.
+ * @throws {Error} Throws an error if the network response is not ok.
+ */ async function $268f5c7225abb997$export$6d1804898cf16c80(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status} for url: ${url}`);
+    return response.json();
+}
+async function $268f5c7225abb997$export$7d79caac809a3f17(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status} for url: ${url}`);
+    return response.text();
+}
+
+
+var $fed81596da0f4423$exports = {};
+$fed81596da0f4423$exports = $parcel$resolve("H44nx");
+
+
+/**
+ * @class Welcome
+ * @description Implements the 'welcome' command, displaying an ASCII art welcome message.
+ */ class $e0c064800146e1d9$export$23191e4434a9e834 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DATA_FILE = new URL($fed81596da0f4423$exports);
+    /**
+     * @static
+     * @type {string}
+     * @description A brief description of the welcome command.
+     */ static DESCRIPTION = 'A short introduction.';
+    constructor(services){
+        super(services);
+    }
+    async execute(args) {
+        this.log.log('Executing...');
+        const outputDiv = document.createElement('div');
+        outputDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
+        try {
+            const welcomeText = await (0, $268f5c7225abb997$export$7d79caac809a3f17)($e0c064800146e1d9$export$23191e4434a9e834.DATA_FILE); // Use static property
+            this.log.log(`Welcome message loaded successfully. ${welcomeText.length} characters.`);
+            outputDiv.innerText = welcomeText;
+        } catch (error) {
+            this.log.error('Error loading welcome message:', error);
+            outputDiv.innerText = 'Error: Could not load welcome message.';
+        }
+        return outputDiv;
+    }
+    /**
+     * Provides a detailed manual page for the welcome command.
+     * @static
+     * @returns {string} The detailed manual text.
+     */ static man() {
+        return `NAME\n       welcome - A friendly introduction to the terminal.\n\nDESCRIPTION\n       The welcome command displays a greeting message and basic instructions for using the terminal.\n       It is typically the first command executed when the terminal starts.\n\nUSAGE\n       welcome\n\n       This command takes no arguments.\n\nEXAMPLES\n       $ welcome\n       (Displays the welcome message.)`;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+const $d0a0d313036150a9$export$4051a07651545597 = [
+    {
+        "Type": "Image",
+        "Source": "/fs/photos/2024/2024.04.08.jpg",
+        "Id": "profile-picture"
+    },
+    {
+        "Type": "Text",
+        "Title": "Name",
+        "Value": "Afshin Arefi"
+    },
+    {
+        "Type": "Text",
+        "Title": "Description",
+        "Value": "I am a software engineer mostly interested in low level programming, data pipelines, and data manipulation. Currently I am working at Huawei as a Senior Compiler Engineer working with llvm, the kernel, and the loader."
+    },
+    {
+        "Type": "Text",
+        "Title": "Email",
+        "Value": "arefi.afshin@gmail.com"
+    },
+    {
+        "Type": "Text",
+        "Title": "LinkedIn",
+        "Value": "https://www.linkedin.com/in/arefiafshin/"
+    }
+];
+
+
+/**
+ * @class About
+ * @description Implements the 'about' command, which displays personal information from a JSON file.
+ */ class $8006e978d23dfa7a$export$c8424c4d8ba2150 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'A short introduction.';
+    #requestMedia;
+    constructor(services){
+        super(services);
+        this.#requestMedia = services.requestMedia;
+    }
+    static man() {
+        return `NAME\n       about - Display information about the author.\n\nSYNOPSIS\n       about\n\nDESCRIPTION\n       The about command displays a short bio, contact information, and a profile picture.`;
+    }
+    async autocompleteArgs(currentArgs) {
+        return []; // 'about' command takes no arguments.
+    }
+    async execute(args) {
+        this.log.log('Executing...');
+        const outputDiv = document.createElement('div');
+        try {
+            for (const item of (0, $d0a0d313036150a9$export$4051a07651545597)){
+                const wrapper = document.createElement('div');
+                let element;
+                if (item.Type === 'Text') {
+                    element = document.createElement('p');
+                    const title = document.createElement('span');
+                    title.textContent = item.Title;
+                    title.classList.add('about-title');
+                    element.appendChild(title);
+                    element.appendChild(document.createTextNode(': '));
+                    if (item.Value.startsWith('http')) {
+                        const link = document.createElement('a');
+                        link.href = item.Value;
+                        link.textContent = item.Value;
+                        link.target = '_blank';
+                        element.appendChild(link);
+                    } else element.appendChild(document.createTextNode(item.Value));
+                } else if (item.Type === 'Image') {
+                    element = await this.#requestMedia(item.Source);
+                    element.id = item.Id;
+                }
+                if (element) {
+                    wrapper.appendChild(element);
+                    outputDiv.appendChild(wrapper);
+                }
+            }
+        } catch (error) {
+            this.log.error('Failed to fetch about information:', error);
+            outputDiv.textContent = `Error: ${error.message}`;
+        }
+        return outputDiv;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Env
+ * @description Implements the 'env' command, which lists all current environment variables.
+ */ class $746ab3f555bc367e$export$6c0517834721cef7 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    /**
+     * @static
+     * @type {string}
+     * @description A brief description of the env command.
+     */ static DESCRIPTION = 'List current environment variables.';
+    /** @private {Function} #getAllCategorizedVariables - Function to get all categorized variables. */ #getAllCategorizedVariables;
+    /**
+     * Creates an instance of Env.
+     * @param {object} services - The object containing all services.
+     */ constructor(services){
+        super(services);
+        this.#getAllCategorizedVariables = this.services.getAllCategorizedVariables;
+    }
+    /**
+     * Executes the env command.
+     * Retrieves all environment variables from the EnvironmentService and formats them for display.
+     * @param {string[]} args - An array of arguments passed to the command (not used by this command).
+     * @returns {Promise<HTMLPreElement>} A promise that resolves with a `<pre>` HTML element containing the environment variables.
+     */ async execute(args) {
+        this.log.log('Executing...');
+        const pre = document.createElement('pre');
+        const categorizedVars = await this.#getAllCategorizedVariables();
+        let output = '';
+        const formatCategory = (title, vars)=>{
+            if (Object.keys(vars).length === 0) return '';
+            let categoryOutput = `\n# ${title} Variables\n`;
+            for (const [key, value] of Object.entries(vars)){
+                // Check if the value contains spaces or is a JSON-like string, and quote it if so.
+                // Also ensure the value is a string before calling string methods on it.
+                if (typeof value === 'string' && (/\s/.test(value) || value.startsWith('{') && value.endsWith('}'))) categoryOutput += `${key}="${value}"\n`;
+                else if (value !== undefined && value !== null) categoryOutput += `${key}=${value}\n`;
+                else categoryOutput += `${key}=${value}\n`;
+            }
+            return categoryOutput;
+        };
+        // Using "Session" as a more user-friendly name for "Temporary"
+        output += formatCategory('Session (In-Memory)', categorizedVars.TEMP || {});
+        output += formatCategory('Local (Browser Storage)', categorizedVars.LOCAL);
+        output += formatCategory('Remote (User Account)', categorizedVars.SYSTEM);
+        output += formatCategory('User (Configurable)', categorizedVars.USERSPACE);
+        pre.innerText = output.trim();
+        return pre;
+    }
+    /**
+     * Provides a detailed manual page for the env command.
+     * @static
+     * @returns {string} The detailed manual text.
+     */ static man() {
+        return `NAME\n       env - Display environment variables.\n\nSYNOPSIS\n       env [OPTION]...\n\nDESCRIPTION\n       The env command prints the current environment variables to standard output.\n       Each variable is displayed on a new line in the format KEY=VALUE.\n\nOPTIONS\n       Currently, this command does not support any options.\n\nEXAMPLES\n       $ env\n       (Displays all current environment variables.)`;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Help
+ * @description Implements the 'help' command, which lists all available commands and their descriptions.
+ */ class $58f4ca654afc80a2$export$1be7516c0280bee8 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    /**
+     * @static
+     * @type {string}
+     * @description A brief description of the help command.
+     */ static DESCRIPTION = 'Lists available commands.';
+    #getCommandList;
+    #getCommandMeta;
+    /**
+     * Creates an instance of Help.
+     * @param {CommandService} commandService - The CommandService instance to interact with.
+     */ constructor(services){
+        super(services);
+        this.#getCommandList = this.services.getCommandList;
+        this.#getCommandMeta = this.services.getCommandMeta;
+    }
+    /**
+     * Provides a detailed manual page for the help command.
+     * @static
+     * @returns {string} The detailed manual text.
+     */ static man() {
+        return `NAME\n       help - Display information about available commands.\n\nSYNOPSIS\n       help\n\nDESCRIPTION\n       The help command lists all commands available in the terminal, along with a brief description for each.\n       It is useful for discovering what commands can be used.\n\nUSAGE\n       help\n\n       This command takes no arguments.\n\nEXAMPLES\n       $ help\n       (Displays a list of all commands and their descriptions.)`;
+    }
+    /**
+     * Executes the help command.
+     * Retrieves all registered commands and their descriptions from the CommandService and formats them for display.
+     * @param {string[]} args - An array of arguments passed to the command (not used by this command).
+     * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the list of commands.
+     */ async execute(args) {
+        this.log.log('Executing...');
+        const outputDiv = document.createElement('div');
+        // Use the injected service function to get the list of commands.
+        const commands = await this.#getCommandList();
+        if (commands.length === 0) {
+            outputDiv.textContent = 'No commands available.';
+            return outputDiv;
+        }
+        // Find the length of the longest command name for alignment.
+        const maxLength = Math.max(...commands.map((cmd)=>cmd.length));
+        const padding = maxLength + 4;
+        // Use CSS to preserve whitespace, avoiding the need for a <pre> tag.
+        outputDiv.style.whiteSpace = 'pre-wrap';
+        let helpText = '';
+        // Asynchronously fetch the description for each command.
+        for (const cmdName of commands){
+            const description = await this.#getCommandMeta(cmdName, 'DESCRIPTION') || 'No description available.';
+            helpText += `${cmdName.padEnd(padding)} : ${description}\n`;
+        }
+        outputDiv.textContent = helpText.trim();
+        return outputDiv;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Man
+ * @description Implements the 'man' command, which displays the manual page for a given command.
+ */ class $89dee8d09878550f$export$dd86fb79665233fb extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    /**
+     * @static
+     * @type {string}
+     * @description A brief description of the man command.
+     */ static DESCRIPTION = 'Shows the manual page for a command.';
+    /** @private {CommandService} #commandService - Reference to the CommandService. */ #getCommandList;
+    #getCommandMeta;
+    constructor(services){
+        super(services);
+        this.#getCommandList = this.services.getCommandList;
+        this.#getCommandMeta = this.services.getCommandMeta;
+    }
+    /**
+     * Provides a detailed manual page for the man command.
+     * @static
+     * @returns {string} The detailed manual text.
+     */ static man() {
+        return `NAME\n       man - Display the manual page for a command.\n\nSYNOPSIS\n       man <command>\n\nDESCRIPTION\n       The man command displays the manual page for the specified command.\n       If no command is specified, it will prompt for a command name.\n\nUSAGE\n       man <command>\n\nEXAMPLES\n       $ man help\n       (Displays the manual page for the 'help' command.)`;
+    }
+    /**
+     * Provides autocomplete suggestions for the arguments of the man command.
+     * @static
+     * @param {string[]} currentArgs - The arguments typed so far.
+     * @param {object} services - A collection of all services.
+     * @returns {string[]} An array of suggested arguments.
+     */ async autocompleteArgs(currentArgs) {
+        if (currentArgs.length > 1) return [];
+        const commandList = await this.#getCommandList();
+        const input = currentArgs[0] || '';
+        // If input is already a valid command name, do not suggest anything further.
+        if (commandList.includes(input)) return [];
+        if (input) return commandList.filter((cmd)=>cmd.startsWith(input));
+        // If typing the second or later argument, do not suggest anything
+        return [];
+    }
+    /**
+     * Executes the man command.
+     * Displays the manual page for the specified command.
+     * @param {string[]} args - An array of arguments passed to the command.
+     * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the manual page.
+     */ async execute(args) {
+        this.log.log('Executing with args:', args);
+        const outputDiv = document.createElement('div');
+        if (args.length <= 1) {
+            outputDiv.textContent = 'Usage: man <command>\nPlease specify a command name.';
+            return outputDiv;
+        }
+        const cmdName = args[1];
+        if (!cmdName) {
+            const p = document.createElement('p');
+            p.textContent = 'Usage: man <command>\nPlease specify a command name.';
+            outputDiv.appendChild(p);
+            return outputDiv;
+        }
+        const lowerCmdName = cmdName.toLowerCase();
+        // Debug: print all command names and lookup result
+        const commandList = await this.#getCommandList();
+        this.log.log('Searching for command:', lowerCmdName);
+        let exactMatch = commandList.find((cmd)=>cmd.toLowerCase() === lowerCmdName);
+        let manContent = exactMatch ? await this.#getCommandMeta(exactMatch, 'man') : undefined;
+        this.log.log('Exact match found:', exactMatch);
+        if (!manContent) {
+            // Try unique partial match (case-insensitive)
+            const matches = commandList.filter((cmd)=>cmd.toLowerCase().startsWith(lowerCmdName));
+            this.log.log('Partial matches found:', matches);
+            if (matches.length === 1) {
+                manContent = await this.#getCommandMeta(matches[0], 'man');
+                this.log.log('Unique partial match found:', matches[0]);
+            } else if (matches.length > 1) {
+                outputDiv.textContent = `man: ambiguous command '${cmdName}'; possibilities: ${matches.join(' ')}`;
+                this.log.warn('Ambiguous command:', {
+                    input: cmdName,
+                    matches: matches
+                });
+                return outputDiv;
+            } else {
+                outputDiv.textContent = `No manual entry for '${cmdName}'.`;
+                return outputDiv;
+            }
+        }
+        if (manContent) {
+            this.log.log('Displaying man page.');
+            outputDiv.style.whiteSpace = 'pre-wrap';
+            outputDiv.textContent = manContent;
+            return outputDiv;
+        } else {
+            this.log.warn(`No man page function found for command: "${cmdName}"`);
+            outputDiv.textContent = `No manual entry for '${cmdName}'.`;
+            return outputDiv;
+        }
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class History
+ * @description Implements the 'history' command, which displays the command history.
+ */ class $704f97d014e3d2c7$export$84202caead5689ba extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    /**
+     * @static
+     * @type {string}
+     * @description A brief description of the history command.
+     */ static DESCRIPTION = 'Shows the command history.';
+    #getHistory;
+    /**
+     * Creates an instance of History.
+     */ constructor(services){
+        super(services);
+        this.#getHistory = this.services.getHistory;
+    }
+    /**
+     * Provides a detailed manual page for the history command.
+     * @static
+     * @returns {string} The detailed manual text.
+     */ static man() {
+        return `NAME\n       history - Display the command history.\n\nSYNOPSIS\n       history\n\nDESCRIPTION\n       The history command displays a list of previously entered commands.\n\nUSAGE\n       history\n\nEXAMPLES\n       $ history\n       (Displays the list of commands entered in this session.)`;
+    }
+    /**
+     * Executes the history command.
+     * Displays the command history.
+     * @param {string[]} args - An array of arguments passed to the command (not used by this command).
+     * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the history.
+     */ async execute(args) {
+        this.log.log('Executing...');
+        const outputDiv = document.createElement('div');
+        const historyData = await this.#getHistory();
+        if (!historyData || historyData.length === 0) {
+            outputDiv.textContent = 'No history available.';
+            return outputDiv;
+        }
+        // Calculate the padding needed for the line numbers based on the total number of history items.
+        const padding = String(historyData.length).length;
+        // Use CSS to preserve whitespace, avoiding the need for a <pre> tag.
+        outputDiv.style.whiteSpace = 'pre-wrap';
+        // Display in chronological order (oldest to newest), but number from newest to oldest.
+        const historyText = historyData.map((item, index)=>` ${String(historyData.length - index).padStart(padding)}:  ${item}`).join('\n');
+        outputDiv.textContent = historyText;
+        return outputDiv;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Creates a simple list element from an array of items.
+ * @param {Array<string|{text: string, style: object}>} items - An array of strings or objects to display in the list.
+ * @returns {HTMLUListElement} The generated UL element.
+ */ function $c61f1fac801ee4e9$export$5897d8d7c7a3d871(items) {
+    const ul = document.createElement('ul');
+    ul.style.listStyle = 'none';
+    ul.style.padding = '0';
+    ul.style.margin = '0';
+    if (!items || items.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = '(empty)';
+        ul.appendChild(li);
+    } else items.forEach((item)=>{
+        const li = document.createElement('li');
+        if (typeof item === 'string') li.textContent = item;
+        else if (typeof item === 'object' && item.text) {
+            li.textContent = item.text;
+            Object.assign(li.style, item.style);
+        }
+        ul.appendChild(li);
+    });
+    return ul;
+}
+function $c61f1fac801ee4e9$export$b27ec03c767c18ba(contents) {
+    const files = Array.isArray(contents?.files) ? contents.files : [];
+    const directories = Array.isArray(contents?.directories) ? contents.directories : [];
+    const directoryItems = directories.map((dir)=>({
+            text: `${dir.name}/`,
+            style: {
+                color: 'var(--nnoitra-color-directory)'
+            }
+        }));
+    const fileItems = files.map((file)=>{
+        const size = file.size !== null ? `(${file.size}b)` : '';
+        return `${file.name} ${size}`;
+    });
+    const allItems = [
+        ...directoryItems,
+        ...fileItems
+    ];
+    return $c61f1fac801ee4e9$export$5897d8d7c7a3d871(allItems.length > 0 ? allItems : [
+        '(empty directory)'
+    ]);
+}
+
+
+/**
+ * @class Ls
+ * @description Implements the 'ls' command, which lists the contents of a directory using FilesystemService.
+ */ class $f1cb7247a06daf47$export$e4ed7772d4272afd extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    #getDirectoryContents;
+    #autocompletePath;
+    /**
+     * Creates an instance of Ls.
+     * @param {object} funcs - A collection of functions passed by the command service.
+     * @param {Function} funcs.getDirectoryContents - A function to retrieve directory contents.
+     * @param {Function} funcs.autocompletePath - A function for path autocompletion.
+     */ constructor(funcs){
+        super(funcs);
+        this.#getDirectoryContents = this.services.getDirectoryContents; // This is still needed for execute
+        this.#autocompletePath = this.services.autocompletePath;
+    }
+    static man() {
+        return `NAME\n       ls - List directory contents.\n\nSYNOPSIS\n       ls [directory]\n\nDESCRIPTION\n       The ls command lists files and directories in the specified location.\n       If no location is given, it lists the current directory.`;
+    }
+    async autocompleteArgs(currentArgs) {
+        // Reconstruct the path from all non-option arguments.
+        const pathArg = currentArgs.filter((arg)=>!arg.trim().startsWith('-')).join('');
+        try {
+            // Get all contents of the target directory. If path is empty, use current dir.
+            const contents = await this.#getDirectoryContents(pathArg || '.');
+            // Format the full paths for all items. AutocompleteService will handle filtering.
+            const directories = (contents.directories || []).map((dir)=>dir.name + '/');
+            const files = (contents.files || []).map((file)=>file.name);
+            return [
+                ...directories,
+                ...files
+            ].sort();
+        } catch (error) {
+            this.log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            return []; // On error, return no suggestions.
+        }
+    }
+    async execute(args) {
+        this.log.log('Executing with args:', args);
+        const outputDiv = document.createElement('div');
+        const pathArg = args[1] || '.';
+        try {
+            const contents = await this.#getDirectoryContents(pathArg);
+            if (typeof contents === 'string') {
+                const pre = document.createElement('pre');
+                pre.innerText = contents;
+                outputDiv.appendChild(pre);
+                return outputDiv;
+            }
+            // Delegate all formatting and list creation to the utility.
+            const ul = (0, $c61f1fac801ee4e9$export$b27ec03c767c18ba)(contents);
+            outputDiv.appendChild(ul);
+        } catch (error) {
+            this.log.warn(`Cannot access path: "${pathArg}"`, error);
+            outputDiv.textContent = `ls: cannot access '${pathArg}': ${error.message}`;
+        }
+        return outputDiv;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Cd
+ * @description Implements the 'cd' command, which changes the current working directory using FilesystemService.
+ */ class $db5013326dab5472$export$ba0ebedd619a044f extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Change the current working directory.';
+    #changeDirectory;
+    #getDirectoryContents;
+    constructor(services){
+        super(services);
+        this.#changeDirectory = this.services.changeDirectory;
+        this.#getDirectoryContents = this.services.getDirectoryContents;
+    }
+    static man() {
+        return `NAME\n       cd - Change the current directory.\n\nSYNOPSIS\n       cd [directory]\n\nDESCRIPTION\n       The cd command changes the current working directory to the specified location.\n       If no location is given, it changes to the root directory.`;
+    }
+    async autocompleteArgs(currentArgs) {
+        const pathArg = currentArgs.join('');
+        const lastSlashIndex = pathArg.lastIndexOf('/');
+        const dirToList = lastSlashIndex === -1 ? '.' : pathArg.substring(0, lastSlashIndex + 1) || '/';
+        try {
+            // Get all contents of the target directory.
+            const contents = await this.#getDirectoryContents(dirToList);
+            const suggestions = [];
+            // For 'cd', we only suggest directories. AutocompleteService will handle filtering.
+            return (contents.directories || []).map((dir)=>dir.name + '/').sort();
+        } catch (error) {
+            this.log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            return []; // On error, return no suggestions.
+        }
+    }
+    async execute(args) {
+        this.log.log('Executing with args:', args);
+        const outputDiv = document.createElement('div');
+        const pathArg = args.slice(1).join('').trim() || '/';
+        try {
+            await this.#changeDirectory(pathArg);
+        } catch (error) {
+            outputDiv.textContent = `cd: ${pathArg}: ${error.message}`;
+        }
+        return outputDiv;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+class $f56f4db7338f947e$export$15fe218ce13d3b19 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Print the content of a FILE';
+    #getFileContents;
+    #getDirectoryContents;
+    constructor(services){
+        super(services);
+        this.#getFileContents = this.services.getFileContents;
+        this.#getDirectoryContents = this.services.getDirectoryContents;
+    }
+    static man() {
+        return `NAME\n       cat - Concatenate and print files.\n\nSYNOPSIS\n       cat [FILE]...\n\nDESCRIPTION\n       The cat command reads files sequentially, writing them to the standard output.`;
+    }
+    async autocompleteArgs(currentArgs) {
+        // Reconstruct the path from all argument tokens.
+        const pathArg = currentArgs.join('');
+        try {
+            // Get all contents of the target directory. If path is empty, use current dir.
+            const contents = await this.#getDirectoryContents(pathArg || '.');
+            const supportedFormats = /\.txt$/i;
+            // Suggest all directories for navigation.
+            const directories = (contents.directories || []).map((dir)=>dir.name + '/');
+            // Suggest only files with supported .txt format.
+            const files = (contents.files || []).filter((file)=>supportedFormats.test(file.name)).map((file)=>file.name);
+            return [
+                ...directories,
+                ...files
+            ].sort();
+        } catch (error) {
+            this.log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            return []; // On error, return no suggestions.
+        }
+    }
+    async execute(args) {
+        this.log.log('Executing with args:', args);
+        const output = document.createElement('pre');
+        const filePathArg = args.slice(1).join('').trim();
+        if (!filePathArg) {
+            this.log.warn('Missing file operand.');
+            output.textContent = 'cat: missing file operand';
+            return output;
+        }
+        try {
+            const content = await this.#getFileContents(filePathArg);
+            output.textContent = content;
+        } catch (error) {
+            this.log.error(`Failed to get file content for "${filePathArg}":`, error);
+            output.textContent = `cat: ${filePathArg}: ${error.message}`;
+        }
+        return output;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Clear
+ * @description Implements the 'clear' command, which clears the terminal output.
+ */ class $a42c2ef9b96a7e14$export$47d037774b685574 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Clear the terminal output.';
+    #clearScreen;
+    constructor(services){
+        super(services);
+        this.#clearScreen = this.services.clearScreen;
+    }
+    /**
+     * Executes the clear command by dispatching a terminal-clear event
+     * @param {string[]} args - Command arguments (not used)
+     * @returns {HTMLElement} An empty div, as this command produces no visible output.
+     */ execute(args) {
+        this.log.log('Executing clear command.');
+        this.#clearScreen();
+        const outputDiv = document.createElement('div');
+        // The command itself produces no output, so we return an empty element.
+        return outputDiv;
+    }
+    /**
+     * Returns manual page content for the clear command
+     * @returns {string} The manual page content
+     */ static man() {
+        return `NAME
        clear - Clear the terminal output.
 
 SYNOPSIS
        clear
 
 DESCRIPTION
-       The clear command erases all output in the terminal window.`}}class e_ extends ek{static DESCRIPTION="View a photo or video.";#ei;#el;#Z;constructor(e){super(e),this.#ei=this.services.getDirectoryContents,this.#el=this.services.getPublicUrl,this.#Z=this.services.requestMedia}static man(){return`NAME
-       view - Display an image or video file.
+       The clear command erases all output in the terminal window.`;
+    }
+}
 
-SYNOPSIS
-       view [file]
 
-DESCRIPTION
-       The view command displays the specified image (png, jpg, gif) or video (mp4, webm) file.
-       The path can be absolute or relative to the current directory.`}async autocompleteArgs(e){let t=e.join("");try{let e=await this.#ei(t||"."),s=/\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i,i=(e.directories||[]).map(e=>e.name+"/"),r=(e.files||[]).filter(e=>s.test(e.name)).map(e=>e.name);return[...i,...r].sort()}catch(e){return this.log.warn(`Autocomplete failed for path "${t}":`,e),[]}}async execute(e){this.log.log("Executing with args:",e);let t=document.createElement("div"),s=e.slice(1).join("").trim();if(!s)return this.log.warn("Missing file operand."),t.textContent="view: missing file operand",t;if(!/\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i.test(s))return this.log.warn(`File is not a supported media type: "${s}"`),t.textContent=`view: ${s}: Unsupported file type.`,t;let i=await this.#el(s),r=await this.#Z(i);return t.appendChild(r),t}}class ej extends ek{static DESCRIPTION="Add a new user.";#eh;#z;constructor(e){super(e),this.#eh=this.services.prompt,this.#z=this.services.addUser}static man(){return`
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class View
+ * @description Implements the 'view' command, which displays an image or video file.
+ */ class $7461451f701afbcc$export$27a5bd065ad55220 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'View a photo or video.';
+    #getDirectoryContents;
+    #getPublicUrl;
+    #requestMedia;
+    constructor(services){
+        super(services);
+        this.#getDirectoryContents = this.services.getDirectoryContents;
+        this.#getPublicUrl = this.services.getPublicUrl;
+        this.#requestMedia = this.services.requestMedia;
+    }
+    static man() {
+        return `NAME\n       view - Display an image or video file.\n\nSYNOPSIS\n       view [file]\n\nDESCRIPTION\n       The view command displays the specified image (png, jpg, gif) or video (mp4, webm) file.\n       The path can be absolute or relative to the current directory.`;
+    }
+    async autocompleteArgs(currentArgs) {
+        // Reconstruct the path from all argument tokens.
+        const pathArg = currentArgs.join('');
+        try {
+            // Get all contents of the target directory. If path is empty, use current dir.
+            const contents = await this.#getDirectoryContents(pathArg || '.');
+            const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
+            // Suggest all directories.
+            const directories = (contents.directories || []).map((dir)=>dir.name + '/');
+            // Suggest only files with supported formats.
+            const files = (contents.files || []).filter((file)=>supportedFormats.test(file.name)).map((file)=>file.name);
+            return [
+                ...directories,
+                ...files
+            ].sort();
+        } catch (error) {
+            this.log.warn(`Autocomplete failed for path "${pathArg}":`, error);
+            return []; // On error, return no suggestions.
+        }
+    }
+    async execute(args) {
+        this.log.log('Executing with args:', args);
+        const outputDiv = document.createElement('div');
+        // Reconstruct the file path from all argument tokens.
+        const commandArgs = args.slice(1);
+        const filePathArg = commandArgs.join('').trim();
+        if (!filePathArg) {
+            this.log.warn('Missing file operand.');
+            outputDiv.textContent = 'view: missing file operand';
+            return outputDiv;
+        }
+        const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
+        if (!supportedFormats.test(filePathArg)) {
+            this.log.warn(`File is not a supported media type: "${filePathArg}"`);
+            outputDiv.textContent = `view: ${filePathArg}: Unsupported file type.`;
+            return outputDiv;
+        }
+        const mediaSrc = await this.#getPublicUrl(filePathArg);
+        const mediaElement = await this.#requestMedia(mediaSrc);
+        outputDiv.appendChild(mediaElement);
+        return outputDiv;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class AddUser
+ * @description Implements the 'adduser' command for creating new users.
+ */ class $014619ac3a5e9bb8$export$a2fae8d9b81b1013 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Add a new user.';
+    #prompt;
+    #addUser;
+    constructor(services){
+        super(services);
+        this.#prompt = this.services.prompt;
+        this.#addUser = this.services.addUser;
+    }
+    static man() {
+        return `
 NAME
        adduser - Add a new user.
 
@@ -133,21 +2668,224 @@ SYNOPSIS
 DESCRIPTION
        The adduser command creates a new user account. You will be prompted to enter and confirm a password.
        Usernames must be between 3 and 32 characters and can only contain letters, numbers, and underscores.
-`}async autocompleteArgs(e){return{suggestions:[],description:"<USERNAME>"}}async execute(e){this.log.log("Executing with args:",e);let t=document.createElement("div"),s=e[1];if(!s)return t.textContent="adduser: missing username operand.",t;if(!/^[a-zA-Z0-9_]{3,32}$/.test(s))return t.textContent=`adduser: invalid username '${s}'. Usernames must be 3-32 characters and contain only letters, numbers, and underscores.`,t;try{let e=await this.#eh("Password: ",{isSecret:!0,allowHistory:!1,allowAutocomplete:!1});if(null===e)return t.textContent="adduser: Operation cancelled.",t;let i=await this.#eh("Confirm password: ",{isSecret:!0,allowHistory:!1,allowAutocomplete:!1});if(null===i)return t.textContent="adduser: Operation cancelled.",t;if(e!==i)return t.textContent="adduser: Passwords do not match. User not created.",t;t.textContent="Creating user...";let r=await this.#z(s,e);"success"===r.status?t.textContent=`User '${s}' created successfully.`:t.textContent=`adduser: ${r.message}`}catch(e){this.log.error("Error during user creation:",e),t.textContent="adduser: An unexpected error occurred."}return t}}class eG extends ek{static DESCRIPTION="Log in as a user.";#eh;#ec;constructor(e){super(e),this.#eh=this.services.prompt,this.#ec=this.services.login}static man(){return`NAME
-       login - Log in to the system.
+`;
+    }
+    async autocompleteArgs(currentArgs) {
+        return {
+            suggestions: [],
+            description: '<USERNAME>'
+        };
+    }
+    async execute(args) {
+        this.log.log('Executing with args:', args);
+        const outputDiv = document.createElement('div');
+        const username = args[1];
+        if (!username) {
+            outputDiv.textContent = 'adduser: missing username operand.';
+            return outputDiv;
+        }
+        const usernameRegex = /^[a-zA-Z0-9_]{3,32}$/;
+        if (!usernameRegex.test(username)) {
+            outputDiv.textContent = `adduser: invalid username '${username}'. Usernames must be 3-32 characters and contain only letters, numbers, and underscores.`;
+            return outputDiv;
+        }
+        try {
+            // Prompt for password
+            const password = await this.#prompt('Password: ', {
+                isSecret: true,
+                allowHistory: false,
+                allowAutocomplete: false
+            });
+            if (password === null) {
+                outputDiv.textContent = 'adduser: Operation cancelled.';
+                return outputDiv;
+            }
+            // Prompt for password confirmation
+            const confirmPassword = await this.#prompt('Confirm password: ', {
+                isSecret: true,
+                allowHistory: false,
+                allowAutocomplete: false
+            });
+            if (confirmPassword === null) {
+                outputDiv.textContent = 'adduser: Operation cancelled.';
+                return outputDiv;
+            }
+            if (password !== confirmPassword) {
+                outputDiv.textContent = 'adduser: Passwords do not match. User not created.';
+                return outputDiv;
+            }
+            outputDiv.textContent = 'Creating user...';
+            const result = await this.#addUser(username, password);
+            if (result.status === 'success') outputDiv.textContent = `User '${username}' created successfully.`;
+            else outputDiv.textContent = `adduser: ${result.message}`;
+        } catch (error) {
+            this.log.error('Error during user creation:', error);
+            outputDiv.textContent = 'adduser: An unexpected error occurred.';
+        }
+        return outputDiv;
+    }
+}
 
-SYNOPSIS
-       login [username]
 
-DESCRIPTION
-       Authenticates the user and starts a session.`}async autocompleteArgs(e){return e.length>1?[]:{suggestions:[],description:"<USERNAME>"}}static isAvailable(e){return!e.isLoggedIn}async execute(e){this.log.log("Executing with args:",e);let t=document.createElement("div"),s=e[1];if(!s)return t.textContent="Usage: login <username>",t;this.log.log("Prompting user for password.");let i=await this.#eh("Password: ",{isSecret:!0,allowHistory:!1,allowAutocomplete:!1});try{t.textContent=(await this.#ec(s,i)).message}catch(e){this.log.error("Network or parsing error during login:",e),t.textContent=`Error: ${e.message}`}return t}}class eY extends ek{static DESCRIPTION="Log out of the current session.";#ed;constructor(e){super(e),this.#ed=this.services.logout}static man(){return`NAME
-       logout - Log out of the system.
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Login
+ * @description Implements the 'login' command for user authentication.
+ */ class $e70c41a38a6398be$export$21a94553ffa41578 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Log in as a user.';
+    #prompt;
+    #login;
+    constructor(services){
+        super(services);
+        this.#prompt = this.services.prompt;
+        this.#login = this.services.login;
+    }
+    static man() {
+        return `NAME\n       login - Log in to the system.\n\nSYNOPSIS\n       login [username]\n\nDESCRIPTION\n       Authenticates the user and starts a session.`;
+    }
+    async autocompleteArgs(currentArgs) {
+        // Only provide a hint for the first argument (the username).
+        if (currentArgs.length > 1) return [];
+        return {
+            suggestions: [],
+            description: '<USERNAME>'
+        };
+    }
+    /**
+     * Determines if the command is available in the current context.
+     * @param {object} context - The current application context.
+     * @param {boolean} context.isLoggedIn - Whether a user is currently logged in.
+     * @returns {boolean} True if the command is available, false otherwise.
+     */ static isAvailable(context) {
+        return !context.isLoggedIn;
+    }
+    async execute(args) {
+        this.log.log('Executing with args:', args);
+        const outputDiv = document.createElement('div');
+        const username = args[1];
+        if (!username) {
+            outputDiv.textContent = 'Usage: login <username>';
+            return outputDiv;
+        }
+        // Always prompt for the password interactively for security reasons.
+        this.log.log('Prompting user for password.');
+        const password = await this.#prompt('Password: ', {
+            isSecret: true,
+            allowHistory: false,
+            allowAutocomplete: false
+        });
+        try {
+            const loginResult = await this.#login(username, password);
+            outputDiv.textContent = loginResult.message;
+        } catch (error) {
+            this.log.error('Network or parsing error during login:', error);
+            outputDiv.textContent = `Error: ${error.message}`;
+        }
+        return outputDiv;
+    }
+}
 
-SYNOPSIS
-       logout
 
-DESCRIPTION
-       Ends the current user session.`}static isAvailable(e){return e.isLoggedIn}async execute(e){this.log.log("Executing...");let t=document.createElement("div");try{t.textContent=(await this.#ed()).message}catch(e){this.log.error("Network or parsing error during logout:",e),t.textContent=`Error: ${e.message}`}return t}}class eW extends ek{static DESCRIPTION="Change user password.";#eh;#F;constructor(e){super(e),this.#eh=this.services.prompt,this.#F=this.services.changePassword}static man(){return`
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Logout
+ * @description Implements the 'logout' command to end a user session.
+ */ class $f6dad85933050838$export$cad1a703886b4e3a extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Log out of the current session.';
+    #logout;
+    constructor(services){
+        super(services);
+        this.#logout = this.services.logout;
+    }
+    static man() {
+        return `NAME\n       logout - Log out of the system.\n\nSYNOPSIS\n       logout\n\nDESCRIPTION\n       Ends the current user session.`;
+    }
+    /**
+     * Determines if the command is available in the current context.
+     * @param {object} context - The current application context.
+     * @param {boolean} context.isLoggedIn - Whether a user is currently logged in.
+     * @returns {boolean} True if the command is available, false otherwise.
+     */ static isAvailable(context) {
+        return context.isLoggedIn;
+    }
+    async execute(args) {
+        this.log.log('Executing...');
+        const outputDiv = document.createElement('div');
+        try {
+            const result = await this.#logout();
+            outputDiv.textContent = result.message;
+        } catch (error) {
+            this.log.error('Network or parsing error during logout:', error);
+            outputDiv.textContent = `Error: ${error.message}`;
+        }
+        return outputDiv;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Passwd
+ * @description Implements the 'passwd' command for changing a user's password.
+ */ class $84830fdf876247b6$export$f0c291ac64662912 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Change user password.';
+    #prompt;
+    #changePassword;
+    constructor(services){
+        super(services);
+        this.#prompt = this.services.prompt;
+        this.#changePassword = this.services.changePassword;
+    }
+    static man() {
+        return `
 NAME
        passwd - change user password
 
@@ -157,89 +2895,1624 @@ SYNOPSIS
 DESCRIPTION
        The passwd command changes the password for the current user.
        You will be prompted for your old password, and then for the new password twice.
-`}static isAvailable(e){return e.isLoggedIn}async execute(e){this.log.log("Executing...");let t=document.createElement("div"),s={isSecret:!0,allowHistory:!1,allowAutocomplete:!1};try{let e=await this.#eh("Old password: ",s),i=await this.#eh("New password: ",s),r=await this.#eh("Confirm new password: ",s);if(i!==r)return t.textContent="passwd: Passwords do not match. Password not changed.",t;if(!i)return t.textContent="passwd: Password cannot be empty.",t;t.textContent=(await this.#F(e,i)).message}catch(e){this.log.warn("Password change operation cancelled or failed:",e),t.textContent="passwd: Operation cancelled."}return t}}class eX extends ek{static DESCRIPTION="Define or display aliases.";#eu;#em;constructor(e){super(e),this.#eu=this.services.getAliases,this.#em=this.services.setAliases}static man(){return`NAME
-       alias - Define or display command aliases.
+`;
+    }
+    /**
+     * Determines if the command is available. Only logged-in users can change their password.
+     * @param {object} context - The current application context.
+     * @param {boolean} context.isLoggedIn - Whether a user is currently logged in.
+     * @returns {boolean} True if the command is available, false otherwise.
+     */ static isAvailable(context) {
+        return context.isLoggedIn;
+    }
+    async execute(args) {
+        this.log.log('Executing...');
+        const outputDiv = document.createElement('div');
+        const promptOptions = {
+            isSecret: true,
+            allowHistory: false,
+            allowAutocomplete: false
+        };
+        try {
+            const oldPassword = await this.#prompt('Old password: ', promptOptions);
+            const newPassword = await this.#prompt('New password: ', promptOptions);
+            const confirmPassword = await this.#prompt('Confirm new password: ', promptOptions);
+            if (newPassword !== confirmPassword) {
+                outputDiv.textContent = 'passwd: Passwords do not match. Password not changed.';
+                return outputDiv;
+            }
+            if (!newPassword) {
+                outputDiv.textContent = 'passwd: Password cannot be empty.';
+                return outputDiv;
+            }
+            const result = await this.#changePassword(oldPassword, newPassword);
+            outputDiv.textContent = result.message;
+        } catch (error) {
+            // A timeout on the prompt means the user cancelled (e.g., Ctrl+C)
+            this.log.warn('Password change operation cancelled or failed:', error);
+            outputDiv.textContent = 'passwd: Operation cancelled.';
+        }
+        return outputDiv;
+    }
+}
 
-SYNOPSIS
-       alias [name[=value] ...]
 
-DESCRIPTION
-       The alias command allows you to create shortcuts for longer commands.
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Alias
+ * @description Implements the 'alias' command to define or display command aliases.
+ */ class $e034628669231935$export$17b520249a85fe16 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Define or display aliases.';
+    #getAliases;
+    #setAliases;
+    constructor(services){
+        super(services);
+        this.#getAliases = this.services.getAliases;
+        this.#setAliases = this.services.setAliases;
+    }
+    static man() {
+        return `NAME\n       alias - Define or display command aliases.\n\nSYNOPSIS\n       alias [name[=value] ...]\n\nDESCRIPTION\n       The alias command allows you to create shortcuts for longer commands.\n\n       - With no arguments, 'alias' prints the list of all current aliases.\n       - With 'name=value', it defines an alias. The value can be a string in quotes.\n\nEXAMPLES\n       $ alias\n       (Displays all aliases.)\n\n       $ alias l="ls -l"\n       (Creates an alias 'l' for 'ls -l'.)`;
+    }
+    async execute(args) {
+        this.log.log('Executing with args:', args);
+        const output = document.createElement('div');
+        output.style.whiteSpace = 'pre-wrap';
+        const aliases = await this.#getAliases();
+        // If no arguments, display all aliases
+        if (args.length <= 1) {
+            if (Object.keys(aliases).length === 0) {
+                this.log.log('No aliases found to display.');
+                output.textContent = 'No aliases defined.';
+            } else {
+                let aliasText = '';
+                for (const [name, value] of Object.entries(aliases))aliasText += `alias ${name}='${value}'\n`;
+                output.textContent = aliasText.trim();
+                this.log.log('Displaying all defined aliases.');
+            }
+            return output;
+        }
+        // Reconstruct the full argument string from the tokens to parse it.
+        const aliasString = args.slice(1).join('');
+        const assignmentIndex = aliasString.indexOf('=');
+        if (assignmentIndex === -1) {
+            output.textContent = 'alias: usage: alias [name[=value] ...]';
+            return output;
+        }
+        const name = aliasString.substring(0, assignmentIndex).trim();
+        let value = aliasString.substring(assignmentIndex + 1).trim();
+        // If the value was quoted, unwrap the quotes.
+        if (value.startsWith('"') && value.endsWith('"') || value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+        if (name) {
+            aliases[name] = value;
+            this.#setAliases(aliases);
+            this.log.log(`Created alias: ${name}='${value}'`);
+        } else {
+            this.log.warn('Invalid alias format:', aliasString);
+            output.textContent = `alias: invalid alias name`;
+        }
+        return output;
+    }
+}
 
-       - With no arguments, 'alias' prints the list of all current aliases.
-       - With 'name=value', it defines an alias. The value can be a string in quotes.
 
-EXAMPLES
-       $ alias
-       (Displays all aliases.)
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Unalias
+ * @description Implements the 'unalias' command to remove command aliases.
+ */ class $621cadf9f489dfc6$export$b5b55b76df1a6c5e extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Remove an alias.';
+    #getAliases;
+    #setAliases;
+    constructor(services){
+        super(services);
+        this.#getAliases = this.services.getAliases;
+        this.#setAliases = this.services.setAliases;
+    }
+    static man() {
+        return `NAME\n       unalias - Remove an alias.\n\nSYNOPSIS\n       unalias <alias_name>\n\nDESCRIPTION\n       The unalias command removes the specified alias from the list of defined aliases.\n\nEXAMPLES\n       $ unalias l\n       (Removes the alias 'l'.)`;
+    }
+    async autocompleteArgs(currentArgs) {
+        if (currentArgs.length > 1) return [];
+        const aliases = await this.#getAliases();
+        const aliasNames = Object.keys(aliases);
+        const input = currentArgs[0] || '';
+        return aliasNames.filter((name)=>name.startsWith(input));
+    }
+    async execute(args) {
+        this.log.log('Executing with args:', args);
+        const output = document.createElement('pre');
+        const aliasName = args[1];
+        if (!aliasName) {
+            this.log.warn('No alias name provided.');
+            output.textContent = 'unalias: usage: unalias <alias_name>';
+            return output;
+        }
+        const aliases = await this.#getAliases();
+        if (aliasName in aliases) {
+            this.log.log(`Removing alias: "${aliasName}"`);
+            delete aliases[aliasName];
+            this.#setAliases(aliases);
+            output.textContent = `Alias '${aliasName}' removed.`;
+        } else {
+            this.log.warn(`Alias not found: "${aliasName}"`);
+            output.textContent = `unalias: ${aliasName}: not found`;
+        }
+        return output;
+    }
+}
 
-       $ alias l="ls -l"
-       (Creates an alias 'l' for 'ls -l'.)`}async execute(e){this.log.log("Executing with args:",e);let t=document.createElement("div");t.style.whiteSpace="pre-wrap";let s=await this.#eu();if(e.length<=1){if(0===Object.keys(s).length)this.log.log("No aliases found to display."),t.textContent="No aliases defined.";else{let e="";for(let[t,i]of Object.entries(s))e+=`alias ${t}='${i}'
-`;t.textContent=e.trim(),this.log.log("Displaying all defined aliases.")}return t}let i=e.slice(1).join(""),r=i.indexOf("=");if(-1===r)return t.textContent="alias: usage: alias [name[=value] ...]",t;let a=i.substring(0,r).trim(),n=i.substring(r+1).trim();return(n.startsWith('"')&&n.endsWith('"')||n.startsWith("'")&&n.endsWith("'"))&&(n=n.slice(1,-1)),a?(s[a]=n,this.#em(s),this.log.log(`Created alias: ${a}='${n}'`)):(this.log.warn("Invalid alias format:",i),t.textContent="alias: invalid alias name"),t}}class eK extends ek{static DESCRIPTION="Remove an alias.";#eu;#em;constructor(e){super(e),this.#eu=this.services.getAliases,this.#em=this.services.setAliases}static man(){return`NAME
-       unalias - Remove an alias.
 
-SYNOPSIS
-       unalias <alias_name>
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Parses a "KEY=VALUE" string, trimming whitespace and quotes from the value.
+ * @param {string} arg - The string to parse (e.g., 'my_var="some value"').
+ * @returns {{name: string, value: string}|null} An object with name and value, or null if the format is invalid.
+ */ function $fd5a8ab557e9974d$export$5469367a6e633daf(arg) {
+    const match = arg.match(/^([^=]+)=(.*)$/);
+    if (!match) return null;
+    const name = match[1].trim();
+    const value = match[2].trim().replace(/^['"]|['"]$/g, ''); // Strip leading/trailing quotes
+    return {
+        name: name,
+        value: value
+    };
+}
 
-DESCRIPTION
-       The unalias command removes the specified alias from the list of defined aliases.
 
-EXAMPLES
-       $ unalias l
-       (Removes the alias 'l'.)`}async autocompleteArgs(e){if(e.length>1)return[];let t=Object.keys(await this.#eu()),s=e[0]||"";return t.filter(e=>e.startsWith(s))}async execute(e){this.log.log("Executing with args:",e);let t=document.createElement("pre"),s=e[1];if(!s)return this.log.warn("No alias name provided."),t.textContent="unalias: usage: unalias <alias_name>",t;let i=await this.#eu();return s in i?(this.log.log(`Removing alias: "${s}"`),delete i[s],this.#em(i),t.textContent=`Alias '${s}' removed.`):(this.log.warn(`Alias not found: "${s}"`),t.textContent=`unalias: ${s}: not found`),t}}class eJ extends ek{static DESCRIPTION="Set or display user environment variables.";#ep;#Q;constructor(e){super(e),this.#ep=this.services.setUserspaceVariable,this.#Q=this.services.getAllCategorizedVariables}static man(){return`NAME
-       export - Set or display user environment variables.
+/**
+ * @class Export
+ * @description Implements the 'export' command to set or display user-modifiable environment variables.
+ */ class $f7d01fe940b9a288$export$f883e605db67eacf extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Set or display user environment variables.';
+    #setUserspaceVariable;
+    #getAllCategorizedVariables;
+    constructor(services){
+        super(services);
+        this.#setUserspaceVariable = this.services.setUserspaceVariable;
+        this.#getAllCategorizedVariables = this.services.getAllCategorizedVariables;
+    }
+    static man() {
+        return `NAME\n       export - Set or display user environment variables.\n\nSYNOPSIS\n       export [name[=value] ...]\n\nDESCRIPTION\n       The export command allows you to view and modify user-configurable environment variables.\n       These variables are saved to your user profile.\n\n       - With no arguments, 'export' prints the list of all current user variables.\n       - With 'name=value', it defines a variable. The value can be a string in quotes.\n\nEXAMPLES\n       $ export\n       (Displays all user-configurable variables.)\n\n       $ export PS1="{user}$ "\n       (Changes the command prompt format.)`;
+    }
+    /**
+     * Provides autocomplete suggestions for the export command.
+     * @param {string[]} currentArgs - The arguments typed so far.
+     * @param {object} services - A collection of all services.
+     * @returns {string[]} An array of suggested variable names.
+     */ async autocompleteArgs(currentArgs) {
+        // The export command only operates on a single argument (e.g., 'PS1=value').
+        // If there's more than one argument part, we should not offer any suggestions.
+        if (currentArgs.length > 1) return [];
+        const arg = currentArgs[0] || '';
+        const allVars = await this.#getAllCategorizedVariables();
+        const userSpaceVars = allVars.USERSPACE;
+        const userSpaceVarNames = Object.keys(userSpaceVars);
+        const parts = arg.split('=');
+        const varName = parts[0].toUpperCase();
+        // Case 1: Completing the variable name (before the '=')
+        if (parts.length === 1) {
+            const matchingVars = userSpaceVarNames.filter((name)=>name.startsWith(varName));
+            // If there's only one match, suggest the name followed by an equals sign.
+            if (matchingVars.length === 1) return [
+                `${matchingVars[0]}=`
+            ];
+            return matchingVars;
+        }
+        // Case 2: Completing the value (after the '=')
+        if (parts.length > 1 && userSpaceVars.hasOwnProperty(varName)) {
+            const currentValue = userSpaceVars[varName];
+            // Suggest the full assignment string, with the value quoted.
+            return [
+                `${varName}="${currentValue}"`
+            ];
+        }
+        return [];
+    }
+    async execute(args) {
+        this.log.log('Executing with args:', args);
+        const output = document.createElement('pre');
+        const exportString = args.slice(1).join(' ');
+        const allVars = await this.#getAllCategorizedVariables();
+        const userSpaceVars = allVars.USERSPACE || {};
+        // If no arguments, display all USERSPACE variables
+        if (!exportString) {
+            let outputText = '';
+            for (const [name, value] of Object.entries(userSpaceVars))outputText += `export ${name}="${value}"\n`;
+            output.textContent = outputText.trim() || 'No user variables defined.';
+            return output;
+        }
+        // If arguments are provided, define a new variable
+        const newVar = (0, $fd5a8ab557e9974d$export$5469367a6e633daf)(exportString);
+        if (newVar) {
+            const upperVarName = newVar.name.toUpperCase();
+            // A variable can be exported if it's not a system/local/temp variable.
+            // The most direct check is to see if it exists in any category other than USERSPACE.
+            const isReadOnly = allVars.SYSTEM && allVars.SYSTEM.hasOwnProperty(upperVarName) || allVars.LOCAL && allVars.LOCAL.hasOwnProperty(upperVarName) || allVars.TEMP && allVars.TEMP.hasOwnProperty(upperVarName);
+            if (!isReadOnly) {
+                this.#setUserspaceVariable(upperVarName, newVar.value);
+                this.log.log(`Set variable: ${newVar.name}='${newVar.value}'`);
+            } else output.textContent = `export: permission denied: \`${newVar.name}\` is a read-only variable.`;
+        } else {
+            output.textContent = `export: invalid format. Use name="value"`;
+            this.log.warn('Invalid export format:', exportString);
+        }
+        return output;
+    }
+}
 
-SYNOPSIS
-       export [name[=value] ...]
 
-DESCRIPTION
-       The export command allows you to view and modify user-configurable environment variables.
-       These variables are saved to your user profile.
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Unset
+ * @description Implements the 'unset' command to remove user-defined environment variables.
+ */ class $05653863388bb58a$export$5da459000fb5cd5d extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Remove a user environment variable.';
+    #deleteUserspaceVariable;
+    #getAllCategorizedVariables;
+    constructor(services){
+        super(services);
+        this.#deleteUserspaceVariable = this.services.deleteUserspaceVariable;
+        this.#getAllCategorizedVariables = this.services.getAllCategorizedVariables;
+    }
+    static man() {
+        return `NAME\n       unset - Remove a user environment variable.\n\nSYNOPSIS\n       unset <variable_name>\n\nDESCRIPTION\n       The unset command removes the specified variable from the list of user-defined environment variables.\n       It can only remove variables set with the 'export' command.\n\nEXAMPLES\n       $ unset MY_VAR\n       (Removes the user variable 'MY_VAR'.)`;
+    }
+    async autocompleteArgs(currentArgs) {
+        if (currentArgs.length > 1) return [];
+        const allVars = await this.#getAllCategorizedVariables();
+        const userSpaceVars = allVars.USERSPACE || {};
+        const userSpaceVarNames = Object.keys(userSpaceVars);
+        const input = (currentArgs[0] || '').toUpperCase();
+        return userSpaceVarNames.filter((name)=>name.startsWith(input));
+    }
+    async execute(args) {
+        this.log.log('Executing with args:', args);
+        const output = document.createElement('pre');
+        const varName = args[1];
+        if (!varName) {
+            output.textContent = 'unset: usage: unset <variable_name>';
+            return output;
+        }
+        const upperVarName = varName.toUpperCase();
+        const allVars = await this.#getAllCategorizedVariables();
+        const userSpaceVars = allVars.USERSPACE || {};
+        if (Object.keys(userSpaceVars).includes(upperVarName)) await this.#deleteUserspaceVariable(upperVarName);
+        else output.textContent = `unset: ${varName}: not found in userspace`;
+        return output;
+    }
+}
 
-       - With no arguments, 'export' prints the list of all current user variables.
-       - With 'name=value', it defines a variable. The value can be a string in quotes.
 
-EXAMPLES
-       $ export
-       (Displays all user-configurable variables.)
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class Theme
+ * @description Implements the 'theme' command to change the terminal's color theme.
+ */ class $9be1bfc2349b0f11$export$14faa19a0f3bbeb2 extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DESCRIPTION = 'Set the terminal color theme.';
+    #setTheme;
+    #getValidThemes;
+    #getSystemVariable;
+    constructor(services){
+        super(services);
+        // The environment service is used for getting/setting THEME variable.
+        this.#setTheme = this.services.setTheme;
+        this.#getSystemVariable = this.services.getSystemVariable;
+        // The theme service is used for getting valid themes.
+        this.#getValidThemes = this.services.getValidThemes;
+    }
+    static man() {
+        return `NAME\n       theme - Set the terminal color theme.\n\nSYNOPSIS\n       theme [color]\n\nDESCRIPTION\n       Changes the terminal's color scheme. The selected theme is saved to your user profile.\n\n       Available colors: green, yellow, orange, red\n\nEXAMPLES\n       $ theme\n       (Displays the current theme.)\n\n       $ theme yellow\n       (Sets the theme to yellow.)`;
+    }
+    async autocompleteArgs(currentArgs) {
+        if (currentArgs.length > 1) return [];
+        const input = currentArgs[0] || '';
+        return (await this.#getValidThemes()).filter((name)=>name.startsWith(input));
+    }
+    async execute(args) {
+        const output = document.createElement('div');
+        const themeName = args[1];
+        const validThemes = await this.#getValidThemes();
+        if (!themeName) {
+            // Get the current theme variable from the correct category.
+            const { value: currentTheme } = await this.#getSystemVariable('THEME');
+            output.textContent = `Current theme: ${currentTheme}\nAvailable themes: ${validThemes.join(', ')}`;
+            return output;
+        }
+        if (validThemes.includes(themeName)) {
+            // Set the environment variable. The Terminal component will listen for this change.
+            this.#setTheme(themeName);
+            output.textContent = `Theme set to '${themeName}'.`;
+            this.log.log(`Theme set to: ${themeName}`);
+        } else {
+            output.textContent = `Error: Invalid theme '${themeName}'.\nAvailable themes: ${validThemes.join(', ')}`;
+            this.log.warn(`Invalid theme name provided: ${themeName}`);
+        }
+        return output;
+    }
+}
 
-       $ export PS1="{user}$ "
-       (Changes the command prompt format.)`}async autocompleteArgs(e){if(e.length>1)return[];let t=e[0]||"",s=(await this.#Q()).USERSPACE,i=Object.keys(s),r=t.split("="),a=r[0].toUpperCase();if(1===r.length){let e=i.filter(e=>e.startsWith(a));return 1===e.length?[`${e[0]}=`]:e}if(r.length>1&&s.hasOwnProperty(a)){let e=s[a];return[`${a}="${e}"`]}return[]}async execute(e){let t;this.log.log("Executing with args:",e);let s=document.createElement("pre"),i=e.slice(1).join(" "),r=await this.#Q(),a=r.USERSPACE||{};if(!i){let e="";for(let[t,s]of Object.entries(a))e+=`export ${t}="${s}"
-`;return s.textContent=e.trim()||"No user variables defined.",s}let n=(t=i.match(/^([^=]+)=(.*)$/))?{name:t[1].trim(),value:t[2].trim().replace(/^['"]|['"]$/g,"")}:null;if(n){let e=n.name.toUpperCase();r.SYSTEM&&r.SYSTEM.hasOwnProperty(e)||r.LOCAL&&r.LOCAL.hasOwnProperty(e)||r.TEMP&&r.TEMP.hasOwnProperty(e)?s.textContent=`export: permission denied: \`${n.name}\` is a read-only variable.`:(this.#ep(e,n.value),this.log.log(`Set variable: ${n.name}='${n.value}'`))}else s.textContent='export: invalid format. Use name="value"',this.log.warn("Invalid export format:",i);return s}}class eZ extends ek{static DESCRIPTION="Remove a user environment variable.";#eg;#Q;constructor(e){super(e),this.#eg=this.services.deleteUserspaceVariable,this.#Q=this.services.getAllCategorizedVariables}static man(){return`NAME
-       unset - Remove a user environment variable.
 
-SYNOPSIS
-       unset <variable_name>
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+var $329030bb3c43881e$exports = {};
+$329030bb3c43881e$exports = $parcel$resolve("ccCIq");
 
-DESCRIPTION
-       The unset command removes the specified variable from the list of user-defined environment variables.
-       It can only remove variables set with the 'export' command.
 
-EXAMPLES
-       $ unset MY_VAR
-       (Removes the user variable 'MY_VAR'.)`}async autocompleteArgs(e){if(e.length>1)return[];let t=Object.keys((await this.#Q()).USERSPACE||{}),s=(e[0]||"").toUpperCase();return t.filter(e=>e.startsWith(s))}async execute(e){this.log.log("Executing with args:",e);let t=document.createElement("pre"),s=e[1];if(!s)return t.textContent="unset: usage: unset <variable_name>",t;let i=s.toUpperCase();return Object.keys((await this.#Q()).USERSPACE||{}).includes(i)?await this.#eg(i):t.textContent=`unset: ${s}: not found in userspace`,t}}class eQ extends ek{static DESCRIPTION="Set the terminal color theme.";#ey;#ev;#ew;constructor(e){super(e),this.#ey=this.services.setTheme,this.#ew=this.services.getSystemVariable,this.#ev=this.services.getValidThemes}static man(){return`NAME
-       theme - Set the terminal color theme.
+/**
+ * @class Version
+ * @description Implements the 'version' command, displaying the application version.
+ */ class $2f656a0166ae0dde$export$682c179f50ab847d extends (0, $0a4c644366d85fc4$export$da09ae580dcf9f05) {
+    static DATA_FILE = new URL($329030bb3c43881e$exports);
+    /**
+     * @static
+     * @type {string}
+     * @description A brief description of the version command.
+     */ static DESCRIPTION = 'Show version information.';
+    constructor(services){
+        super(services);
+    }
+    async execute(args) {
+        this.log.log('Executing...');
+        const outputDiv = document.createElement('div');
+        outputDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
+        try {
+            const response = await fetch($2f656a0166ae0dde$export$682c179f50ab847d.DATA_FILE);
+            if (!response.ok) throw new Error(`Failed to load version information: ${response.statusText}`);
+            const versionText = await response.text();
+            outputDiv.innerText = versionText;
+        } catch (error) {
+            this.log.error('Error loading version information:', error);
+            outputDiv.innerText = 'Error: Could not load version information.';
+        }
+        return outputDiv;
+    }
+    static man() {
+        return `NAME\n       version - Show version information.\n\nDESCRIPTION\n       The version command displays the application's version and build information.`;
+    }
+}
 
-SYNOPSIS
-       theme [color]
 
-DESCRIPTION
-       Changes the terminal's color scheme. The selected theme is saved to your user profile.
+/**
+ * @class CommandBusService
+ * @description Manages command registration, resolution, and execution via the event bus.
+ *
+ * @dispatches `autocomplete-broadcast` - Dispatches suggestions for any interested listeners.
+ * @dispatches `variable-get-request` - Dispatches to get the ALIAS variable.
+ * @dispatches `variable-set-request` - Dispatches to set the ALIAS variable.
+ * @dispatches `fs-is-directory-request` - Dispatches to check if a path is a directory.
+ *
+ * @listens for `variable-get-response` - Listens for the ALIAS value.
+ */ class $ac9f97ad4f74aa0f$export$b148e429f2a852fd extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    #registry = new Map();
+    #apiProvider;
+    constructor(eventBus){
+        super(eventBus);
+        this.#apiProvider = new (0, $a669e8ae43fdb238$export$241fc32970302a31)(eventBus);
+        this.#registerCommands();
+        this.log.log('Initializing...');
+    }
+    #registerCommands() {
+        // Register commands with their specific service dependencies.
+        this.register('welcome', (0, $e0c064800146e1d9$export$23191e4434a9e834), []);
+        this.register('about', (0, $8006e978d23dfa7a$export$c8424c4d8ba2150), [
+            'requestMedia'
+        ]);
+        this.register('env', (0, $746ab3f555bc367e$export$6c0517834721cef7), [
+            'getAllCategorizedVariables'
+        ]);
+        this.register('help', (0, $58f4ca654afc80a2$export$1be7516c0280bee8), [
+            'getCommandList',
+            'getCommandMeta'
+        ]);
+        this.register('man', (0, $89dee8d09878550f$export$dd86fb79665233fb), [
+            'getCommandList',
+            'getCommandMeta'
+        ]);
+        this.register('history', (0, $704f97d014e3d2c7$export$84202caead5689ba), [
+            'getHistory'
+        ]);
+        this.register('ls', (0, $f1cb7247a06daf47$export$e4ed7772d4272afd), [
+            'getDirectoryContents'
+        ]);
+        this.register('cd', (0, $db5013326dab5472$export$ba0ebedd619a044f), [
+            'changeDirectory',
+            'getDirectoryContents'
+        ]);
+        this.register('cat', (0, $f56f4db7338f947e$export$15fe218ce13d3b19), [
+            'getFileContents',
+            'getDirectoryContents'
+        ]);
+        this.register('clear', (0, $a42c2ef9b96a7e14$export$47d037774b685574), [
+            'clearScreen'
+        ]);
+        this.register('view', (0, $7461451f701afbcc$export$27a5bd065ad55220), [
+            'getDirectoryContents',
+            'getPublicUrl',
+            'requestMedia'
+        ]);
+        this.register('adduser', (0, $014619ac3a5e9bb8$export$a2fae8d9b81b1013), [
+            'prompt',
+            'addUser'
+        ]);
+        this.register('login', (0, $e70c41a38a6398be$export$21a94553ffa41578), [
+            'prompt',
+            'login'
+        ]);
+        this.register('logout', (0, $f6dad85933050838$export$cad1a703886b4e3a), [
+            'logout'
+        ]);
+        this.register('passwd', (0, $84830fdf876247b6$export$f0c291ac64662912), [
+            'prompt',
+            'changePassword'
+        ]);
+        this.register('alias', (0, $e034628669231935$export$17b520249a85fe16), [
+            'getAliases',
+            'setAliases'
+        ]);
+        this.register('unalias', (0, $621cadf9f489dfc6$export$b5b55b76df1a6c5e), [
+            'getAliases',
+            'setAliases'
+        ]);
+        this.register('export', (0, $f7d01fe940b9a288$export$f883e605db67eacf), [
+            'setUserspaceVariable',
+            'getAllCategorizedVariables'
+        ]);
+        this.register('unset', (0, $05653863388bb58a$export$5da459000fb5cd5d), [
+            'deleteUserspaceVariable',
+            'getAllCategorizedVariables'
+        ]);
+        this.register('theme', (0, $9be1bfc2349b0f11$export$14faa19a0f3bbeb2), [
+            'getValidThemes',
+            'setTheme',
+            'getSystemVariable'
+        ]);
+        this.register('version', (0, $2f656a0166ae0dde$export$682c179f50ab847d), []);
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_EXECUTE_BROADCAST]: this.#handleExecute.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_ALIASES_REQUEST]: this.#handleGetAliasesRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).SET_ALIASES_REQUEST]: this.#handleSetAliasesRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST]: this.#handleGetAutocompleteSuggestions.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_COMMAND_LIST_REQUEST]: this.#handleGetCommandListRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_COMMAND_META_REQUEST]: this.#handleGetCommandMetaRequest.bind(this)
+        };
+    }
+    register(name, CommandClass, requiredServices = []) {
+        this.#registry.set(name, {
+            CommandClass: CommandClass,
+            requiredServices: requiredServices
+        });
+    }
+    #handleExecute({ commandString: commandString, outputElement: outputElement }) {
+        this.execute(commandString, outputElement);
+    }
+    getCommand(name) {
+        const registration = this.#registry.get(name);
+        if (registration) {
+            const { CommandClass: CommandClass, requiredServices: requiredServices = [] } = registration;
+            // Create a tailored 'services' object for the command, providing only what it needs.
+            // This adheres to the principle of least privilege.
+            const commandServices = requiredServices.reduce((acc, funcName)=>{
+                if (typeof this.#apiProvider[funcName] === 'function') acc[funcName] = this.#apiProvider[funcName].bind(this.#apiProvider);
+                else this.log.warn(`Command '${name}' requested unknown function '${funcName}'.`);
+                return acc;
+            }, {});
+            return new CommandClass(commandServices);
+        }
+        return null;
+    }
+    getCommandClass(name) {
+        const registration = this.#registry.get(name);
+        return registration ? registration.CommandClass : undefined;
+    }
+    getCommandNames() {
+        return Array.from(this.#registry.keys());
+    }
+    async #getAvailableCommandNames() {
+        const availableRegistered = await this.getPermittedCommandNames();
+        // This part of autocomplete might not have access to aliases without an async call.
+        const aliasNames = []; // Simplified for now. A full implementation would need an async lookup.
+        return [
+            ...new Set([
+                ...availableRegistered,
+                ...aliasNames
+            ])
+        ].sort();
+    }
+    async getPermittedCommandNames() {
+        const registeredCommands = this.getCommandNames();
+        const context = await this.#getContext();
+        const availableCommands = registeredCommands.filter((name)=>{
+            const CommandClass = this.getCommandClass(name);
+            if (CommandClass && typeof CommandClass.isAvailable === 'function') return CommandClass.isAvailable(context);
+            return true;
+        });
+        return availableCommands.sort();
+    }
+    async #getContext() {
+        return {
+            isLoggedIn: await this.#apiProvider.isLoggedIn()
+        };
+    }
+    /**
+     * Resolves the effective command name and arguments, handling aliases.
+     * @param {string[]} initialTokens - The raw tokens from the input string.
+     * @returns {Promise<{commandName: string, args: string[]}>} An object containing the resolved command name and arguments.
+     */ async #resolveCommandAndArgs(initialTokens) {
+        let currentTokens = [
+            ...initialTokens
+        ]; // Work with a copy
+        let commandName = (currentTokens[0] || '').trim();
+        if (!commandName) return {
+            commandName: '',
+            args: []
+        };
+        const aliases = await this.#apiProvider.getAliases();
+        if (aliases[commandName]) {
+            const aliasValue = aliases[commandName];
+            const aliasArgs = (0, $8a497e5e96e95e64$export$660b2ee2d4fb4eff)(aliasValue); // Tokenize alias value
+            const remainingUserArgs = currentTokens.slice(1);
+            currentTokens = [
+                ...aliasArgs,
+                ...remainingUserArgs
+            ];
+            commandName = (currentTokens[0] || '').trim(); // Re-evaluate commandName after alias expansion
+        }
+        return {
+            commandName: commandName,
+            args: currentTokens
+        };
+    }
+    async execute(cmd, outputContainer) {
+        try {
+            const trimmedCmd = cmd.trim();
+            if (!trimmedCmd) return; // Do nothing for an empty command.
+            // Tokenize the command string. The resulting tokens include delimiters.
+            const initialTokens = (0, $8a497e5e96e95e64$export$660b2ee2d4fb4eff)(trimmedCmd);
+            if (initialTokens.length === 0) return;
+            const { commandName: commandName, args: resolvedArgs } = await this.#resolveCommandAndArgs(initialTokens);
+            if (!commandName) return;
+            const outputElement = outputContainer ? outputContainer.element : null;
+            if (this.#registry.has(commandName)) try {
+                const commandHandler = this.getCommand(commandName);
+                this.log.log(`Executing command: "${resolvedArgs}"`);
+                const resultElement = await commandHandler.execute(resolvedArgs);
+                if (outputElement) outputElement.appendChild(resultElement);
+            } catch (e) {
+                if (outputElement) outputElement.textContent = `Error executing ${commandName}: ${e.message}`;
+                this.log.error(`Error executing ${commandName}:`, e);
+            }
+            else if (outputElement) outputElement.textContent = `${commandName}: command not found`;
+        } finally{
+            // Always dispatch the finished event to allow the terminal loop to continue.
+            this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_EXECUTION_FINISHED_BROADCAST);
+        }
+    }
+    // --- Event Handlers for API Requests ---
+    async #handleGetAliasesRequest({ respond: respond }) {
+        try {
+            const { value: value } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_SYSTEM_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).ALIAS
+            });
+            respond({
+                aliases: JSON.parse(value || '{}')
+            });
+        } catch (error) {
+            this.log.error("Failed to get aliases:", error);
+            respond({
+                aliases: {}
+            });
+        }
+    }
+    #handleSetAliasesRequest({ aliases: aliases }) {
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_SYSTEM_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).ALIAS,
+            value: JSON.stringify(aliases)
+        });
+    }
+    async #handleGetCommandListRequest({ respond: respond }) {
+        const commands = await this.getPermittedCommandNames();
+        respond({
+            commands: commands
+        });
+    }
+    #handleGetCommandMetaRequest({ commandName: commandName, metaKey: metaKey, respond: respond }) {
+        const CommandClass = this.getCommandClass(commandName);
+        if (CommandClass && CommandClass[metaKey] !== undefined) {
+            const metaValue = CommandClass[metaKey];
+            // If the metadata is a function (like man()), call it to get the value.
+            if (typeof metaValue === 'function') respond({
+                value: metaValue()
+            });
+            else respond({
+                value: metaValue
+            });
+        } else // Respond with undefined if the command or meta key doesn't exist.
+        respond({
+            value: undefined
+        });
+    }
+    async #handleGetAutocompleteSuggestions({ parts: parts, respond: respond }) {
+        let suggestions = [];
+        let description = '';
+        const isCompletingCommandName = parts.length <= 1;
+        if (isCompletingCommandName) {
+            const commandNames = await this.#getAvailableCommandNames();
+            suggestions = commandNames.map((name)=>name + ' ');
+        } else {
+            const { commandName: resolvedCommandName, args: resolvedArgsForCompletion } = await this.#resolveCommandAndArgs(parts);
+            const CommandClass = this.getCommandClass(resolvedCommandName);
+            // Check if the instance method exists on the prototype.
+            // This is the correct way to check for an instance method before instantiating the command.
+            if (CommandClass && typeof CommandClass.prototype.autocompleteArgs === 'function') {
+                const commandInstance = this.getCommand(resolvedCommandName);
+                const result = await commandInstance.autocompleteArgs(resolvedArgsForCompletion.slice(1)); // Pass args excluding the command name
+                if (Array.isArray(result)) suggestions = result;
+                else if (typeof result === 'object' && result !== null) {
+                    suggestions = result.suggestions || [];
+                    description = result.description || '';
+                }
+            }
+        }
+        respond({
+            suggestions: suggestions,
+            description: description
+        });
+    }
+    #handleUpdateDefaultRequest({ key: key, respond: respond }) {
+        if (key === (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).ALIAS) {
+            const defaultValue = '{}';
+            // Just respond with the default. The requester will handle setting it.
+            respond({
+                value: defaultValue
+            });
+        }
+    }
+}
 
-       Available colors: green, yellow, orange, red
 
-EXAMPLES
-       $ theme
-       (Displays the current theme.)
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
 
-       $ theme yellow
-       (Sets the theme to yellow.)`}async autocompleteArgs(e){if(e.length>1)return[];let t=e[0]||"";return(await this.#ev()).filter(e=>e.startsWith(t))}async execute(e){let t=document.createElement("div"),s=e[1],i=await this.#ev();if(!s){let{value:e}=await this.#ew("THEME");return t.textContent=`Current theme: ${e}
-Available themes: ${i.join(", ")}`,t}return i.includes(s)?(this.#ey(s),t.textContent=`Theme set to '${s}'.`,this.log.log(`Theme set to: ${s}`)):(t.textContent=`Error: Invalid theme '${s}'.
-Available themes: ${i.join(", ")}`,this.log.warn(`Invalid theme name provided: ${s}`)),t}}var e0={};e0=e("6eguK");class e1 extends ek{static DATA_FILE=new URL(e0);static DESCRIPTION="Show version information.";constructor(e){super(e)}async execute(e){this.log.log("Executing...");let t=document.createElement("div");t.style.whiteSpace="pre-wrap";try{let e=await fetch(e1.DATA_FILE);if(!e.ok)throw Error(`Failed to load version information: ${e.statusText}`);t.innerText=await e.text()}catch(e){this.log.error("Error loading version information:",e),t.innerText="Error: Could not load version information."}return t}static man(){return`NAME
-       version - Show version information.
 
-DESCRIPTION
-       The version command displays the application's version and build information.`}}class e2 extends ec{#ef=new Map;#eb;constructor(e){super(e),this.#eb=new eR(e),this.#eS(),this.log.log("Initializing...")}#eS(){this.register("welcome",eD,[]),this.register("about",e$,["requestMedia"]),this.register("env",eN,["getAllCategorizedVariables"]),this.register("help",eO,["getCommandList","getCommandMeta"]),this.register("man",eM,["getCommandList","getCommandMeta"]),this.register("history",eU,["getHistory"]),this.register("ls",eH,["getDirectoryContents"]),this.register("cd",ez,["changeDirectory","getDirectoryContents"]),this.register("cat",eF,["getFileContents","getDirectoryContents"]),this.register("clear",eB,["clearScreen"]),this.register("view",e_,["getDirectoryContents","getPublicUrl","requestMedia"]),this.register("adduser",ej,["prompt","addUser"]),this.register("login",eG,["prompt","login"]),this.register("logout",eY,["logout"]),this.register("passwd",eW,["prompt","changePassword"]),this.register("alias",eX,["getAliases","setAliases"]),this.register("unalias",eK,["getAliases","setAliases"]),this.register("export",eJ,["setUserspaceVariable","getAllCategorizedVariables"]),this.register("unset",eZ,["deleteUserspaceVariable","getAllCategorizedVariables"]),this.register("theme",eQ,["getValidThemes","setTheme","getSystemVariable"]),this.register("version",e1,[])}get eventHandlers(){return{[B]:this.#eC.bind(this),[W]:this.#ex.bind(this),[X]:this.#eE.bind(this),[Y]:this.#eA.bind(this),[T]:this.#O.bind(this),[K]:this.#eI.bind(this),[J]:this.#eT.bind(this)}}register(e,t,s=[]){this.#ef.set(e,{CommandClass:t,requiredServices:s})}#eC({commandString:e,outputElement:t}){this.execute(e,t)}getCommand(e){let t=this.#ef.get(e);if(t){let{CommandClass:s,requiredServices:i=[]}=t;return new s(i.reduce((t,s)=>("function"==typeof this.#eb[s]?t[s]=this.#eb[s].bind(this.#eb):this.log.warn(`Command '${e}' requested unknown function '${s}'.`),t),{}))}return null}getCommandClass(e){let t=this.#ef.get(e);return t?t.CommandClass:void 0}getCommandNames(){return Array.from(this.#ef.keys())}async #eR(){return[...new Set([...await this.getPermittedCommandNames()])].sort()}async getPermittedCommandNames(){let e=this.getCommandNames(),t=await this.#eq();return e.filter(e=>{let s=this.getCommandClass(e);return!s||"function"!=typeof s.isAvailable||s.isAvailable(t)}).sort()}async #eq(){return{isLoggedIn:await this.#eb.isLoggedIn()}}async #ek(e){let t=[...e],s=(t[0]||"").trim();if(!s)return{commandName:"",args:[]};let i=await this.#eb.getAliases();return i[s]&&(s=((t=[...eq(i[s]),...t.slice(1)])[0]||"").trim()),{commandName:s,args:t}}async execute(e,t){try{let s=e.trim();if(!s)return;let i=eq(s);if(0===i.length)return;let{commandName:r,args:a}=await this.#ek(i);if(!r)return;let n=t?t.element:null;if(this.#ef.has(r))try{let e=this.getCommand(r);this.log.log(`Executing command: "${a}"`);let t=await e.execute(a);n&&n.appendChild(t)}catch(e){n&&(n.textContent=`Error executing ${r}: ${e.message}`),this.log.error(`Error executing ${r}:`,e)}else n&&(n.textContent=`${r}: command not found`)}finally{this.dispatch(_)}}async #ex({respond:e}){try{let{value:t}=await this.request(g,{key:ef});e({aliases:JSON.parse(t||"{}")})}catch(t){this.log.error("Failed to get aliases:",t),e({aliases:{}})}}#eE({aliases:e}){this.dispatch(f,{key:ef,value:JSON.stringify(e)})}async #eI({respond:e}){e({commands:await this.getPermittedCommandNames()})}#eT({commandName:e,metaKey:t,respond:s}){let i=this.getCommandClass(e);if(i&&void 0!==i[t]){let e=i[t];"function"==typeof e?s({value:e()}):s({value:e})}else s({value:void 0})}async #eA({parts:e,respond:t}){let s=[],i="";if(e.length<=1)s=(await this.#eR()).map(e=>e+" ");else{let{commandName:t,args:r}=await this.#ek(e),a=this.getCommandClass(t);if(a&&"function"==typeof a.prototype.autocompleteArgs){let e=this.getCommand(t),a=await e.autocompleteArgs(r.slice(1));Array.isArray(a)?s=a:"object"==typeof a&&null!==a&&(s=a.suggestions||[],i=a.description||"")}}t({suggestions:s,description:i})}#O({key:e,respond:t}){e===ef&&t({value:"{}"})}}class e5 extends ec{#q;constructor(e,t={}){super(e),this.#q=new eg(t.apiUrl),this.log.log("Initializing...")}get eventHandlers(){return{[eo]:this.#eP.bind(this),[en]:this.#eV.bind(this),[ea]:this.#eD.bind(this),[eh]:this.#eL.bind(this),[el]:this.#e$.bind(this),[T]:this.#O.bind(this)}}async #eV({path:e,respond:t}){try{let s=await this.#ei(e);t({contents:s})}catch(e){t({error:e})}}async #eP({path:e,respond:t}){try{let s=await this.#en(e);t({contents:s})}catch(e){t({error:e})}}async #eD({path:e,respond:t}){try{let s=await this.#eN(e,!0);this.dispatch(b,{key:"PWD",value:s}),t({success:!0})}catch(e){t({error:e})}}async #eL({path:e,respond:t}){try{let s=await this.#eN(e,!1);t({path:s})}catch(e){t({error:e})}}async #e$({path:e,respond:t}){try{let{value:s}=await this.request(y,{key:"PWD"}),i=await this.#eO("get_public_url",{path:e,pwd:s});t({url:i.url})}catch(e){t({error:e})}}#O({key:e,respond:t}){"PWD"===e&&(this.dispatch(b,{key:e,value:"/"}),t({value:"/"}))}async #ei(e){let{value:t}=await this.request(y,{key:"PWD"});return this.#eO("ls",{path:e,pwd:t})}async #en(e){let{value:t}=await this.request(y,{key:"PWD"});return(await this.#eO("cat",{path:e,pwd:t})).content}async #eO(e,t={}){try{let s=await this.#q.get({action:e,...t});if(s.error)throw Error(s.error);return s}catch(s){throw this.log.error(`Error during API request for action "${e}" with path "${t.path}":`,s),s}}async #eN(e,t){let{value:s}=await this.request(y,{key:"PWD"});return(await this.#eO("resolve",{path:e,pwd:s,must_be_dir:t})).path}}let e3="THEME",e4="green";class e6 extends ec{static VALID_THEMES=["green","yellow","orange","red"];#eM=null;constructor(e){super(e),this.log.log("Initializing...")}setView(e){this.#eM=e,this.log.log("View connected.")}async start(){let{value:e}=await this.request(g,{key:e3}),t=e||e4;this.applyTheme(t)}get eventHandlers(){return{[es]:this.#eU.bind(this),[T]:this.#O.bind(this),[ei]:this.#eH.bind(this),[R]:this.#o.bind(this)}}#eU({themeName:e,respond:t}){t({theme:this.applyTheme(e)})}async #o(){this.log.log("User changed, re-evaluating theme.");let{value:e}=await this.request(g,{key:e3}),t=e||e4;this.applyTheme(t,!1)}#O({key:e,respond:t}){e===e3&&(this.dispatch(f,{key:e,value:e4}),t({value:e4}))}#eH({respond:e}){e({themes:this.getValidThemes()})}applyTheme(e){let t=e6.VALID_THEMES.includes(e)?e:e4;if(this.#eM){let e=`var(--nnoitra-color-${t})`;this.#eM.style.setProperty("--nnoitra-color-theme",e)}return this.dispatch(ee,{themeName:t}),this.dispatch(f,{key:e3,value:t}),this.log.log(`Applied theme: ${t}`),t}getValidThemes(){return e6.VALID_THEMES}}class e8 extends ec{#eM=null;#ez="";#eF=!1;#eB=!1;#e_=!1;#ej=!1;constructor(e){super(e),this.log.log("Initializing...")}setView(e){this.#eM=e,this.#eM.addEventListener("enter",e=>this.#eG(e.detail.value)),this.#eM.addEventListener("tab",()=>this.#eY()),this.#eM.addEventListener("arrow-up",()=>this.#eW()),this.#eM.addEventListener("arrow-down",()=>this.#eX()),this.#eM.addEventListener("swipe-right",()=>this.#eY()),this.#eM.setAttribute("disabled","")}get eventHandlers(){return{[Z]:this.#eK.bind(this),[U]:this.#eJ.bind(this),[G]:this.#eZ.bind(this)}}#eG(e){this.respond&&(this.#eQ(e),this.#ej=!1,this.#eM.clear())}#eY(){this.log.log("Tab key pressed - triggering autocomplete if allowed.",this.#e_),this.#e_&&this.#e0(this.#eM.getValue())}#eW(){this.#eB&&(this.#ej||(this.#ez=this.#eM.getValue(),this.#ej=!0),this.#eM.setAttribute("disabled",""),this.dispatch(O))}#eX(){this.log.log("ArrowDown key pressed - requesting next history if allowed."),this.#eB&&this.#ej&&(this.#eM.setAttribute("disabled",""),this.dispatch(M))}#e0(e){if(this.#e_){this.#eM.setAttribute("disabled","");let t=this.#eM.getCursorPosition(),s=e.substring(0,t),i=e.substring(t);this.log.log("Dispatching autocomplete request:",{beforeCursorText:s,afterCursorText:i}),this.dispatch(j,{beforeCursorText:s,afterCursorText:i})}}#e1(e,t={}){this.#eF=t.isSecret||!1,this.#eB=t.allowHistory||!1,this.#e_=t.allowAutocomplete||!1,this.#ez="",this.#ej=!1,this.#eM.clear(),this.#eM.removeAttribute("disabled"),this.#eM.setAttribute("placeholder",e),this.#eF?this.#eM.setAttribute("secret",""):this.#eM.removeAttribute("secret"),this.#eM.focus()}#eQ(e){this.respond({value:e}),this.#eM.setAttribute("disabled","")}#eK(e){let{prompt:t,options:s,respond:i}=e;this.#e1(t,s),this.respond=i}#eJ(e){this.#eM&&(this.#eM.removeAttribute("disabled"),void 0!==e.command&&(e.index>0?(this.#eM.setValue(e.command),this.#eM.setAttribute("icon-text",`H:${e.index}`)):(this.#eM.setValue(this.#ez),this.#ej=!1,this.#ez="",this.#eM.removeAttribute("icon-text"))))}#eZ(e){if(this.#eM)try{let{newTextBeforeCursor:t,afterCursorText:s}=e;if(void 0!==t){let e=t+s;this.#eM.setValue(e),this.#eM.setCursorPosition(t.length)}}finally{this.#eM.removeAttribute("disabled")}}}class e9 extends ec{#eM=null;#e2;constructor(e){super(e),this.log.log("Initializing...")}setView(e){this.#eM=e,this.#e2=new ResizeObserver(()=>{this.dispatch(et)}),this.#e2.observe(this.#eM)}get eventHandlers(){return{[G]:this.#e5.bind(this),[B]:this.#e3.bind(this)}}#e5(e){if(!this.#eM)return;let{options:t=[],description:s,prefixLength:i}=e;if(this.#eM.innerHTML="",s){let e=document.createElement("li");e.textContent=s,this.#eM.appendChild(e),this.#eM.setAttribute("prefix-length","0"),this.#eM.removeAttribute("hidden")}else if(t.length>1){let e=document.createDocumentFragment();t.forEach((t,s)=>{let i=document.createElement("li");i.textContent=t,e.appendChild(i)}),this.#eM.appendChild(e),this.#eM.setAttribute("prefix-length",i),this.#eM.removeAttribute("hidden")}else this.#eM.setAttribute("hidden","")}#e3(){this.#eM&&(this.#eM.setAttribute("hidden",""),this.#eM.innerHTML="")}}function e7(e){let{size:t,bgColor:s,symbolColor:i}=e,r=document.createElement("canvas");r.width=r.height=t;let a=r.getContext("2d"),n=Math.max(2,.15*t);a.roundRect(0,0,t,t,n),a.fillStyle=s,a.fill();let o=.3*t;a.beginPath(),a.arc(t/2,t/2,o,0,2*Math.PI),a.fillStyle=i,a.fill();let l=.22*t;return a.beginPath(),a.arc(.47*t,.39*t,l,0,2*Math.PI),"transparent"==s?(a.globalCompositeOperation="destination-out",a.fill(),a.globalCompositeOperation="source-over"):(a.fillStyle=s,a.fill()),r.toDataURL("image/png")}function te(e){let{size:t,bgColor:s,symbolColor:i}=e,r=document.createElement("canvas");r.width=r.height=t;let a=r.getContext("2d"),n=Math.max(2,.15*t);a.roundRect(0,0,t,t,n),a.fillStyle=s,a.fill();let o=.2*t,l=t-o,h=t-o;return a.beginPath(),a.moveTo(o,o),a.lineTo(h,o),a.lineTo(o,l),a.lineTo(h,l),a.closePath(),a.fillStyle=i,a.fill(),r.toDataURL("image/png")}function tt(e){let{size:t,bgColor:s,symbolColor:i}=e,r=document.createElement("canvas");r.width=r.height=t;let a=r.getContext("2d"),n=Math.max(2,.15*t);a.roundRect(0,0,t,t,n),a.fillStyle=s,a.fill(),a.fillStyle=i,a.strokeStyle=i,a.lineWidth=Math.max(1,.15*t);let o=.15*t;return a.beginPath(),a.arc(.35*t,.35*t,o,0,2*Math.PI),a.stroke(),a.beginPath(),a.moveTo(.45*t,.45*t),a.lineTo(.7*t,.7*t),a.lineTo(.6*t,.8*t),a.stroke(),r.toDataURL("image/png")}class ts extends ec{static #e4=[16,32,64,128,180];#eM=null;constructor(e){super(e),this.log.log("Initializing...")}setView(e){this.#eM=e,this.log.log("View connected.")}get eventHandlers(){return{[ee]:this.#e6.bind(this)}}#e6(){if(!this.#eM)return void this.log.warn("Cannot render favicon, view is not connected.");let e=getComputedStyle(this.#eM),t={bgColor:e.getPropertyValue("--nnoitra-color-theme").trim()||"green",symbolColor:e.getPropertyValue("--nnoitra-color-text-highlight").trim()||"#000"};document.querySelectorAll("link[rel~='icon'], link[rel='apple-touch-icon']").forEach(e=>e.remove()),ts.#e4.forEach(e=>{let s=e7({...t,size:e});this.log.log(s);let i=document.createElement("link");i.rel=180===e?"apple-touch-icon":"icon",i.type="image/png",i.sizes=`${e}x${e}`,i.href=s,document.head.appendChild(i)})}}class ti extends HTMLElement{#e8;#e9={};#i;get log(){return this.#i}constructor(e){super(),this.#i=c(this.constructor.name);const t=new CSSStyleSheet;if(t.replaceSync(`
+
+const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
+/**
+ * @class FilesystemService
+ * @description Manages all interactions with the virtual filesystem via the event bus.
+ *
+ * @listens for `FS_AUTOCOMPLETE_PATH_REQUEST` - Responds with path suggestions.
+ * @listens for `FS_GET_DIRECTORY_CONTENTS_REQUEST` - Responds with directory contents.
+ * @listens for `FS_GET_FILE_CONTENTS_REQUEST` - Responds with file contents.
+ */ class $1f7b71a98b9db741$export$dd775def1f4d3576 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    #apiManager;
+    constructor(eventBus, config = {}){
+        super(eventBus);
+        this.#apiManager = new (0, $fa0ff2eef523a395$export$cd2fa11040f69795)(config.apiUrl);
+        this.log.log('Initializing...');
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_FILE_CONTENTS_REQUEST]: this.#handleGetFileContents.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_DIRECTORY_CONTENTS_REQUEST]: this.#handleGetDirectoryContents.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_CHANGE_DIRECTORY_REQUEST]: this.#handleChangeDirectory.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_RESOLVE_PATH_REQUEST]: this.#handleResolvePathRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_PUBLIC_URL_REQUEST]: this.#handleGetPublicUrl.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this)
+        };
+    }
+    async #handleGetDirectoryContents({ path: path, respond: respond }) {
+        try {
+            const contents = await this.#getDirectoryContents(path);
+            respond({
+                contents: contents
+            });
+        } catch (error) {
+            respond({
+                error: error
+            });
+        }
+    }
+    async #handleGetFileContents({ path: path, respond: respond }) {
+        try {
+            const contents = await this.#getFileContents(path);
+            respond({
+                contents: contents
+            });
+        } catch (error) {
+            respond({
+                error: error
+            });
+        }
+    }
+    async #handleChangeDirectory({ path: path, respond: respond }) {
+        try {
+            // The backend's 'resolve' action now handles path resolution relative to PWD.
+            const newPath = await this.#resolveAndValidatePath(path, true);
+            this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_TEMP_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PWD,
+                value: newPath
+            });
+            respond({
+                success: true
+            });
+        } catch (error) {
+            respond({
+                error: error
+            });
+        }
+    }
+    async #handleResolvePathRequest({ path: path, respond: respond }) {
+        try {
+            const resolvedPath = await this.#resolveAndValidatePath(path, false);
+            respond({
+                path: resolvedPath
+            });
+        } catch (error) {
+            respond({
+                error: error
+            });
+        }
+    }
+    async #handleGetPublicUrl({ path: path, respond: respond }) {
+        try {
+            // Use the dedicated 'get_public_url' API action.
+            const { value: pwd } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PWD
+            });
+            const data = await this.#makeApiRequest('get_public_url', {
+                path: path,
+                pwd: pwd
+            });
+            respond({
+                url: data.url
+            });
+        } catch (error) {
+            respond({
+                error: error
+            });
+        }
+    }
+    #handleUpdateDefaultRequest({ key: key, respond: respond }) {
+        if (key === (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PWD) {
+            this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_TEMP_REQUEST, {
+                key: key,
+                value: $1f7b71a98b9db741$var$DEFAULT_PWD
+            });
+            respond({
+                value: $1f7b71a98b9db741$var$DEFAULT_PWD
+            });
+        }
+    }
+    async #getDirectoryContents(path) {
+        const { value: pwd } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PWD
+        });
+        return this.#makeApiRequest('ls', {
+            path: path,
+            pwd: pwd
+        });
+    }
+    async #getFileContents(path) {
+        const { value: pwd } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PWD
+        });
+        const response = await this.#makeApiRequest('cat', {
+            path: path,
+            pwd: pwd
+        });
+        return response.content;
+    }
+    async #makeApiRequest(action, params = {}) {
+        try {
+            const data = await this.#apiManager.get({
+                action: action,
+                ...params
+            });
+            if (data.error) throw new Error(data.error);
+            return data;
+        } catch (error) {
+            this.log.error(`Error during API request for action "${action}" with path "${params.path}":`, error);
+            throw error;
+        }
+    }
+    async #resolveAndValidatePath(path, mustBeDir) {
+        const { value: pwd } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PWD
+        });
+        const data = await this.#makeApiRequest('resolve', {
+            path: path,
+            pwd: pwd,
+            must_be_dir: mustBeDir
+        });
+        return data.path;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+// Define constants for hardcoded strings
+const $a12bc13b39e76674$var$VAR_THEME = 'THEME';
+const $a12bc13b39e76674$var$DEFAULT_THEME = 'green';
+/**
+ * @class ThemeBusService
+ * @description Manages the terminal's color theme by reacting to environment variable changes.
+ *
+ * @listens for `variable-get-response` - For the initial THEME value.
+ *
+ * @dispatches `variable-get-request` - To get the initial THEME variable on startup.
+ * @dispatches `theme-changed-broadcast` - When the theme is successfully applied.
+ */ class $a12bc13b39e76674$export$c7501d0b7167aa9c extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    static VALID_THEMES = [
+        'green',
+        'yellow',
+        'orange',
+        'red'
+    ];
+    #view = null;
+    constructor(eventBus){
+        super(eventBus);
+        this.log.log('Initializing...');
+    }
+    /**
+     * Connects this presenter service to its view component.
+     * @param {object} view - The instance of the Terminal component.
+     */ setView(view) {
+        this.#view = view;
+        this.log.log('View connected.');
+    }
+    async start() {
+        // After all services are initialized, request the initial theme value.
+        const { value: value } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_SYSTEM_REQUEST, {
+            key: $a12bc13b39e76674$var$VAR_THEME
+        });
+        const theme = value || $a12bc13b39e76674$var$DEFAULT_THEME;
+        this.applyTheme(theme);
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).SET_THEME_REQUEST]: this.#handleSetThemeRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_VALID_THEMES_REQUEST]: this.#handleGetValidThemesRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this)
+        };
+    }
+    #handleSetThemeRequest({ themeName: themeName, respond: respond }) {
+        const finalTheme = this.applyTheme(themeName);
+        respond({
+            theme: finalTheme
+        });
+    }
+    async #handleUserChanged() {
+        this.log.log('User changed, re-evaluating theme.');
+        // This will trigger the lazy-loading of remote variables if a user logged in,
+        // or fall back to defaults if logged out, because the environment state has changed.
+        const { value: value } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_SYSTEM_REQUEST, {
+            key: $a12bc13b39e76674$var$VAR_THEME
+        });
+        const theme = value || $a12bc13b39e76674$var$DEFAULT_THEME;
+        this.applyTheme(theme, false); // Don't persist, just apply the current state.
+    }
+    #handleUpdateDefaultRequest({ key: key, respond: respond }) {
+        if (key === $a12bc13b39e76674$var$VAR_THEME) {
+            this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_SYSTEM_REQUEST, {
+                key: key,
+                value: $a12bc13b39e76674$var$DEFAULT_THEME
+            });
+            respond({
+                value: $a12bc13b39e76674$var$DEFAULT_THEME
+            });
+        }
+    }
+    #handleGetValidThemesRequest({ respond: respond }) {
+        respond({
+            themes: this.getValidThemes()
+        });
+    }
+    applyTheme(themeName) {
+        const finalTheme = $a12bc13b39e76674$export$c7501d0b7167aa9c.VALID_THEMES.includes(themeName) ? themeName : $a12bc13b39e76674$var$DEFAULT_THEME;
+        if (this.#view) {
+            const themeColor = `var(--nnoitra-color-${finalTheme})`;
+            // Set the CSS variable directly on the host component, not the global document.
+            // This ensures each terminal instance can have its own independent theme.
+            this.#view.style.setProperty('--nnoitra-color-theme', themeColor);
+        }
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).THEME_CHANGED_BROADCAST, {
+            themeName: finalTheme
+        });
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_SYSTEM_REQUEST, {
+            key: $a12bc13b39e76674$var$VAR_THEME,
+            value: finalTheme
+        });
+        this.log.log(`Applied theme: ${finalTheme}`);
+        // The theme command itself will handle persisting the variable.
+        // This service only applies the theme based on the variable's value.
+        return finalTheme;
+    }
+    getValidThemes() {
+        return $a12bc13b39e76674$export$c7501d0b7167aa9c.VALID_THEMES;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+/**
+ * @class InputBusService
+ * @description Acts as a presenter for the CommandLine component. It handles all user
+ * input logic, state management for the prompt, and communication with other services.
+ *
+ * @listens for `input-request` - Handles all requests for user input, configurable with options.
+ * @listens for `history-indexed-response` - Updates the command line view with a history item.
+ * @listens for `autocomplete-broadcast` - Updates the command line view with autocomplete suggestions.
+ *
+ * @dispatches `command-execute-broadcast` - When the user submits a command.
+ * @dispatches `input-response-broadcast` - In response to an `input-request`.
+ * @dispatches `history-previous-request` - When the user requests the previous history item.
+ * @dispatches `history-next-request` - When the user requests the next history item.
+ * @dispatches `autocomplete-request` - When the user requests autocomplete.
+ */ class $de61280297a28a49$export$1043af0f0a1c6be9 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    #view = null;
+    #inputBuffer = '';
+    #isSecret = false;
+    // State properties for the current input mode
+    #allowHistory = false;
+    #allowAutocomplete = false;
+    #isNavigatingHistory = false;
+    constructor(eventBus){
+        super(eventBus);
+        this.log.log('Initializing...');
+    }
+    /**
+     * Connects this presenter service to its view component.
+     * @param {object} view - The instance of the CommandLine component.
+     */ setView(view) {
+        this.#view = view;
+        // Listen for custom events from the command line component.
+        this.#view.addEventListener('enter', (e)=>this.#submitInput(e.detail.value));
+        this.#view.addEventListener('tab', ()=>this.#requestAutocomplete());
+        this.#view.addEventListener('arrow-up', ()=>this.#requestPreviousHistory());
+        this.#view.addEventListener('arrow-down', ()=>this.#requestNextHistory());
+        this.#view.addEventListener('swipe-right', ()=>this.#requestAutocomplete());
+        // Set the initial state to disabled.
+        this.#view.setAttribute('disabled', ''); // The view is disabled until an input request is received.
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).INPUT_REQUEST]: this.#handleInputRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_INDEXED_RESPONSE]: this.#handleHistoryResponse.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).AUTOCOMPLETE_BROADCAST]: this.#handleAutocompleteBroadcast.bind(this)
+        };
+    }
+    // --- Internal Event Handlers (called in response to view events) ---
+    #submitInput(value) {
+        // For any input, finish the read operation, which uses the `respond` function.
+        // This handles both normal commands and interactive prompts consistently.
+        if (this.respond) {
+            this.#finishRead(value);
+            this.#isNavigatingHistory = false; // Reset on command submission
+            //this.#view.setAttribute('disabled', '');
+            this.#view.clear();
+        }
+    }
+    #requestAutocomplete() {
+        this.log.log('Tab key pressed - triggering autocomplete if allowed.', this.#allowAutocomplete);
+        if (this.#allowAutocomplete) this.#onAutocompleteRequest(this.#view.getValue());
+    }
+    #requestPreviousHistory() {
+        if (this.#allowHistory) {
+            if (!this.#isNavigatingHistory) {
+                this.#inputBuffer = this.#view.getValue();
+                this.#isNavigatingHistory = true;
+            }
+            this.#view.setAttribute('disabled', '');
+            this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_PREVIOUS_REQUEST);
+        }
+    }
+    #requestNextHistory() {
+        this.log.log('ArrowDown key pressed - requesting next history if allowed.');
+        if (this.#allowHistory && this.#isNavigatingHistory) {
+            this.#view.setAttribute('disabled', '');
+            this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_NEXT_REQUEST);
+        }
+    }
+    // --- Private Logic ---
+    #onAutocompleteRequest(value) {
+        if (this.#allowAutocomplete) {
+            this.#view.setAttribute('disabled', ''); // Disable input during the request.
+            const cursorPosition = this.#view.getCursorPosition(); // This method needs to be added to CommandLine.js
+            const beforeCursorText = value.substring(0, cursorPosition);
+            const afterCursorText = value.substring(cursorPosition);
+            this.log.log('Dispatching autocomplete request:', {
+                beforeCursorText: beforeCursorText,
+                afterCursorText: afterCursorText
+            });
+            this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).AUTOCOMPLETE_REQUEST, {
+                beforeCursorText: beforeCursorText,
+                afterCursorText: afterCursorText
+            });
+        }
+    }
+    #startRead(prompt, options = {}) {
+        this.#isSecret = options.isSecret || false;
+        // By default, a read operation should not allow history or autocomplete
+        this.#allowHistory = options.allowHistory || false; // e.g. login prompt
+        this.#allowAutocomplete = options.allowAutocomplete || false; // e.g. shell prompt
+        this.#inputBuffer = '';
+        this.#isNavigatingHistory = false;
+        this.#view.clear();
+        this.#view.removeAttribute('disabled');
+        this.#view.setAttribute('placeholder', prompt);
+        if (this.#isSecret) this.#view.setAttribute('secret', '');
+        else this.#view.removeAttribute('secret');
+        this.#view.focus();
+    }
+    #finishRead(value) {
+        // The `respond` function is attached by the event bus's `request` method.
+        this.respond({
+            value: value
+        });
+        this.#view.setAttribute('disabled', ''); // Disable prompt after responding.
+    }
+    // --- Listener Implementations ---
+    #handleInputRequest(payload) {
+        const { prompt: prompt, options: options, respond: respond } = payload;
+        this.#startRead(prompt, options);
+        // Store the respond function to be called later in #finishRead
+        this.respond = respond;
+    }
+    #handleHistoryResponse(payload) {
+        if (!this.#view) return;
+        this.#view.removeAttribute('disabled');
+        if (payload.command !== undefined) {
+            if (payload.index > 0) {
+                this.#view.setValue(payload.command);
+                // Use the new generic method to set the icon text
+                this.#view.setAttribute('icon-text', `H:${payload.index}`);
+            } else {
+                // Index 0 means we've returned to the current, un-submitted command.
+                this.#view.setValue(this.#inputBuffer);
+                this.#isNavigatingHistory = false;
+                this.#inputBuffer = '';
+                this.#view.removeAttribute('icon-text');
+            }
+        }
+    }
+    #handleAutocompleteBroadcast(payload) {
+        if (!this.#view) return;
+        try {
+            const { newTextBeforeCursor: newTextBeforeCursor, afterCursorText: afterCursorText } = payload;
+            if (newTextBeforeCursor !== undefined) {
+                const fullText = newTextBeforeCursor + afterCursorText;
+                this.#view.setValue(fullText);
+                this.#view.setCursorPosition(newTextBeforeCursor.length);
+            }
+        } finally{
+            // Always re-enable the prompt after an autocomplete attempt.
+            this.#view.removeAttribute('disabled');
+        }
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+/**
+ * @class HintService
+ * @description Acts as a presenter for the HintBox component. It listens for
+ * autocomplete and command execution events to control the visibility and
+ * content of the hint box.
+ *
+ * @listens for `autocomplete-broadcast` - Shows the hint box with suggestions.
+ * @listens for `command-execute-broadcast` - Hides the hint box.
+ */ class $1168caaff3e6a220$export$44f2e5c8a574f6bc extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    #view = null;
+    #resizeObserver;
+    constructor(eventBus){
+        super(eventBus);
+        this.log.log('Initializing...');
+    }
+    /**
+     * Connects this presenter service to its view component.
+     * @param {object} view - The instance of the HintBox component.
+     */ setView(view) {
+        this.#view = view;
+        // Observe the HintBox view. Whenever its size changes (e.g., when it's
+        // shown or hidden), the observer will fire and request a scroll.
+        this.#resizeObserver = new ResizeObserver(()=>{
+            this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).UI_SCROLL_TO_BOTTOM_REQUEST);
+        });
+        this.#resizeObserver.observe(this.#view);
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).AUTOCOMPLETE_BROADCAST]: this.#handleShowHints.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_EXECUTE_BROADCAST]: this.#handleHideHints.bind(this)
+        };
+    }
+    /**
+     * Shows or hides the hint box based on the received suggestions.
+     * @param {object} payload - The event payload.
+     * @param {string[]} payload.suggestions - The list of suggestions.
+     * @param {number} payload.prefixLength - The length of the common prefix.
+     */ #handleShowHints(payload) {
+        if (!this.#view) return;
+        const { options: options = [], description: description, prefixLength: prefixLength } = payload;
+        // Clear existing hints first
+        this.#view.innerHTML = '';
+        // Show hints if there are multiple options, or a single option that isn't empty,
+        // or if a description is provided.
+        if (description) {
+            const li = document.createElement('li');
+            li.textContent = description;
+            this.#view.appendChild(li);
+            this.#view.setAttribute('prefix-length', '0');
+            this.#view.removeAttribute('hidden');
+        } else if (options.length > 1) {
+            const fragment = document.createDocumentFragment();
+            options.forEach((fullSuggestion, index)=>{
+                const li = document.createElement('li');
+                li.textContent = fullSuggestion;
+                fragment.appendChild(li);
+            });
+            this.#view.appendChild(fragment);
+            this.#view.setAttribute('prefix-length', prefixLength);
+            this.#view.removeAttribute('hidden');
+        } else this.#view.setAttribute('hidden', '');
+    }
+    #handleHideHints() {
+        if (this.#view) {
+            this.#view.setAttribute('hidden', ''); // Hide the box
+            this.#view.innerHTML = ''; // Clear its content
+        }
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Draws a rounded square icon with a stylized "C" symbol and returns it as a data URL.
+ * @param {object} options - The drawing options.
+ * @param {number} options.size - The dimension of the icon.
+ * @param {string} options.bgColor - The background color.
+ * @param {string} options.symbolColor - The color of the symbol.
+ * @param {number} options.borderWidth - The width of the border.
+ * @returns {string} The data URL of the generated icon.
+ */ function $b01ab09081bca0d7$export$be6e9b36f109dcde(options) {
+    const { size: size, bgColor: bgColor, symbolColor: symbolColor } = options;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    const radius = Math.max(2, size * 0.15);
+    ctx.roundRect(0, 0, size, size, radius);
+    ctx.fillStyle = bgColor;
+    ctx.fill();
+    const outerCircleRadius = size * 0.3;
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, outerCircleRadius, 0, 2 * Math.PI);
+    ctx.fillStyle = symbolColor;
+    ctx.fill(); // Draw the outer circle
+    const innerCircleRadius = size * 0.22;
+    ctx.beginPath();
+    ctx.arc(size * 0.47, size * 0.39, innerCircleRadius, 0, 2 * Math.PI);
+    // Use 'destination-out' to erase the overlapping part of the outer circle
+    if (bgColor == 'transparent') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fill(); // "Erase" the inner circle area from the outer circle
+        ctx.globalCompositeOperation = 'source-over'; // Reset to default compositing mode
+    } else {
+        ctx.fillStyle = bgColor;
+        ctx.fill(); // Draw the inner circle
+    }
+    return c.toDataURL('image/png');
+}
+function $b01ab09081bca0d7$export$3ca4ef467a209cfc(options) {
+    const { size: size, bgColor: bgColor, symbolColor: symbolColor } = options;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    // Draw the background rounded rectangle
+    const radius = Math.max(2, size * 0.15);
+    ctx.roundRect(0, 0, size, size, radius);
+    ctx.fillStyle = bgColor;
+    ctx.fill();
+    // Draw the hourglass shape
+    const padding = size * 0.2;
+    const top = padding;
+    const bottom = size - padding;
+    const left = padding;
+    const right = size - padding;
+    ctx.beginPath();
+    ctx.moveTo(left, top);
+    ctx.lineTo(right, top);
+    ctx.lineTo(left, bottom);
+    ctx.lineTo(right, bottom);
+    ctx.closePath();
+    ctx.fillStyle = symbolColor;
+    ctx.fill();
+    return c.toDataURL('image/png');
+}
+function $b01ab09081bca0d7$export$44415b01e7e9bfff(options) {
+    const { size: size, bgColor: bgColor, symbolColor: symbolColor } = options;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    // Draw the background rounded rectangle
+    const radius = Math.max(2, size * 0.15);
+    ctx.roundRect(0, 0, size, size, radius);
+    ctx.fillStyle = bgColor;
+    ctx.fill();
+    // --- Draw the key symbol ---
+    ctx.fillStyle = symbolColor;
+    ctx.strokeStyle = symbolColor;
+    const lineWidth = Math.max(1, size * 0.15);
+    ctx.lineWidth = lineWidth;
+    // Key head (circle)
+    const headRadius = size * 0.15;
+    ctx.beginPath();
+    ctx.arc(size * 0.35, size * 0.35, headRadius, 0, 2 * Math.PI);
+    ctx.stroke();
+    // Key body and tooth
+    ctx.beginPath();
+    ctx.moveTo(size * 0.45, size * 0.45); // Start of body
+    ctx.lineTo(size * 0.7, size * 0.7); // End of body
+    ctx.lineTo(size * 0.6, size * 0.8); // Tooth end
+    ctx.stroke();
+    return c.toDataURL('image/png');
+}
+
+
+/**
+ * @class FaviconService
+ * @description Manages the website's favicon. It dynamically generates and updates the
+ * favicon in the document head when the application's theme changes.
+ *
+ * @listens for `theme-changed-broadcast` - To trigger a favicon re-render.
+ */ class $c6188742e46a2026$export$4fa158ef21c49fcc extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    static #SIZES = [
+        16,
+        32,
+        64,
+        128,
+        180
+    ];
+    #view = null;
+    constructor(eventBus){
+        super(eventBus);
+        this.log.log('Initializing...');
+    }
+    /**
+     * Connects this service to its view component.
+     * @param {object} view - The instance of the Terminal component.
+     */ setView(view) {
+        this.#view = view;
+        this.log.log('View connected.');
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).THEME_CHANGED_BROADCAST]: this.#renderFavicon.bind(this)
+        };
+    }
+    /**
+     * Renders and sets the favicon by reading current CSS custom properties.
+     * @private
+     */ #renderFavicon() {
+        if (!this.#view) {
+            this.log.warn('Cannot render favicon, view is not connected.');
+            return;
+        }
+        const styles = getComputedStyle(this.#view);
+        const drawOptions = {
+            bgColor: styles.getPropertyValue('--nnoitra-color-theme').trim() || 'green',
+            symbolColor: styles.getPropertyValue('--nnoitra-color-text-highlight').trim() || '#000'
+        };
+        // Remove any existing favicon links
+        document.querySelectorAll("link[rel~='icon'], link[rel='apple-touch-icon']").forEach((el)=>el.remove());
+        $c6188742e46a2026$export$4fa158ef21c49fcc.#SIZES.forEach((size)=>{
+            const url = (0, $b01ab09081bca0d7$export$be6e9b36f109dcde)({
+                ...drawOptions,
+                size: size
+            });
+            this.log.log(url);
+            const link = document.createElement('link');
+            link.rel = size === 180 ? 'apple-touch-icon' : 'icon';
+            link.type = 'image/png';
+            link.sizes = `${size}x${size}`;
+            link.href = url;
+            document.head.appendChild(link);
+        });
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class NnoitraBaseComponent
+ * @extends HTMLElement
+ * @description Provides a foundational class for all Nnoitra custom components.
+ * It automates the setup of a closed Shadow DOM, applies shared styles,
+ * and provides a mechanism for mapping elements with `part` attributes to `refs` for easy access.
+ *
+ * To use this base component:
+ * 1. Extend `NnoitraBaseComponent` instead of `HTMLElement`.
+ * 2. Call `super(htmlTemplate, componentMap)` in the constructor of the derived class.
+ */ class $b614a4e6de2a3e5c$export$55ae5207ce896a6b extends HTMLElement {
+    /** @private {ShadowRoot} #shadow - The closed Shadow DOM root for the component. */ #shadow;
+    /** @protected {Object.<string, Element>} #internalRefs - A map of elements within the Shadow DOM, keyed by their `part` attribute. */ #internalRefs = {};
+    #log;
+    get log() {
+        return this.#log;
+    }
+    /**
+   * Creates an instance of NnoitraBaseComponent.
+   * @param {string} htmlTemplate - The HTML string that defines the structure of the component's Shadow DOM.
+   */ constructor(htmlTemplate){
+        super();
+        this.#log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)(this.constructor.name);
+        // --- 1. Define Shared Styles ---
+        // These styles provide a consistent base aesthetic for all components extending NnoitraBaseComponent.
+        const sharedStyles = new CSSStyleSheet();
+        sharedStyles.replaceSync(`
       /* Styles for encapsulation and structural fundamentals remain here.
        * The 'var()' function will look up the Custom Property
        * (which pierces the Shadow DOM) from the :root or host element.
@@ -258,7 +4531,88 @@ DESCRIPTION
         color: var(--nnoitra-color-theme);
         font-size: var(--nnoitra-font-size);
       }
-      `),this.#e8=this.attachShadow({mode:"closed"}),this.#e8.adoptedStyleSheets=[t],e){const t=this.#e7(e);this.#e8.appendChild(t)}this.#te()}#te(){this.#e8.querySelectorAll("[part]").forEach(e=>{let t=e.getAttribute("part");this.log.log(`Mapping ref: "${t}" to element`,e),this.#e9[t]=e})}get refs(){return this.#e9}get shadowRoot(){return this.#e8}#e7(e){let t=document.createElement("template");return t.innerHTML=e,t.content}}let tr=`
+      `);
+        // --- 2. Attach Shadow DOM and Apply Styles ---
+        // Attach a closed Shadow DOM to prevent external access and style leakage.
+        this.#shadow = this.attachShadow({
+            mode: 'closed'
+        });
+        // Apply the shared styles to the Shadow DOM.
+        this.#shadow.adoptedStyleSheets = [
+            sharedStyles
+        ];
+        // --- 3. Process Template and Append ---
+        // If an HTML template is provided, create a document fragment and append it to the Shadow DOM.
+        if (htmlTemplate) {
+            const fragment = this.#createFragment(htmlTemplate);
+            this.#shadow.appendChild(fragment);
+        }
+        // --- 4. Automatic Reference Mapping ---
+        // Automatically map elements with 'part' attributes to the #refs object.
+        this.#setupRefs();
+    }
+    /**
+   * Finds all elements in the shadow root that have a 'part' attribute
+   * and maps them to the `#internalRefs` object using the 'part' value as the key.
+   * This provides a convenient way to access internal elements of the component.
+   * @private
+   */ #setupRefs() {
+        // Query for all elements that have a 'part' attribute within the Shadow DOM.
+        const elementsWithPart = this.#shadow.querySelectorAll('[part]');
+        elementsWithPart.forEach((el)=>{
+            const partName = el.getAttribute('part');
+            // Use the part name as the key for the refs object.
+            this.log.log(`Mapping ref: "${partName}" to element`, el);
+            this.#internalRefs[partName] = el;
+        });
+    }
+    /**
+   * Provides protected read-only access to the mapped element references for use by child classes.
+   * This should not be accessed from outside the component's class hierarchy.
+   * @protected
+   * @returns {Object.<string, Element>} An object containing references to internal elements
+   *   keyed by their `part` attribute.
+   */ get refs() {
+        return this.#internalRefs;
+    }
+    /**
+   * Provides read-only access to the component's ShadowRoot.
+   * @returns {ShadowRoot} The ShadowRoot instance of the component.
+   */ get shadowRoot() {
+        return this.#shadow;
+    }
+    #createFragment(htmlString) {
+        const template = document.createElement('template');
+        template.innerHTML = htmlString;
+        return template.content;
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+/**
+ * @constant {string} TEMPLATE - HTML template for the Icon component's shadow DOM.
+ */ const $e00efd92cee71997$var$TEMPLATE = `<span part="symbol-container"></span>`;
+/**
+ * @constant {string} CSS - CSS styles for the Icon component's shadow DOM.
+ */ const $e00efd92cee71997$var$CSS = `
 :host {
   height: 100%;
   aspect-ratio: 1;
@@ -293,14 +4647,121 @@ DESCRIPTION
   height: 100%;
   width: 100%;  
 }
-`,ta=new CSSStyleSheet;ta.replaceSync(tr);class tn extends ti{#tt={ready:">",busy:"⧗",key:"⚷"};static #ts=[16,32,48,64];constructor(){super('<span part="symbol-container"></span>'),this.shadowRoot.adoptedStyleSheets=[...this.shadowRoot.adoptedStyleSheets,ta],this.hasAttribute("type")||this.setAttribute("type","ready")}static get observedAttributes(){return["type","value"]}attributeChangedCallback(e,t,s){this.#ti()}#ti(){let e=this.getAttribute("type")||"ready",t=this.getAttribute("value"),s=this.refs["symbol-container"];switch(s.innerHTML="",e){case"busy":this.#tr(s,te);break;case"key":this.#tr(s,tt);break;case"indexed":let i=document.createElement("span");i.part="symbol",i.textContent=`${t||""}:>`,s.appendChild(i);break;case"text":let r=document.createElement("span");r.part="symbol",r.textContent=t||"",s.appendChild(r);break;case"ready":this.#tr(s,e7)}}#tr(e,t){let s={bgColor:"transparent",symbolColor:getComputedStyle(this).getPropertyValue("--nnoitra-color-text-highlight").trim()},i=document.createElement("img");i.part="symbol",i.style.padding="0",i.style.borderRadius="3px",i.src=e7({...s,size:32}),i.srcset=tn.#ts.map(e=>`${t({...s,size:e})} ${e}w`).join(", "),e.appendChild(i)}}customElements.define("nnoitra-icon",tn);let to=`
+`;
+// Define component-specific styles
+const $e00efd92cee71997$var$iconSpecificStyles = new CSSStyleSheet();
+$e00efd92cee71997$var$iconSpecificStyles.replaceSync($e00efd92cee71997$var$CSS);
+/**
+ * @class Icon
+ * @extends BaseComponent
+ * @description A custom element that displays various symbolic icons within the terminal,
+ * indicating different states like ready, busy, or history index.
+ */ class $e00efd92cee71997$export$7a974ebd36283afb extends (0, $b614a4e6de2a3e5c$export$55ae5207ce896a6b) {
+    /**
+   * @private
+   * @type {Object.<string, string>}
+   * @description A map of icon names to their corresponding string representations.
+   */ #icons = {
+        ready: '>',
+        busy: "\u29D7",
+        key: "\u26B7" // The key symbol for password prompts
+    };
+    /** @private @const {number[]} #ICON_SIZES - Sizes for generating image sets. */ static #ICON_SIZES = [
+        16,
+        32,
+        48,
+        64
+    ];
+    /**
+   * Creates an instance of Icon.
+   * Initializes the shadow DOM and applies component-specific styles.
+   */ constructor(){
+        super($e00efd92cee71997$var$TEMPLATE);
+        this.shadowRoot.adoptedStyleSheets = [
+            ...this.shadowRoot.adoptedStyleSheets,
+            $e00efd92cee71997$var$iconSpecificStyles
+        ];
+        // Set a default state if no type is provided on creation.
+        if (!this.hasAttribute('type')) this.setAttribute('type', 'ready');
+    }
+    static get observedAttributes() {
+        return [
+            'type',
+            'value'
+        ];
+    }
+    attributeChangedCallback(name, oldValue, newValue) {
+        this.#render();
+    }
+    #render() {
+        const type = this.getAttribute('type') || 'ready';
+        const value = this.getAttribute('value');
+        const container = this.refs['symbol-container'];
+        container.innerHTML = ''; // Clear previous content
+        switch(type){
+            case 'busy':
+                this.#setIcon(container, (0, $b01ab09081bca0d7$export$3ca4ef467a209cfc));
+                break;
+            case 'key':
+                this.#setIcon(container, (0, $b01ab09081bca0d7$export$44415b01e7e9bfff));
+                break;
+            case 'indexed':
+                const indexedSymbol = document.createElement('span');
+                indexedSymbol.part = 'symbol';
+                indexedSymbol.textContent = `${value || ''}:>`;
+                container.appendChild(indexedSymbol);
+                break;
+            case 'text':
+                const customTextSymbol = document.createElement('span');
+                customTextSymbol.part = 'symbol';
+                customTextSymbol.textContent = value || '';
+                container.appendChild(customTextSymbol);
+                break;
+            case 'ready':
+                this.#setIcon(container, (0, $b01ab09081bca0d7$export$be6e9b36f109dcde));
+                break;
+            default:
+                break;
+        }
+    }
+    #setIcon(container, drawFunction) {
+        const styles = getComputedStyle(this);
+        const drawOptions = {
+            bgColor: 'transparent',
+            symbolColor: styles.getPropertyValue('--nnoitra-color-text-highlight').trim()
+        };
+        const img = document.createElement('img');
+        img.part = 'symbol'; // Revert to using the standard symbol part
+        img.style.padding = '0'; // Remove padding for the image to fill its container
+        img.style.borderRadius = '3px'; // Apply the border-radius directly
+        img.src = (0, $b01ab09081bca0d7$export$be6e9b36f109dcde)({
+            ...drawOptions,
+            size: 32
+        }); // Default src
+        img.srcset = $e00efd92cee71997$export$7a974ebd36283afb.#ICON_SIZES.map((size)=>`${drawFunction({
+                ...drawOptions,
+                size: size
+            })} ${size}w`).join(', ');
+        container.appendChild(img);
+    }
+}
+// Define the custom element 'nnoitra-icon'
+customElements.define('nnoitra-icon', $e00efd92cee71997$export$7a974ebd36283afb);
+
+
+/**
+ * @constant {string} TEMPLATE - HTML template for the TerminalItem component's shadow DOM.
+ */ const $215d290515523f1a$var$TEMPLATE = `
   <div part='header'></div>
   <div part='command-container'>
   <nnoitra-icon part='icon'></nnoitra-icon>
   <span part='command'></span>
   </div>
   <div part='output'><slot></slot></div>
-  `,tl=`
+  `;
+/**
+ * @constant {string} CSS - CSS styles for the TerminalItem component's shadow DOM.
+ */ const $215d290515523f1a$var$CSS = `
 :host {
   --line-height: 2em;
   --line-margin: 3px;
@@ -387,7 +4848,395 @@ DESCRIPTION
   word-wrap: break-word; /* Ensure long words without spaces also break */
   margin: 0; /* Reset default margins on pre for consistency */
 }
-`,th=new CSSStyleSheet;th.replaceSync(tl);class tc extends ti{constructor(){super(to),this.shadowRoot.adoptedStyleSheets=[...this.shadowRoot.adoptedStyleSheets,th]}static get observedAttributes(){return["item-id","header-text","command"]}attributeChangedCallback(e,t,s){if(t!==s)switch(e){case"item-id":this.id=`term-item-${s}`,this.hasAttribute("command")&&this.refs.icon.setAttribute("value",s);break;case"header-text":this.refs.header.textContent=s,this.classList.add("header-visible");break;case"command":this.refs.command.textContent=s;let i=this.getAttribute("item-id");i&&(this.refs.icon.setAttribute("type","indexed"),this.refs.icon.setAttribute("value",i)),this.classList.add("active")}}}customElements.define("nnoitra-term-item",tc);let td=window.location.hostname;class tu extends ec{static MOTD_FILE=new URL(eV);#eM=null;#ta=1;#tn=null;constructor(e){super(e),this.log.log("Initializing...")}setView(e){this.#eM=e}get eventHandlers(){return{[T]:this.#O.bind(this),[Q]:this.#to.bind(this),[et]:this.#tl.bind(this),[_]:this.#th.bind(this)}}async start(){if(this.#eM&&this.#eM.welcomeOutputView)try{let e=await eP(tu.MOTD_FILE);console.log(e),this.#eM.welcomeOutputView.style.whiteSpace="pre-wrap",this.#eM.welcomeOutputView.textContent=e}catch(e){this.log.error("Failed to load motd.dat:",e)}this.#th()}#O({key:e,respond:t}){switch(e){case"PS1":t({value:"[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}"});break;case ey:t({value:td})}}#tc(e){let t=e.PS1,s=new Date,i={user:e[ev],host:e[ey],path:e.PWD,year:s.getFullYear(),month:String(s.getMonth()+1).padStart(2,"0"),day:String(s.getDate()).padStart(2,"0"),hour:String(s.getHours()).padStart(2,"0"),minute:String(s.getMinutes()).padStart(2,"0"),second:String(s.getSeconds()).padStart(2,"0")};return t.replace(/\{(\w+)\}/g,(e,t)=>i[t]??e)}#td(e){let t=this.#ta++,s=new tc;s.setAttribute("item-id",t),s.setAttribute("header-text",e),this.#eM.appendToOutput(s),this.#tn=s}async #th(){try{let[e,t,s,i]=await Promise.all([this.request(v,{key:"PS1"}),this.request(p,{key:ev}),this.request(y,{key:ey}),this.request(y,{key:"PWD"})]),r={PS1:e.value,USER:t.value,HOST:s.value,PWD:i.value},a=this.#tc(r);this.#td(a);let{value:n}=await this.#tu();if(this.#tn){this.#tn.setAttribute("command",n);let e={element:this.#tn};this.log.log(`Executing command: "${n}"`),this.#eM.scrollToBottom(),this.dispatch(B,{commandString:n,outputElement:e})}}catch(e){this.log.error("Error in command loop:",e),this.dispatch(_)}}#to(){this.#eM&&(this.#eM.clearOutput(),this.#ta=1)}#tl(){this.#eM&&this.#eM.scrollToBottom()}#tu(){return this.request(Z,{prompt:"",options:{allowHistory:!0,allowAutocomplete:!0,isSecret:!1}},0)}}class tm extends ec{constructor(e){super(e),this.log.log("Initializing...")}get eventHandlers(){return{[j]:this.#tm.bind(this)}}async #tm({beforeCursorText:e,afterCursorText:t}){this.log.log("Autocomplete request received:",{beforeCursorText:e,afterCursorText:t});let s=eq(e),i=s.pop();s.push("");let r=[],a="",n="",o=0;try{let e=await this.request(Y,{parts:s}),{suggestions:t}=e;if(n=e.description,t&&t.length>0){let e=t.filter(e=>e.startsWith(i));a=function(e){if(!e||0===e.length)return"";let t=e[0];for(let s=1;s<e.length;s++)for(;0!==e[s].indexOf(t);)if(""===(t=t.substring(0,t.length-1)))return"";return t}(e),1===t.length&&t[0]===a?r=[]:(r=e,o=i.length)}else n&&(a=i,r=[])}catch(e){this.log.error("Error during autocomplete request:",e)}let l=a.substring(i.length);o+=l.length;let h={newTextBeforeCursor:e+l,options:r,afterCursorText:t,description:n,prefixLength:o};this.log.warn(h),this.dispatch(G,h)}}let tp=c("Media"),tg=`
+`;
+// Define component-specific styles
+const $215d290515523f1a$var$terminalItemSpecificStyles = new CSSStyleSheet();
+$215d290515523f1a$var$terminalItemSpecificStyles.replaceSync($215d290515523f1a$var$CSS);
+/**
+ * @class TerminalItem
+ * @extends BaseComponent
+ * @description Represents a single entry in the terminal output, displaying a command and its corresponding output.
+ * Each item includes a timestamp, user/host/path information, an indexed icon, and the command text.
+ */ class $215d290515523f1a$export$260ee8fc65bf5db8 extends (0, $b614a4e6de2a3e5c$export$55ae5207ce896a6b) {
+    /**
+   * Creates an instance of TerminalItem.
+   * Initializes the shadow DOM and applies component-specific styles.
+   */ constructor(){
+        // Pass the template and map to the base constructor, including the Icon component.
+        super($215d290515523f1a$var$TEMPLATE);
+        // Apply component-specific styles to the shadow DOM.
+        this.shadowRoot.adoptedStyleSheets = [
+            ...this.shadowRoot.adoptedStyleSheets,
+            $215d290515523f1a$var$terminalItemSpecificStyles
+        ];
+    }
+    static get observedAttributes() {
+        return [
+            'item-id',
+            'header-text',
+            'command'
+        ];
+    }
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (oldValue === newValue) return;
+        switch(name){
+            case 'item-id':
+                this.id = `term-item-${newValue}`;
+                // If the command is already set, update the icon's value.
+                if (this.hasAttribute('command')) this.refs.icon.setAttribute('value', newValue);
+                break;
+            case 'header-text':
+                this.refs.header.textContent = newValue;
+                this.classList.add('header-visible');
+                break;
+            case 'command':
+                this.refs.command.textContent = newValue;
+                const itemId = this.getAttribute('item-id');
+                if (itemId) {
+                    this.refs.icon.setAttribute('type', 'indexed');
+                    this.refs.icon.setAttribute('value', itemId);
+                }
+                this.classList.add('active');
+                break;
+        }
+    }
+}
+// Define the custom element 'nnoitra-term-item'
+customElements.define('nnoitra-term-item', $215d290515523f1a$export$260ee8fc65bf5db8);
+
+
+
+
+const $aa54ae2db82f2dc3$var$DEFAULT_PS1 = '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}';
+const $aa54ae2db82f2dc3$var$DEFAULT_HOST = window.location.hostname;
+const $aa54ae2db82f2dc3$var$DEFAULT_UUID = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * @class TerminalService
+ * @description Acts as a presenter for the terminal's output area. It handles
+ * creating and populating TerminalItem components in response to command execution.
+ * It also orchestrates the main command execution loop.
+ *
+ * @listens for `input-response` - Receives user input and triggers command execution.
+ * @listens for `command-execution-finished-broadcast` - Restarts the input loop.
+ * @listens for `clear-screen-request` - Clears the terminal output.
+ */ class $aa54ae2db82f2dc3$export$fdfecd291132ec23 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    static MOTD_FILE = new URL($fed81596da0f4423$exports);
+    #view = null;
+    #nextId = 1;
+    #currentItem = null;
+    constructor(eventBus){
+        super(eventBus);
+        this.log.log('Initializing...');
+    }
+    /**
+     * Connects this presenter service to its view component.
+     * @param {object} view - The instance of the Terminal component.
+     */ setView(view) {
+        this.#view = view;
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).CLEAR_SCREEN_REQUEST]: this.#handleClear.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).UI_SCROLL_TO_BOTTOM_REQUEST]: this.#handleScrollToBottom.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_EXECUTION_FINISHED_BROADCAST]: this.#runCommandLoop.bind(this)
+        };
+    }
+    /**
+     * Starts the main terminal loop by requesting the first command.
+     */ async start() {
+        // Load the Message of the Day into the welcome area.
+        if (this.#view && this.#view.welcomeOutputView) try {
+            const motdText = await (0, $268f5c7225abb997$export$7d79caac809a3f17)($aa54ae2db82f2dc3$export$fdfecd291132ec23.MOTD_FILE);
+            console.log(motdText);
+            // Use white-space to preserve formatting without needing a <pre> tag.
+            this.#view.welcomeOutputView.style.whiteSpace = 'pre-wrap';
+            this.#view.welcomeOutputView.textContent = motdText;
+        } catch (error) {
+            this.log.error('Failed to load motd.dat:', error);
+        }
+        // Start the main command input loop.
+        this.#runCommandLoop();
+    }
+    #handleUpdateDefaultRequest({ key: key, respond: respond }) {
+        switch(key){
+            case (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PS1:
+                respond({
+                    value: $aa54ae2db82f2dc3$var$DEFAULT_PS1
+                });
+                break;
+            case (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HOST:
+                respond({
+                    value: $aa54ae2db82f2dc3$var$DEFAULT_HOST
+                });
+                break;
+            case 'UUID':
+                const uuid = this.#view?.getAttribute('uuid') || $aa54ae2db82f2dc3$var$DEFAULT_UUID;
+                respond({
+                    value: uuid
+                });
+                break;
+        }
+    }
+    #formatHeader(vars) {
+        // Defaults are now set in the environment, so we can expect the values to be present.
+        const format = vars[(0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PS1];
+        const timestamp = new Date();
+        const replacements = {
+            user: vars[(0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER],
+            host: vars[(0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HOST],
+            path: vars[(0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PWD],
+            year: timestamp.getFullYear(),
+            month: String(timestamp.getMonth() + 1).padStart(2, '0'),
+            day: String(timestamp.getDate()).padStart(2, '0'),
+            hour: String(timestamp.getHours()).padStart(2, '0'),
+            minute: String(timestamp.getMinutes()).padStart(2, '0'),
+            second: String(timestamp.getSeconds()).padStart(2, '0')
+        };
+        return format.replace(/\{(\w+)\}/g, (match, key)=>replacements[key] ?? match);
+    }
+    #createAndDisplayHeader(headerText) {
+        const id = this.#nextId++;
+        const item = new (0, $215d290515523f1a$export$260ee8fc65bf5db8)();
+        item.setAttribute('item-id', id);
+        item.setAttribute('header-text', headerText);
+        this.#view.appendToOutput(item);
+        this.#currentItem = item; // Store as the pending item.
+    }
+    async #runCommandLoop() {
+        try {
+            // 1. Get all required environment variables for the prompt from their specific categories.
+            const [ps1, user, host, pwd] = await Promise.all([
+                this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_USERSPACE_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PS1
+                }),
+                this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
+                }),
+                this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HOST
+                }),
+                this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PWD
+                })
+            ]);
+            // 2. Format and display the header.
+            const promptVars = {
+                PS1: ps1.value,
+                USER: user.value,
+                HOST: host.value,
+                PWD: pwd.value
+            };
+            const headerText = this.#formatHeader(promptVars);
+            this.#createAndDisplayHeader(headerText);
+            // 2. Request user input and wait for the response.
+            const { value: commandString } = await this.#requestInput();
+            // 3. Populate the command item and dispatch for execution.
+            if (this.#currentItem) {
+                this.#currentItem.setAttribute('command', commandString);
+                const outputContainer = {
+                    element: this.#currentItem
+                };
+                this.log.log(`Executing command: "${commandString}"`);
+                this.#view.scrollToBottom();
+                this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_EXECUTE_BROADCAST, {
+                    commandString: commandString,
+                    outputElement: outputContainer
+                });
+            }
+        } catch (error) {
+            this.log.error("Error in command loop:", error);
+            // If something fails, dispatch the finished event to try again.
+            this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_EXECUTION_FINISHED_BROADCAST);
+        }
+    }
+    #handleClear() {
+        if (!this.#view) return;
+        this.#view.clearOutput();
+        this.#nextId = 1;
+    }
+    #handleScrollToBottom() {
+        if (this.#view) this.#view.scrollToBottom();
+    }
+    #requestInput() {
+        const prompt = '';
+        // Standard options for a command prompt.
+        const options = {
+            allowHistory: true,
+            allowAutocomplete: true,
+            isSecret: false
+        };
+        // Request user input and return the promise.
+        return this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).INPUT_REQUEST, {
+            prompt: prompt,
+            options: options
+        }, 0);
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Finds the longest common starting substring in an array of strings.
+ * @param {string[]} strings - An array of strings.
+ * @returns {string} The longest common prefix.
+ */ function $6e8da35c5fc7fc78$export$d1a9ee614178bec3(strings) {
+    if (!strings || strings.length === 0) return '';
+    let prefix = strings[0];
+    for(let i = 1; i < strings.length; i++)while(strings[i].indexOf(prefix) !== 0){
+        prefix = prefix.substring(0, prefix.length - 1);
+        if (prefix === '') return '';
+    }
+    return prefix;
+}
+
+
+
+
+class $6949df4f1b16bf43$export$1f14987e9cb31ec2 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    constructor(eventBus){
+        super(eventBus);
+        this.log.log('Initializing...');
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).AUTOCOMPLETE_REQUEST]: this.#handleAutocompleteRequest.bind(this)
+        };
+    }
+    async #handleAutocompleteRequest({ beforeCursorText: beforeCursorText, afterCursorText: afterCursorText }) {
+        this.log.log('Autocomplete request received:', {
+            beforeCursorText: beforeCursorText,
+            afterCursorText: afterCursorText
+        });
+        const parts = (0, $8a497e5e96e95e64$export$660b2ee2d4fb4eff)(beforeCursorText);
+        // The token to complete is the last one. The rest are the preceding arguments.
+        const incompleteToken = parts.pop();
+        parts.push('');
+        let finalSuggestions = [];
+        let completedToken = '';
+        let description = '';
+        let prefixLength = 0;
+        try {
+            // 1. Ask the CommandService for the final list of suggestions.
+            // The CommandService will delegate to the specific command if necessary.
+            const response = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).GET_AUTOCOMPLETE_SUGGESTIONS_REQUEST, {
+                parts: parts
+            });
+            const { suggestions: potentialOptions } = response;
+            description = response.description;
+            if (potentialOptions && potentialOptions.length > 0) {
+                // 2. Find the common prefix of the options.
+                const filteredOptions = potentialOptions.filter((p)=>p.startsWith(incompleteToken));
+                const commonPrefix = (0, $6e8da35c5fc7fc78$export$d1a9ee614178bec3)(filteredOptions);
+                // 3. The newly completed token is the common prefix.
+                completedToken = commonPrefix;
+                // 4. Determine the final suggestions and if a suffix should be added.
+                if (potentialOptions.length === 1 && potentialOptions[0] === completedToken) finalSuggestions = []; // No more options to show.
+                else {
+                    finalSuggestions = filteredOptions;
+                    prefixLength = incompleteToken.length;
+                }
+            } else if (description) {
+                // If there are no suggestions, but there is a description, pass it along.
+                // This is for hinting arguments like usernames.
+                completedToken = incompleteToken; // Keep what the user typed.
+                finalSuggestions = []; // No actual suggestions to complete.
+            }
+        } catch (error) {
+            this.log.error('Error during autocomplete request:', error);
+        }
+        // 5. Construct the new command line parts and broadcast.
+        // Reconstruct the string before the cursor using the original tokenized parts.
+        // The most robust way to create the new text is to append the "newly completed"
+        // part of the token to the original text.
+        const completionSuffix = completedToken.substring(incompleteToken.length);
+        prefixLength += completionSuffix.length;
+        const newTextBeforeCursor = beforeCursorText + completionSuffix;
+        const payload = {
+            newTextBeforeCursor: newTextBeforeCursor,
+            options: finalSuggestions,
+            afterCursorText: afterCursorText,
+            description: description,
+            prefixLength: prefixLength
+        };
+        this.log.warn(payload);
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).AUTOCOMPLETE_BROADCAST, payload);
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+const $a8ff039d94e4dd6a$var$log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)('Media');
+/**
+ * @constant {string} CSS - CSS styles for the Media component's shadow DOM.
+ */ const $a8ff039d94e4dd6a$var$CSS = `
   :host {
     display: block; /* Ensures the host element takes up space */
   }
@@ -402,12 +5251,255 @@ DESCRIPTION
     margin: 10px 0;
     display: block; /* Helps with layout and margin */
   }
-`,ty=new CSSStyleSheet;ty.replaceSync(tg);class tv extends ti{#tp;constructor(){super(),this.shadowRoot.adoptedStyleSheets=[...this.shadowRoot.adoptedStyleSheets,ty]}static get observedAttributes(){return["src"]}attributeChangedCallback(e,t,s){"src"===e&&t!==s&&(this.src=s)}set src(e){if(e){if(this.#tp&&this.#tp.remove(),/\.(png|jpg|jpeg|gif|webp)$/i.test(e))this.#tp=document.createElement("img");else{if(!/\.(mp4|webm)$/i.test(e))return void tp.error(`Unsupported file type for src: ${e}`);this.#tp=document.createElement("video"),this.#tp.controls=!0}this.#tp.classList.add("media"),this.#tp.src=e,this.shadowRoot.appendChild(this.#tp)}}get src(){return this.getAttribute("src")}}customElements.define("nnoitra-media",tv);class tw extends ec{constructor(e){super(e),this.log.log("Initializing...")}get eventHandlers(){return{[er]:this.#tg.bind(this)}}#tg({src:e,respond:t}){let s=new tv;s.src=e;let i=new ResizeObserver(e=>{e[0].contentRect.height>1&&(this.dispatch(et),i.disconnect())});i.observe(s),t({mediaElement:s})}}let tf="AREFI_LOCAL_ENV";class tb extends ec{constructor(e){super(e),this.log.log("Initializing...")}get eventHandlers(){return{[A]:this.#ty.bind(this),[E]:this.#tv.bind(this),"reset-local-variable":this.#tw.bind(this),[I]:this.#tf.bind(this)}}#tb(e){return e?`${tf}_${e.toUpperCase()}`:tf}#tS(e){let t=localStorage.getItem(this.#tb(e));if(!t)return{};try{return JSON.parse(t)}catch(e){return this.log.error("Failed to parse local environment variables from localStorage:",e),{}}}#tC(e,t){try{localStorage.setItem(this.#tb(t),JSON.stringify(e))}catch(e){this.log.error("Failed to write to localStorage:",e)}}#ty({key:e,value:t,respond:s,namespace:i}){if(void 0===e||void 0===t){this.log.warn("SAVE_LOCAL_VAR requires both a key and a value."),s&&s({success:!1});return}let r=this.#tS(i);r[e]=t,this.#tC(r,i),s&&s({success:!0})}#tv({key:e,respond:t,namespace:s}){let i=this.#tS(s),r=void 0!==e?i[e]:i;t&&t({value:r})}#tf({key:e,respond:t,namespace:s}){if(void 0===e){this.log.warn("DELETE_LOCAL_VAR requires a key."),t&&t({success:!1});return}let i=this.#tS(s);delete i[e],this.#tC(i,s),t&&t({success:!0})}#tw({namespace:e}){this.log.log(`Resetting localStorage for namespace: ${e}`),localStorage.removeItem(this.#tb(e))}}class tS{constructor(e={}){const t=new u;this.services={bus:t,environment:em.create(t),accounting:eA.create(t,{apiUrl:e.accountingApi}),history:eT.create(t),command:e2.create(t),theme:e6.create(t),input:e8.create(t),hint:e9.create(t),favicon:ts.create(t),terminal:tu.create(t),filesystem:e5.create(t,{apiUrl:e.filesystemApi}),autocomplete:tm.create(t),media:tw.create(t),localStorage:tb.create(t)}}}let tC=`
+`;
+const $a8ff039d94e4dd6a$var$mediaSpecificStyles = new CSSStyleSheet();
+$a8ff039d94e4dd6a$var$mediaSpecificStyles.replaceSync($a8ff039d94e4dd6a$var$CSS);
+/**
+ * @class NnoitraMedia
+ * @extends BaseComponent
+ * @description A custom element for displaying images or videos. It handles the loading
+ * of media and dispatches a 'media-loaded' event upon completion to solve scroll timing issues.
+ */ class $a8ff039d94e4dd6a$export$7fc53215244aec38 extends (0, $b614a4e6de2a3e5c$export$55ae5207ce896a6b) {
+    #mediaElement;
+    constructor(){
+        // No initial template needed, it's created dynamically.
+        super();
+        this.shadowRoot.adoptedStyleSheets = [
+            ...this.shadowRoot.adoptedStyleSheets,
+            $a8ff039d94e4dd6a$var$mediaSpecificStyles
+        ];
+    }
+    static get observedAttributes() {
+        return [
+            'src'
+        ];
+    }
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (name === 'src' && oldValue !== newValue) this.src = newValue;
+    }
+    set src(source) {
+        if (!source) return;
+        // Clear previous media if any
+        if (this.#mediaElement) this.#mediaElement.remove();
+        const supportedImage = /\.(png|jpg|jpeg|gif|webp)$/i;
+        const supportedVideo = /\.(mp4|webm)$/i;
+        if (supportedImage.test(source)) this.#mediaElement = document.createElement('img');
+        else if (supportedVideo.test(source)) {
+            this.#mediaElement = document.createElement('video');
+            this.#mediaElement.controls = true;
+        } else {
+            $a8ff039d94e4dd6a$var$log.error(`Unsupported file type for src: ${source}`);
+            return;
+        }
+        this.#mediaElement.classList.add('media');
+        this.#mediaElement.src = source;
+        this.shadowRoot.appendChild(this.#mediaElement);
+    }
+    get src() {
+        return this.getAttribute('src');
+    }
+}
+// Define the custom element 'nnoitra-media'
+customElements.define('nnoitra-media', $a8ff039d94e4dd6a$export$7fc53215244aec38);
+
+
+
+class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    constructor(eventBus){
+        super(eventBus);
+        this.log.log('Initializing...');
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).MEDIA_REQUEST]: this.#handleMediaRequest.bind(this)
+        };
+    }
+    #handleMediaRequest({ src: src, respond: respond }) {
+        const mediaElement = new (0, $a8ff039d94e4dd6a$export$7fc53215244aec38)();
+        mediaElement.src = src;
+        // Observe the media element. When it loads and its size changes,
+        // automatically request a scroll to keep the prompt in view.
+        const observer = new ResizeObserver((entries)=>{
+            const entry = entries[0];
+            // The first resize event might be when the element is added with 0 height.
+            // We only act when we see a meaningful height, which indicates the media has loaded.
+            if (entry.contentRect.height > 1) {
+                this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).UI_SCROLL_TO_BOTTOM_REQUEST);
+                // Now that the media has its final size, we can stop observing.
+                observer.disconnect();
+            }
+        });
+        observer.observe(mediaElement);
+        respond({
+            mediaElement: mediaElement
+        });
+    }
+}
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+/**
+ * @class LocalStorageService
+ * @description Manages all direct interactions with the browser's localStorage for environment variables.
+ *
+ * @listens for `SAVE_LOCAL_VAR` - Saves a specific key-value pair or overwrites all local data.
+ * @listens for `LOAD_LOCAL_VAR` - Loads a specific key's value or all local data.
+ * Both events can optionally take a `namespace` string in their payload.
+ */ class $e8647c5b0ada794e$export$fda5b86bc4921cb9 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    #storageKeyPrefix = 'AREFI_LOCAL_ENV';
+    constructor(eventBus){
+        super(eventBus);
+        this.log.log('Initializing...');
+    }
+    get eventHandlers() {
+        return {
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).SAVE_LOCAL_VAR]: this.#handleSaveLocalVar.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOAD_LOCAL_VAR]: this.#handleLoadLocalVar.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).RESET_LOCAL_VAR]: this.#handleResetLocalVar.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).DELETE_LOCAL_VAR]: this.#handleDeleteLocalVar.bind(this)
+        };
+    }
+    async #getStorageKey(namespace) {
+        const { value: uuid } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+            key: 'UUID'
+        });
+        return namespace ? `${this.#storageKeyPrefix}_${uuid}_${namespace.toUpperCase()}` : `${this.#storageKeyPrefix}_${uuid}`;
+    }
+    async #readAllLocal(namespace) {
+        const stored = localStorage.getItem(await this.#getStorageKey(namespace));
+        if (!stored) return {};
+        try {
+            return JSON.parse(stored);
+        } catch (e) {
+            this.log.error('Failed to parse local environment variables from localStorage:', e);
+            return {};
+        }
+    }
+    async #writeAllLocal(data, namespace) {
+        try {
+            localStorage.setItem(await this.#getStorageKey(namespace), JSON.stringify(data));
+        } catch (e) {
+            this.log.error('Failed to write to localStorage:', e);
+        }
+    }
+    async #handleSaveLocalVar({ key: key, value: value, respond: respond, namespace: namespace }) {
+        if (key === undefined || value === undefined) {
+            this.log.warn('SAVE_LOCAL_VAR requires both a key and a value.');
+            if (respond) respond({
+                success: false
+            });
+            return;
+        }
+        let currentData = await this.#readAllLocal(namespace);
+        currentData[key] = value;
+        await this.#writeAllLocal(currentData, namespace);
+        if (respond) respond({
+            success: true
+        });
+    }
+    async #handleLoadLocalVar({ key: key, respond: respond, namespace: namespace }) {
+        const allData = await this.#readAllLocal(namespace);
+        const value = key !== undefined ? allData[key] : allData;
+        if (respond) respond({
+            value: value
+        });
+    }
+    async #handleDeleteLocalVar({ key: key, respond: respond, namespace: namespace }) {
+        if (key === undefined) {
+            this.log.warn('DELETE_LOCAL_VAR requires a key.');
+            if (respond) respond({
+                success: false
+            });
+            return;
+        }
+        let currentData = await this.#readAllLocal(namespace);
+        delete currentData[key];
+        await this.#writeAllLocal(currentData, namespace);
+        if (respond) respond({
+            success: true
+        });
+    }
+    async #handleResetLocalVar({ namespace: namespace }) {
+        this.log.log(`Resetting localStorage for namespace: ${namespace}`);
+        localStorage.removeItem(await this.#getStorageKey(namespace));
+    }
+}
+
+
+class $a0b5a846c0e262ae$export$f001b1e94070bef0 {
+    constructor(config = {}){
+        const bus = new (0, $9919a9f5491eef72$export$5087227eb54526)();
+        this.services = {
+            bus: bus,
+            environment: (0, $1b934ed4cb64b454$export$e4a82699f51b6a33).create(bus),
+            accounting: (0, $34004656f0914987$export$f63b2c629ff23c50).create(bus, {
+                apiUrl: config.accountingApi
+            }),
+            history: (0, $aa7bd8a129968d33$export$682fe5af4326291).create(bus),
+            command: (0, $ac9f97ad4f74aa0f$export$b148e429f2a852fd).create(bus),
+            theme: (0, $a12bc13b39e76674$export$c7501d0b7167aa9c).create(bus),
+            input: (0, $de61280297a28a49$export$1043af0f0a1c6be9).create(bus),
+            hint: (0, $1168caaff3e6a220$export$44f2e5c8a574f6bc).create(bus),
+            favicon: (0, $c6188742e46a2026$export$4fa158ef21c49fcc).create(bus),
+            terminal: (0, $aa54ae2db82f2dc3$export$fdfecd291132ec23).create(bus),
+            filesystem: (0, $1f7b71a98b9db741$export$dd775def1f4d3576).create(bus, {
+                apiUrl: config.filesystemApi
+            }),
+            autocomplete: (0, $6949df4f1b16bf43$export$1f14987e9cb31ec2).create(bus),
+            media: (0, $9d2e60a2443f3a3e$export$28bb6dc04d8f7127).create(bus),
+            localStorage: (0, $e8647c5b0ada794e$export$fda5b86bc4921cb9).create(bus)
+        };
+    }
+}
+
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+
+/**
+ * @constant {string} TEMPLATE - HTML template for the TerminalPrompt component's shadow DOM.
+ */ const $6f8547af8f66a9b0$var$TEMPLATE = `
   <div part="footer">
   <nnoitra-icon part="icon"></nnoitra-icon>
   <input type="text" autocomplete="off" spellcheck="false" autocapitalize="off" part="prompt">
   </div>
-  `,tx=`
+  `;
+/**
+ * @constant {string} CSS - CSS styles for the TerminalPrompt component's shadow DOM.
+ */ const $6f8547af8f66a9b0$var$CSS = `
 [part=footer] {
   margin: 0;
   padding: 3px;
@@ -450,10 +5542,262 @@ DESCRIPTION
   margin: 0;
   padding: 0;
 }
-`,tE=new CSSStyleSheet;tE.replaceSync(tx),customElements.define("nnoitra-cmd",class extends ti{#eF=!1;#tx="";#tE=!0;#tA=0;#tI=0;constructor(){super(tC),this.shadowRoot.adoptedStyleSheets=[...this.shadowRoot.adoptedStyleSheets,tE],this.refs.footer.addEventListener("touchstart",this.#tT.bind(this),{passive:!0}),this.refs.footer.addEventListener("touchend",this.#tR.bind(this),{passive:!0}),this.refs.prompt.addEventListener("input",this.#tq.bind(this)),this.refs.prompt.addEventListener("keydown",this.#tk.bind(this))}static get observedAttributes(){return["disabled","secret","placeholder","icon-text"]}attributeChangedCallback(e,t,s){switch(e){case"disabled":this.#tE=!this.hasAttribute("disabled"),this.#tE&&!this.#eF?this.#tP():this.#tE||this.#tV();break;case"secret":this.#eF=this.hasAttribute("secret"),this.#eF?this.#tD():this.#tP();break;case"placeholder":this.refs.prompt.placeholder=s||"";break;case"icon-text":null!==s?(this.refs.icon&&this.refs.icon.setAttribute("type","text"),this.refs.icon&&this.refs.icon.setAttribute("value",s)):this.#eF?this.#tD():this.#tP()}}#tq(e){if(!this.#eF)return;let t=this.refs.prompt,s=this.#tx,i=t.value,r=t.selectionStart,a=s.length-(i.length-(e.data?e.data.length:0)),n=r-(e.data?e.data.length:0),o=s.slice(0,n),l=s.slice(n+a),h=o+(e.data||"")+l;this.#tx=h,requestAnimationFrame(()=>{t.value="●".repeat(this.#tx.length),t.setSelectionRange(r,r)})}#tk(e){if(!this.#tE){e.preventDefault(),e.stopPropagation();return}"Enter"===e.key?(e.preventDefault(),this.#tL("enter",{value:this.getValue()})):"Tab"===e.key?(e.preventDefault(),this.#tL("tab")):"ArrowUp"===e.key?(e.preventDefault(),this.#tL("arrow-up")):"ArrowDown"===e.key&&(e.preventDefault(),this.#tL("arrow-down"))}#tT(e){let t=e.touches[0];t&&(this.#tA=t.clientX,this.#tI=t.clientY)}#tR(e){let t=e.changedTouches[0];if(0===this.#tA||!t)return;let s=t.clientX-this.#tA,i=t.clientY-this.#tI;s>50&&50>Math.abs(i)&&this.#tL("swipe-right")}#tL(e,t={}){this.dispatchEvent(new CustomEvent(e,{bubbles:!0,composed:!0,detail:t}))}focus(){this.refs.prompt.focus()}getValue(){return this.#eF?this.#tx:this.refs.prompt.value}setValue(e){this.#eF?(this.#tx=e,this.refs.prompt.value="●".repeat(e.length)):this.refs.prompt.value=e}getCursorPosition(){return this.refs.prompt.selectionStart}setCursorPosition(e){this.refs.prompt.setSelectionRange(e,e)}clear(){this.refs.prompt.value="",this.#tx=""}#tP(){this.refs.icon&&this.refs.icon.setAttribute("type","ready")}#tV(){this.refs.icon&&this.refs.icon.setAttribute("type","busy")}#tD(){this.refs.icon&&this.refs.icon.setAttribute("type","key")}}),c("HintBox");let tA=`
+`;
+// Define component-specific styles
+const $6f8547af8f66a9b0$var$terminalPromptSpecificStyles = new CSSStyleSheet();
+$6f8547af8f66a9b0$var$terminalPromptSpecificStyles.replaceSync($6f8547af8f66a9b0$var$CSS);
+/**
+ * @class TerminalPrompt
+ * @extends BaseComponent
+ * @description A fully encapsulated, declarative Web Component for terminal input.
+ *
+ * @features
+ * - **Declarative API**: Controlled via HTML attributes like `disabled`, `secret`, `placeholder`, and `icon-text`.
+ * - **Secret Mode**: Automatically masks input for passwords when the `secret` attribute is present.
+ * - **Custom Events**: Dispatches clear, high-level events for user interactions (`enter`, `tab`, `arrow-up`, `arrow-down`, `swipe-right`).
+ * - **Rich Public API**: Provides methods like `getValue()`, `setValue()`, `getCursorPosition()`, `setCursorPosition()`, and `clear()` for programmatic control.
+ * - **Stateful Icon**: Manages an internal icon that automatically updates based on the component's state (e.g., ready, busy, secret).
+ * - **Touch Support**: Implements a swipe-right gesture to trigger autocomplete on touch devices.
+ *
+ * @fires enter - When the user presses the Enter key. Detail: `{ value: string }`
+ * @fires tab - When the user presses the Tab key.
+ * @fires arrow-up - When the user presses the ArrowUp key.
+ * @fires arrow-down - When the user presses the ArrowDown key.
+ * @fires swipe-right - When the user performs a right swipe gesture on the component.
+ */ class $6f8547af8f66a9b0$export$9263fabaee423253 extends (0, $b614a4e6de2a3e5c$export$55ae5207ce896a6b) {
+    /** @private {boolean} #isSecret - Flag indicating if the read mode is for secret (password) input. */ #isSecret = false;
+    /** @private {string} #secretValue - Stores the actual value when in secret input mode. */ #secretValue = '';
+    /** @private {boolean} #isEnabled - Flag to control if the input should accept changes. */ #isEnabled = true;
+    // Properties for swipe gesture detection
+    #touchStartX = 0;
+    #touchStartY = 0;
+    /**
+   * Creates an instance of TerminalPrompt.
+   * Initializes the shadow DOM and applies component-specific styles.
+   */ constructor(){
+        // Pass the template and map to the base constructor, including the Icon component.
+        super($6f8547af8f66a9b0$var$TEMPLATE);
+        // Apply component-specific styles to the shadow DOM.
+        this.shadowRoot.adoptedStyleSheets = [
+            ...this.shadowRoot.adoptedStyleSheets,
+            $6f8547af8f66a9b0$var$terminalPromptSpecificStyles
+        ];
+        // Add touch event listeners for swipe-to-autocomplete gesture.
+        this.refs.footer.addEventListener('touchstart', this.#handleTouchStart.bind(this), {
+            passive: true
+        });
+        this.refs.footer.addEventListener('touchend', this.#handleTouchEnd.bind(this), {
+            passive: true
+        });
+        // Listen for input to handle manual password masking.
+        this.refs.prompt.addEventListener('input', this.#onInput.bind(this));
+        // Centralize keydown handling
+        this.refs.prompt.addEventListener('keydown', this.#onKeyDown.bind(this));
+    }
+    static get observedAttributes() {
+        return [
+            'disabled',
+            'secret',
+            'placeholder',
+            'icon-text'
+        ];
+    }
+    attributeChangedCallback(name, oldValue, newValue) {
+        switch(name){
+            case 'disabled':
+                this.#isEnabled = !this.hasAttribute('disabled');
+                if (this.#isEnabled && !this.#isSecret) this.#setReadyIcon();
+                else if (!this.#isEnabled) this.#setBusyIcon();
+                break;
+            case 'secret':
+                this.#isSecret = this.hasAttribute('secret');
+                this.#isSecret ? this.#setKeyIcon() : this.#setReadyIcon();
+                break;
+            case 'placeholder':
+                this.refs.prompt.placeholder = newValue || '';
+                break;
+            case 'icon-text':
+                if (newValue !== null) {
+                    // If the attribute is being set, tell the icon to display custom text.
+                    if (this.refs.icon) this.refs.icon.setAttribute('type', 'text');
+                    if (this.refs.icon) this.refs.icon.setAttribute('value', newValue);
+                } else // If the attribute is being removed, revert to the default state icon.
+                this.#isSecret ? this.#setKeyIcon() : this.#setReadyIcon();
+                break;
+        }
+    }
+    /**
+   * Handles the input event to manually mask characters for secret (password) input.
+   * This implementation correctly handles insertions, deletions, and replacements
+   * at any position within the input field.
+   * @private
+   * @param {InputEvent} event - The input event.
+   */ #onInput(event) {
+        if (!this.#isSecret) return;
+        const input = this.refs.prompt;
+        const oldRealValue = this.#secretValue;
+        const newDisplayValue = input.value;
+        const newCursorPos = input.selectionStart;
+        // The number of characters deleted or replaced.
+        const deletedCount = oldRealValue.length - (newDisplayValue.length - (event.data ? event.data.length : 0));
+        // The position where the change started.
+        const changeStartPos = newCursorPos - (event.data ? event.data.length : 0);
+        // Slice the old real value to get the parts before and after the change.
+        const before = oldRealValue.slice(0, changeStartPos);
+        const after = oldRealValue.slice(changeStartPos + deletedCount);
+        // Construct the new real value. event.data is null for deletions.
+        const newRealValue = before + (event.data || '') + after;
+        this.#secretValue = newRealValue;
+        // Update the display to be all masked characters.
+        // We do this inside a requestAnimationFrame to avoid potential race
+        // conditions with the browser's rendering of the input value,
+        // especially on mobile browsers or with IMEs.
+        requestAnimationFrame(()=>{
+            input.value = "\u25CF".repeat(this.#secretValue.length);
+            // Restore the cursor position.
+            input.setSelectionRange(newCursorPos, newCursorPos);
+        });
+    }
+    /**
+   * Handles keyboard events and dispatches them for the presenter to handle.
+   * @private
+   * @param {KeyboardEvent} event - The keyboard event.
+   */ #onKeyDown(event) {
+        // If the input is not enabled, prevent all key actions and stop further processing.
+        // This ensures no input is registered and no default browser behavior occurs.
+        if (!this.#isEnabled) {
+            event.preventDefault();
+            event.stopPropagation(); // Stop event from bubbling up to parent elements
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.#dispatch('enter', {
+                value: this.getValue()
+            });
+        } else if (event.key === 'Tab') {
+            event.preventDefault();
+            this.#dispatch('tab');
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            this.#dispatch('arrow-up');
+        } else if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            this.#dispatch('arrow-down');
+        }
+    }
+    /**
+   * Records the starting position of a touch event for swipe detection.
+   * @param {TouchEvent} event - The touch event.
+   */ #handleTouchStart(event) {
+        const touch = event.touches[0];
+        if (!touch) return;
+        this.#touchStartX = touch.clientX;
+        this.#touchStartY = touch.clientY;
+    }
+    /**
+   * Calculates the gesture at the end of a touch and triggers the swipe right callback.
+   * @param {TouchEvent} event - The touch event.
+   */ #handleTouchEnd(event) {
+        const touch = event.changedTouches[0];
+        if (this.#touchStartX === 0 || !touch) return;
+        const deltaX = touch.clientX - this.#touchStartX;
+        const deltaY = touch.clientY - this.#touchStartY;
+        // Check for a right swipe: significant horizontal movement, minimal vertical movement.
+        if (deltaX > 50 && Math.abs(deltaY) < 50) this.#dispatch('swipe-right');
+    }
+    /**
+   * Helper to dispatch custom events.
+   * @private
+   * @param {string} name - The event name.
+   * @param {*} detail - The event payload.
+   */ #dispatch(name, detail = {}) {
+        this.dispatchEvent(new CustomEvent(name, {
+            bubbles: true,
+            composed: true,
+            detail: detail
+        }));
+    }
+    /**
+   * Sets focus on the command prompt input field.
+   */ focus() {
+        this.refs.prompt.focus();
+    }
+    /**
+   * Retrieves the real value from the input, whether in normal or secret mode.
+   * @returns {string} The current, unmasked value of the input.
+   */ getValue() {
+        if (this.#isSecret) return this.#secretValue;
+        return this.refs.prompt.value;
+    }
+    /**
+   * Sets the value of the command prompt input field.
+   * In secret mode, this sets the internal real value and updates the display with masked characters.
+   * @param {string} value - The string to set as the input's value.
+   */ setValue(value) {
+        if (this.#isSecret) {
+            this.#secretValue = value;
+            this.refs.prompt.value = "\u25CF".repeat(value.length);
+        } else this.refs.prompt.value = value;
+    }
+    /**
+   * Gets the current cursor position within the input field.
+   * @returns {number} The cursor position index.
+   */ getCursorPosition() {
+        return this.refs.prompt.selectionStart;
+    }
+    /**
+   * Sets the cursor position within the input field.
+   * @param {number} position - The position to set the cursor at.
+   */ setCursorPosition(position) {
+        this.refs.prompt.setSelectionRange(position, position);
+    }
+    /**
+   * Clears the command prompt input field.
+   */ clear() {
+        this.refs.prompt.value = '';
+        this.#secretValue = '';
+    }
+    // --- Private Icon Methods ---
+    #setReadyIcon() {
+        if (this.refs.icon) this.refs.icon.setAttribute('type', 'ready');
+    }
+    #setBusyIcon() {
+        if (this.refs.icon) this.refs.icon.setAttribute('type', 'busy');
+    }
+    #setKeyIcon() {
+        if (this.refs.icon) this.refs.icon.setAttribute('type', 'key');
+    }
+}
+// Define the custom element 'nnoitra-cmd'
+customElements.define('nnoitra-cmd', $6f8547af8f66a9b0$export$9263fabaee423253);
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */ 
+
+const $a29ba4af123ce619$var$log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)('HintBox');
+/**
+ * @constant {string} TEMPLATE - HTML template for the HintBox component's shadow DOM.
+ */ const $a29ba4af123ce619$var$TEMPLATE = `
   <ul part="box"></ul>
   <slot hidden></slot>
-`,tI=`
+`;
+/**
+ * @constant {string} CSS - CSS styles for the HintBox component's shadow DOM.
+ */ const $a29ba4af123ce619$var$CSS = `
 :host([hidden]) {
   display: none;
 }
@@ -495,14 +5839,104 @@ DESCRIPTION
 .suffix {
   font-weight: bold;
 }
-`,tT=new CSSStyleSheet;tT.replaceSync(tI),customElements.define("nnoitra-hint-box",class extends ti{constructor(){super(tA),this.shadowRoot.adoptedStyleSheets=[...this.shadowRoot.adoptedStyleSheets,tT],this.shadowRoot.querySelector("slot").addEventListener("slotchange",()=>this.#ti())}static get observedAttributes(){return["hidden","prefix-length"]}attributeChangedCallback(e,t,s){this.#ti()}#ti(){let e=this.refs.box;if(e.innerHTML="",this.hasAttribute("hidden"))return;let t=parseInt(this.getAttribute("prefix-length")||"0",10),s=this.querySelectorAll("li");if(0===s.length)return;let i=document.createDocumentFragment();s.forEach((e,s)=>{let r=e.textContent||"",a=document.createElement("li"),n=document.createElement("span"),o=document.createElement("span");n.className="prefix",n.textContent=r.substring(0,t),o.className="suffix",o.textContent=r.substring(t),a.appendChild(n),a.appendChild(o),i.appendChild(a),setTimeout(()=>a.classList.add("visible"),50*s)}),e.appendChild(i)}});let tR=c("Terminal"),tq=new URL(e("h1BFt")),tk=new URL(e("h01Zq")),tP=new URL(e("lAJo3")),tV=new URL(e("dYGdR")),tD=`
+`;
+// Define component-specific styles
+const $a29ba4af123ce619$var$hintBoxSpecificStyles = new CSSStyleSheet();
+$a29ba4af123ce619$var$hintBoxSpecificStyles.replaceSync($a29ba4af123ce619$var$CSS);
+/**
+ * @class HintBox
+ * @extends BaseComponent
+ * @description A custom element that displays a box of hints or suggestions, typically used for autocomplete.
+ * It handles the dynamic rendering of suggestions with a subtle animation.
+ */ class $a29ba4af123ce619$export$2d8d60d3e638ecc8 extends (0, $b614a4e6de2a3e5c$export$55ae5207ce896a6b) {
+    /**
+   * Creates an instance of HintBox.
+   * Initializes the shadow DOM, applies component-specific styles, and hides the box by default.
+   */ constructor(){
+        super($a29ba4af123ce619$var$TEMPLATE);
+        this.shadowRoot.adoptedStyleSheets = [
+            ...this.shadowRoot.adoptedStyleSheets,
+            $a29ba4af123ce619$var$hintBoxSpecificStyles
+        ];
+        // Find the hidden slot and listen for changes to its assigned nodes.
+        const slot = this.shadowRoot.querySelector('slot');
+        slot.addEventListener('slotchange', ()=>this.#render());
+    }
+    static get observedAttributes() {
+        return [
+            'hidden',
+            'prefix-length'
+        ];
+    }
+    attributeChangedCallback(name, oldValue, newValue) {
+        // Re-render whenever a relevant attribute changes.
+        this.#render();
+    }
+    #render() {
+        const box = this.refs.box;
+        box.innerHTML = ''; // Clear previous content.
+        // If the component is hidden, do nothing further.
+        if (this.hasAttribute('hidden')) return;
+        const prefixLength = parseInt(this.getAttribute('prefix-length') || '0', 10);
+        const hintItems = this.querySelectorAll('li');
+        if (hintItems.length === 0) return;
+        const fragment = document.createDocumentFragment();
+        hintItems.forEach((item, index)=>{
+            const text = item.textContent || '';
+            const li = document.createElement('li');
+            const prefixSpan = document.createElement('span');
+            const suffixSpan = document.createElement('span');
+            prefixSpan.className = 'prefix';
+            prefixSpan.textContent = text.substring(0, prefixLength);
+            suffixSpan.className = 'suffix';
+            suffixSpan.textContent = text.substring(prefixLength);
+            li.appendChild(prefixSpan);
+            li.appendChild(suffixSpan);
+            fragment.appendChild(li);
+            setTimeout(()=>li.classList.add('visible'), index * 50);
+        });
+        box.appendChild(fragment);
+    }
+}
+// Define the custom element 'nnoitra-hint-box'
+customElements.define('nnoitra-hint-box', $a29ba4af123ce619$export$2d8d60d3e638ecc8);
+
+
+
+const $0f149b973a96475a$var$log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)('Terminal');
+var $3a5a6db7f4f09b3e$exports = {};
+$3a5a6db7f4f09b3e$exports = $parcel$resolve("euAS4");
+
+
+const $0f149b973a96475a$var$FONT_REGULAR_PATH = new URL($3a5a6db7f4f09b3e$exports);
+var $f3737d1a926a4b14$exports = {};
+$f3737d1a926a4b14$exports = $parcel$resolve("4acmQ");
+
+
+const $0f149b973a96475a$var$FONT_BOLD_PATH = new URL($f3737d1a926a4b14$exports);
+var $af4b6bd7265a5e1c$exports = {};
+$af4b6bd7265a5e1c$exports = $parcel$resolve("jRB9m");
+
+
+const $0f149b973a96475a$var$FONT_REGULAR_ITALIC_PATH = new URL($af4b6bd7265a5e1c$exports);
+var $0749f4621615fff5$exports = {};
+$0749f4621615fff5$exports = $parcel$resolve("6rugH");
+
+
+const $0f149b973a96475a$var$FONT_BOLD_ITALIC_PATH = new URL($0749f4621615fff5$exports);
+/**
+ * @constant {string} TEMPLATE - HTML template for the Terminal component's shadow DOM.
+ */ const $0f149b973a96475a$var$TEMPLATE = `
   <div part="terminal">
   <div part="welcome-output"></div>
   <div part="output"></div>
   <nnoitra-hint-box part="hint" hidden></nnoitra-hint-box>
   </div>
   <nnoitra-cmd part="prompt"></nnoitra-cmd>
-  `,tL=`
+  `;
+/**
+ * @constant {string} CSS - CSS styles for the Terminal component's shadow DOM.
+ */ const $0f149b973a96475a$var$HOST_STYLES = `
 :host {
   /* Default Theme & Font Variables */
   --nnoitra-color-green: #5CB338;
@@ -536,14 +5970,15 @@ DESCRIPTION
 /* Styles for links injected by commands like 'about' */
 a {
     color: var(--nnoitra-color-theme);
-    //text-decoration: none; /* Remove underline for a cleaner look */
+    text-decoration: none; /* Remove underline for a cleaner look */
 }
 
 /* Styles for 'about' command content */
 .about-title {
     font-weight: bold;
 }
-`,t$=`
+`;
+const $0f149b973a96475a$var$COMPONENT_STYLES = `
 [part=terminal] {
   flex: 1;
   overflow-y: auto;
@@ -565,4 +6000,193 @@ a {
   margin-top: 6px;
 }
 
-`,tN=new CSSStyleSheet;tN.replaceSync(tL+t$),customElements.define("nnoitra-terminal",class extends ti{#e2;#t$;#J;constructor(){super(tD),this.#tN(tq,{weight:"normal"}),this.#tN(tk,{weight:"bold"}),this.#tN(tP,{weight:"normal",style:"italic"}),this.#tN(tV,{weight:"bold",style:"italic"}),this.shadowRoot.adoptedStyleSheets=[...this.shadowRoot.adoptedStyleSheets,tN]}static get observedAttributes(){return["autofocus","filesystem-api","accounting-api"]}get promptView(){return this.refs.prompt}get hintView(){return this.refs.hint}get welcomeOutputView(){return this.refs["welcome-output"]}#tO(){let e=new tS({filesystemApi:this.getAttribute("filesystem-api"),accountingApi:this.getAttribute("accounting-api")});this.#J=e.services,this.#J.input.setView(this.promptView),this.#J.hint.setView(this.hintView),this.#J.terminal.setView(this),this.#J.theme.setView(this),this.#J.favicon.setView(this),this.#tM(),tR.log("Terminal bootstrapped successfully.")}#tN(e,t={}){let{weight:s="normal",style:i="normal"}=t,r=new FontFace("Ubuntu Mono",`url(${e.href})`,{weight:s,style:i,display:"swap"});r.load().then(()=>{document.fonts.add(r),this.log.log(`Font loaded: Ubuntu Mono ${s} ${i}`)}).catch(e=>{this.log.error(`Failed to load font: Ubuntu Mono ${s} ${i}`,e)})}#tM(){this.tabIndex=0,this.addEventListener("focus",this.setFocus),this.refs.terminal.addEventListener("click",this.#tU.bind(this))}connectedCallback(){this.#tO(),this.#e2=new ResizeObserver(()=>{this.scrollToBottom()}),this.#e2.observe(this.refs.terminal),this.#t$=new MutationObserver(()=>this.scrollToBottom()),this.#t$.observe(this.refs.terminal,{childList:!0,subtree:!0}),Object.values(this.#J).forEach(e=>{e&&"function"==typeof e.start&&e.start()})}disconnectedCallback(){this.#e2&&this.#e2.disconnect(),this.#t$&&this.#t$.disconnect()}attributeChangedCallback(e){"autofocus"===e&&this.hasAttribute("autofocus")&&this.setFocus()}#tU(e){e.target===this.refs.terminal&&this.setFocus()}appendToOutput(e){this.refs.output.appendChild(e)}clearOutput(){this.refs.output&&(this.refs.output.innerHTML="")}setFocus(){this.promptView.focus()}scrollToBottom(){requestAnimationFrame(()=>{this.refs.terminal.scrollTop=this.refs.terminal.scrollHeight})}})})();
+`;
+const $0f149b973a96475a$var$CSS = $0f149b973a96475a$var$HOST_STYLES + $0f149b973a96475a$var$COMPONENT_STYLES;
+// Define component-specific styles (now much smaller)
+const $0f149b973a96475a$var$terminalSpecificStyles = new CSSStyleSheet();
+$0f149b973a96475a$var$terminalSpecificStyles.replaceSync($0f149b973a96475a$var$CSS);
+/**
+ * @class Terminal
+ * @extends BaseComponent
+ * @description Represents the main terminal component, handling user input, command execution, and output display.
+ * It integrates various services like history, command execution, environment, and autocomplete.
+ */ class $0f149b973a96475a$export$8dd80f06eb58bfe1 extends (0, $b614a4e6de2a3e5c$export$55ae5207ce896a6b) {
+    /** @private {ResizeObserver} #resizeObserver - Observes changes to the terminal's size to adjust scrolling. */ #resizeObserver;
+    /** @private {MutationObserver} #mutationObserver - Observes changes in the terminal output to automatically scroll. */ #mutationObserver;
+    /** @private {object} #services - A dedicated set of services for this terminal instance. */ #services;
+    /**
+   * Creates an instance of Terminal.
+   * Initializes the shadow DOM, applies styles, sets up services, and attaches event listeners.
+   */ constructor(){
+        // Pass the template and map to the base constructor
+        super($0f149b973a96475a$var$TEMPLATE);
+        this.#loadFont($0f149b973a96475a$var$FONT_REGULAR_PATH, {
+            weight: 'normal'
+        });
+        this.#loadFont($0f149b973a96475a$var$FONT_BOLD_PATH, {
+            weight: 'bold'
+        });
+        this.#loadFont($0f149b973a96475a$var$FONT_REGULAR_ITALIC_PATH, {
+            weight: 'normal',
+            style: 'italic'
+        });
+        this.#loadFont($0f149b973a96475a$var$FONT_BOLD_ITALIC_PATH, {
+            weight: 'bold',
+            style: 'italic'
+        });
+        // Apply component-specific styles
+        this.shadowRoot.adoptedStyleSheets = [
+            ...this.shadowRoot.adoptedStyleSheets,
+            $0f149b973a96475a$var$terminalSpecificStyles
+        ];
+    }
+    /**
+   * Observe the 'autofocus' attribute for changes.
+   */ static get observedAttributes() {
+        return [
+            'autofocus',
+            'filesystem-api',
+            'accounting-api'
+        ];
+    }
+    // --- Public Getters for Views ---
+    get promptView() {
+        return this.refs.prompt;
+    }
+    get hintView() {
+        return this.refs.hint;
+    }
+    get welcomeOutputView() {
+        return this.refs['welcome-output'];
+    }
+    /**
+   * Bootstraps the terminal by creating services, connecting views, and attaching listeners.
+   * @private
+   */ #bootstrap() {
+        // Read API configuration from component attributes
+        const config = {
+            filesystemApi: this.getAttribute('filesystem-api'),
+            accountingApi: this.getAttribute('accounting-api')
+        };
+        // 1. Create a new, independent set of services for this terminal instance.
+        const container = new (0, $a0b5a846c0e262ae$export$f001b1e94070bef0)(config);
+        this.#services = container.services;
+        // 2. Connect this component's views to its dedicated services.
+        // This makes each terminal a completely sandboxed application.
+        this.#services.input.setView(this.promptView);
+        this.#services.hint.setView(this.hintView);
+        this.#services.terminal.setView(this);
+        this.#services.theme.setView(this);
+        this.#services.favicon.setView(this);
+        // 3. Attach UI event listeners.
+        this.#attachEventListeners();
+        $0f149b973a96475a$var$log.log('Terminal bootstrapped successfully.');
+    }
+    #loadFont(fontPath, options = {}) {
+        const { weight: weight = 'normal', style: style = 'normal' } = options;
+        const fontUrl = fontPath;
+        const font = new FontFace('Ubuntu Mono', `url(${fontUrl.href})`, {
+            weight: weight,
+            style: style,
+            display: 'swap' // Ensure font-display: swap is applied
+        });
+        font.load().then(()=>{
+            document.fonts.add(font);
+            this.log.log(`Font loaded: Ubuntu Mono ${weight} ${style}`);
+        }).catch((error)=>{
+            this.log.error(`Failed to load font: Ubuntu Mono ${weight} ${style}`, error);
+        });
+    }
+    /**
+   * Attaches all necessary event listeners for the terminal component.
+   * @private
+   */ #attachEventListeners() {
+        // Make the terminal component itself focusable by adding it to the tab order.
+        // A value of 0 is standard for including an element in the natural tab sequence.
+        this.tabIndex = 0;
+        // When the terminal component receives focus (e.g., via tabbing),
+        // delegate that focus to the internal command prompt.
+        this.addEventListener('focus', this.setFocus);
+        // If the user clicks anywhere in the main terminal area that isn't other
+        // content, focus the prompt. This makes the whole component feel interactive.
+        this.refs.terminal.addEventListener('click', this.#handleClick.bind(this));
+    }
+    /**
+   * Lifecycle callback when the element is added to the DOM.
+   * Sets up the ResizeObserver and initial focus.
+   */ connectedCallback() {
+        // Bootstrap services now that the component is in the DOM and attributes are available.
+        this.#bootstrap();
+        // Initialize ResizeObserver to scroll to bottom when terminal size changes
+        this.#resizeObserver = new ResizeObserver(()=>{
+            this.scrollToBottom();
+        });
+        this.#resizeObserver.observe(this.refs.terminal);
+        // Observe mutations in the terminal output to automatically scroll to the bottom
+        this.#mutationObserver = new MutationObserver(()=>this.scrollToBottom());
+        this.#mutationObserver.observe(this.refs.terminal, {
+            childList: true,
+            subtree: true
+        });
+        // Start all services now that the component is in the DOM and views are connected.
+        // This ensures services like TerminalService can access their views during startup.
+        Object.values(this.#services).forEach((service)=>{
+            if (service && typeof service.start === 'function') service.start();
+        });
+    }
+    /**
+   * Lifecycle callback when the element is removed from the DOM.
+   * Cleans up event listeners and observers to prevent memory leaks.
+   */ disconnectedCallback() {
+        if (this.#resizeObserver) this.#resizeObserver.disconnect();
+        if (this.#mutationObserver) this.#mutationObserver.disconnect();
+    }
+    /**
+   * Handles changes to observed attributes.
+   * @param {string} name - The name of the attribute that changed.
+   */ attributeChangedCallback(name) {
+        // This handles the case where the autofocus attribute is added dynamically
+        // after the component is already in the DOM.
+        if (name === 'autofocus' && this.hasAttribute('autofocus')) this.setFocus();
+    }
+    /**
+   * Handles click events on the terminal area to focus the prompt.
+   * This ensures that clicking the "background" of the terminal focuses the input.
+   * @param {MouseEvent} event - The click event.
+   * @private
+   */ #handleClick(event) {
+        // If the click target is the terminal container itself (and not text or other elements inside),
+        // then we should focus the prompt.
+        if (event.target === this.refs.terminal) this.setFocus();
+    }
+    /**
+   * Appends a child element (like a TerminalItem) to the main output area.
+   * @param {HTMLElement} child - The element to append.
+   */ appendToOutput(child) {
+        this.refs.output.appendChild(child);
+    }
+    /**
+   * Clears all output from the terminal.
+   */ clearOutput() {
+        if (this.refs.output) this.refs.output.innerHTML = '';
+    }
+    /**
+   * Sets focus to the command prompt input field.
+   */ setFocus() {
+        this.promptView.focus();
+    }
+    /**
+   * Scrolls the terminal output to the bottom.
+   * Uses requestAnimationFrame for smoother scrolling.
+   */ scrollToBottom() {
+        requestAnimationFrame(()=>{
+            this.refs.terminal.scrollTop = this.refs.terminal.scrollHeight;
+        });
+    }
+}
+// Define the custom element 'nnoitra-terminal'
+customElements.define('nnoitra-terminal', $0f149b973a96475a$export$8dd80f06eb58bfe1);
+
+
+
+})();

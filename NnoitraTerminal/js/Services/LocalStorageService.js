@@ -18,8 +18,6 @@
 import { EVENTS } from '../Core/Events.js';
 import { BaseService } from '../Core/BaseService.js';
 
-const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
-
 /**
  * @class LocalStorageService
  * @description Manages all direct interactions with the browser's localStorage for environment variables.
@@ -29,6 +27,8 @@ const LOCAL_STORAGE_KEY = 'AREFI_LOCAL_ENV';
  * Both events can optionally take a `namespace` string in their payload.
  */
 class LocalStorageService extends BaseService {
+    #storageKeyPrefix = 'AREFI_LOCAL_ENV';
+
     constructor(eventBus) {
         super(eventBus);
         this.log.log('Initializing...');
@@ -43,12 +43,13 @@ class LocalStorageService extends BaseService {
         };
     }
 
-    #getStorageKey(namespace) {
-        return namespace ? `${LOCAL_STORAGE_KEY}_${namespace.toUpperCase()}` : LOCAL_STORAGE_KEY;
+    async #getStorageKey(namespace) {
+        const { value: uuid } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: 'UUID' });
+        return namespace ? `${this.#storageKeyPrefix}_${uuid}_${namespace.toUpperCase()}` : `${this.#storageKeyPrefix}_${uuid}`;
     }
 
-    #readAllLocal(namespace) {
-        const stored = localStorage.getItem(this.#getStorageKey(namespace));
+    async #readAllLocal(namespace) {
+        const stored = localStorage.getItem(await this.#getStorageKey(namespace));
         if (!stored) return {};
         try {
             return JSON.parse(stored);
@@ -58,48 +59,48 @@ class LocalStorageService extends BaseService {
         }
     }
 
-    #writeAllLocal(data, namespace) {
+    async #writeAllLocal(data, namespace) {
         try {
-            localStorage.setItem(this.#getStorageKey(namespace), JSON.stringify(data));
+            localStorage.setItem(await this.#getStorageKey(namespace), JSON.stringify(data));
         } catch (e) {
             this.log.error('Failed to write to localStorage:', e);
         }
     }
 
-    #handleSaveLocalVar({ key, value, respond, namespace }) {
+    async #handleSaveLocalVar({ key, value, respond, namespace }) {
         if (key === undefined || value === undefined) {
             this.log.warn('SAVE_LOCAL_VAR requires both a key and a value.');
             if (respond) respond({ success: false });
             return;
         }
-        let currentData = this.#readAllLocal(namespace);
+        let currentData = await this.#readAllLocal(namespace);
         currentData[key] = value;
-        this.#writeAllLocal(currentData, namespace);
+        await this.#writeAllLocal(currentData, namespace);
 
         if (respond) respond({ success: true });
     }
 
-    #handleLoadLocalVar({ key, respond, namespace }) {
-        const allData = this.#readAllLocal(namespace);
+    async #handleLoadLocalVar({ key, respond, namespace }) {
+        const allData = await this.#readAllLocal(namespace);
         const value = key !== undefined ? allData[key] : allData;
         if (respond) respond({ value });
     }
 
-    #handleDeleteLocalVar({ key, respond, namespace }) {
+    async #handleDeleteLocalVar({ key, respond, namespace }) {
         if (key === undefined) {
             this.log.warn('DELETE_LOCAL_VAR requires a key.');
             if (respond) respond({ success: false });
             return;
         }
-        let currentData = this.#readAllLocal(namespace);
+        let currentData = await this.#readAllLocal(namespace);
         delete currentData[key];
-        this.#writeAllLocal(currentData, namespace);
+        await this.#writeAllLocal(currentData, namespace);
         if (respond) respond({ success: true });
     }
 
-    #handleResetLocalVar({ namespace }) {
+    async #handleResetLocalVar({ namespace }) {
         this.log.log(`Resetting localStorage for namespace: ${namespace}`);
-        localStorage.removeItem(this.#getStorageKey(namespace));
+        localStorage.removeItem(await this.#getStorageKey(namespace));
     }
 }
 
