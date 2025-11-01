@@ -17,6 +17,7 @@
  */
 import { EVENTS } from '../Core/Events.js';
 import { BaseService } from '../Core/BaseService.js';
+import { ENV_VARS } from '../Core/Variables.js';
 
 /**
  * @class LocalStorageService
@@ -28,6 +29,8 @@ import { BaseService } from '../Core/BaseService.js';
  */
 class LocalStorageService extends BaseService {
     #storageKeyPrefix = 'AREFI_LOCAL_ENV';
+    #DEFAULT_NAMESPACE = 'DEFAULT'; // Fallback namespace
+
 
     constructor(eventBus) {
         super(eventBus);
@@ -43,28 +46,25 @@ class LocalStorageService extends BaseService {
         };
     }
 
-    async #getStorageKey(namespace) {
-        const { value: uuid } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: 'UUID' });
-        return namespace ? `${this.#storageKeyPrefix}_${uuid}_${namespace.toUpperCase()}` : `${this.#storageKeyPrefix}_${uuid}`;
+    /**
+     * Generates a unique localStorage key for a specific variable.
+     * Format: PREFIX_UUID_NAMESPACE_KEY
+     */
+    async #getStorageKey(namespace, key) {
+        const { value: uuid } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.UUID });
+        const ns = (namespace || this.#DEFAULT_NAMESPACE).toUpperCase();
+        const k = key.toUpperCase();
+        return `${this.#storageKeyPrefix}[${uuid}][${ns}][${k}]`;
     }
 
-    async #readAllLocal(namespace) {
-        const stored = localStorage.getItem(await this.#getStorageKey(namespace));
-        if (!stored) return {};
-        try {
-            return JSON.parse(stored);
-        } catch (e) {
-            this.log.error('Failed to parse local environment variables from localStorage:', e);
-            return {};
-        }
-    }
-
-    async #writeAllLocal(data, namespace) {
-        try {
-            localStorage.setItem(await this.#getStorageKey(namespace), JSON.stringify(data));
-        } catch (e) {
-            this.log.error('Failed to write to localStorage:', e);
-        }
+    /**
+     * Generates the prefix used to find all keys for a given namespace and UUID.
+     * Format: PREFIX_UUID_NAMESPACE_
+     */
+    async #getNamespacePrefix(namespace) {
+        const { value: uuid } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.UUID });
+        const ns = (namespace || this.#DEFAULT_NAMESPACE).toUpperCase();
+        return `${this.#storageKeyPrefix}[${uuid}][${ns}]`;
     }
 
     async #handleSaveLocalVar({ key, value, respond, namespace }) {
@@ -73,17 +73,48 @@ class LocalStorageService extends BaseService {
             if (respond) respond({ success: false });
             return;
         }
-        let currentData = await this.#readAllLocal(namespace);
-        currentData[key] = value;
-        await this.#writeAllLocal(currentData, namespace);
-
-        if (respond) respond({ success: true });
+        try {
+            const storageKey = await this.#getStorageKey(namespace, key);
+            localStorage.setItem(storageKey, JSON.stringify(value));
+            if (respond) respond({ success: true });
+        } catch (e) {
+            this.log.error('Failed to write to localStorage:', e);
+            if (respond) respond({ success: false, error: e });
+        }
     }
 
     async #handleLoadLocalVar({ key, respond, namespace }) {
-        const allData = await this.#readAllLocal(namespace);
-        const value = key !== undefined ? allData[key] : allData;
-        if (respond) respond({ value });
+        if (key !== undefined) {
+            // Load a single variable
+            const storageKey = await this.#getStorageKey(namespace, key);
+            const storedValue = localStorage.getItem(storageKey);
+            let value = undefined;
+            if (storedValue !== null) {
+                try {
+                    value = JSON.parse(storedValue);
+                } catch (e) {
+                    this.log.error(`Failed to parse localStorage key ${storageKey}:`, e);
+                }
+            }
+            if (respond) respond({ value });
+        } else {
+            // Load all variables for the namespace
+            const prefix = await this.#getNamespacePrefix(namespace);
+            const allData = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const storageKey = localStorage.key(i);
+                if (storageKey.startsWith(prefix)) {
+                    const varKey = storageKey.substring(prefix.length);
+                    const storedValue = localStorage.getItem(storageKey);
+                    try {
+                        allData[varKey] = JSON.parse(storedValue);
+                    } catch (e) {
+                        this.log.error(`Failed to parse localStorage key ${storageKey}:`, e);
+                    }
+                }
+            }
+            if (respond) respond({ value: allData });
+        }
     }
 
     async #handleDeleteLocalVar({ key, respond, namespace }) {
@@ -92,15 +123,22 @@ class LocalStorageService extends BaseService {
             if (respond) respond({ success: false });
             return;
         }
-        let currentData = await this.#readAllLocal(namespace);
-        delete currentData[key];
-        await this.#writeAllLocal(currentData, namespace);
+        const storageKey = await this.#getStorageKey(namespace, key);
+        localStorage.removeItem(storageKey);
         if (respond) respond({ success: true });
     }
 
     async #handleResetLocalVar({ namespace }) {
         this.log.log(`Resetting localStorage for namespace: ${namespace}`);
-        localStorage.removeItem(await this.#getStorageKey(namespace));
+        const prefix = await this.#getNamespacePrefix(namespace);
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith(prefix)) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
     }
 }
 

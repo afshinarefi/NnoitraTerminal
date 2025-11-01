@@ -208,12 +208,12 @@ class AccountingService extends BaseService {
         
         const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
         if (user === GUEST_USER) {
-            this.dispatch(EVENTS.SAVE_LOCAL_VAR, { namespace: `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}`, key: Date.now(), value: payload.command });
+            this.dispatch(EVENTS.SAVE_LOCAL_VAR, { namespace: `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}`, key: new Date().toISOString(), value: payload.command });
         } else {
             const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
             this.#apiManager.post('set_data', {
                 category: HISTORY_CATEGORY,
-                key: Date.now(),
+                key: new Date().toISOString(),
                 value: payload.command
             }, token);
         }

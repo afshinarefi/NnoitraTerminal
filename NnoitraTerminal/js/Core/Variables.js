@@ -25,6 +25,7 @@ export const ENV_VARS = {
     HOST: 'HOST',
     PWD: 'PWD',
     USER: 'USER',
+    UUID: 'UUID',
     // User-configurable Variables
     HISTSIZE: 'HISTSIZE',
     THEME: 'THEME',

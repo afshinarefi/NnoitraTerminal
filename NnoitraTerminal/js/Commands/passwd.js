@@ -53,7 +53,7 @@ DESCRIPTION
      * @returns {boolean} True if the command is available, false otherwise.
      */
     static isAvailable(context) {
-        return context.isLoggedIn;
+        return true;
     }
 
     async execute(args) { // Made async for consistency
@@ -63,28 +63,36 @@ DESCRIPTION
 
         try {
             const oldPassword = await this.#prompt('Old password: ', promptOptions);
+            if (oldPassword === null) throw new Error('Operation cancelled.');
+            outputDiv.textContent += 'Old password received.\n';
 
             const newPassword = await this.#prompt('New password: ', promptOptions);
+            if (newPassword === null) throw new Error('Operation cancelled.');
+            outputDiv.textContent += 'New password received.\n';
 
             const confirmPassword = await this.#prompt('Confirm new password: ', promptOptions);
+            if (confirmPassword === null) throw new Error('Operation cancelled.');
+            outputDiv.textContent += 'Confirmation received.\n';
 
             if (newPassword !== confirmPassword) {
-                outputDiv.textContent = 'passwd: Passwords do not match. Password not changed.';
+                outputDiv.textContent += '\npasswd: Passwords do not match. Password not changed.';
                 return outputDiv;
             }
 
             if (!newPassword) {
-                outputDiv.textContent = 'passwd: Password cannot be empty.';
+                outputDiv.textContent += '\npasswd: Password cannot be empty.';
                 return outputDiv;
             }
 
+            outputDiv.textContent += 'Changing password...';
             const result = await this.#changePassword(oldPassword, newPassword);
-            outputDiv.textContent = result.message;
+            // Append the final result to the existing acknowledgments
+            outputDiv.textContent += `\n${result.message}`;
 
         } catch (error) {
             // A timeout on the prompt means the user cancelled (e.g., Ctrl+C)
             this.log.warn('Password change operation cancelled or failed:', error);
-            outputDiv.textContent = 'passwd: Operation cancelled.';
+            outputDiv.textContent += 'passwd: Operation cancelled.';
         }
 
         return outputDiv;

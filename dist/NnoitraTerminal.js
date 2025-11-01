@@ -863,6 +863,7 @@ class $fa0ff2eef523a395$export$cd2fa11040f69795 {
     HOST: 'HOST',
     PWD: 'PWD',
     USER: 'USER',
+    UUID: 'UUID',
     // User-configurable Variables
     HISTSIZE: 'HISTSIZE',
     THEME: 'THEME',
@@ -1105,7 +1106,7 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
         });
         if (user === $34004656f0914987$var$GUEST_USER) this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).SAVE_LOCAL_VAR, {
             namespace: `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`,
-            key: Date.now(),
+            key: new Date().toISOString(),
             value: payload.command
         });
         else {
@@ -1114,7 +1115,7 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
             });
             this.#apiManager.post('set_data', {
                 category: $34004656f0914987$var$HISTORY_CATEGORY,
-                key: Date.now(),
+                key: new Date().toISOString(),
                 value: payload.command
             }, token);
         }
@@ -2903,7 +2904,7 @@ DESCRIPTION
      * @param {boolean} context.isLoggedIn - Whether a user is currently logged in.
      * @returns {boolean} True if the command is available, false otherwise.
      */ static isAvailable(context) {
-        return context.isLoggedIn;
+        return true;
     }
     async execute(args) {
         this.log.log('Executing...');
@@ -2915,22 +2916,30 @@ DESCRIPTION
         };
         try {
             const oldPassword = await this.#prompt('Old password: ', promptOptions);
+            if (oldPassword === null) throw new Error('Operation cancelled.');
+            outputDiv.textContent += 'Old password received.\n';
             const newPassword = await this.#prompt('New password: ', promptOptions);
+            if (newPassword === null) throw new Error('Operation cancelled.');
+            outputDiv.textContent += 'New password received.\n';
             const confirmPassword = await this.#prompt('Confirm new password: ', promptOptions);
+            if (confirmPassword === null) throw new Error('Operation cancelled.');
+            outputDiv.textContent += 'Confirmation received.\n';
             if (newPassword !== confirmPassword) {
-                outputDiv.textContent = 'passwd: Passwords do not match. Password not changed.';
+                outputDiv.textContent += '\npasswd: Passwords do not match. Password not changed.';
                 return outputDiv;
             }
             if (!newPassword) {
-                outputDiv.textContent = 'passwd: Password cannot be empty.';
+                outputDiv.textContent += '\npasswd: Password cannot be empty.';
                 return outputDiv;
             }
+            outputDiv.textContent += 'Changing password...';
             const result = await this.#changePassword(oldPassword, newPassword);
-            outputDiv.textContent = result.message;
+            // Append the final result to the existing acknowledgments
+            outputDiv.textContent += `\n${result.message}`;
         } catch (error) {
             // A timeout on the prompt means the user cancelled (e.g., Ctrl+C)
             this.log.warn('Password change operation cancelled or failed:', error);
-            outputDiv.textContent = 'passwd: Operation cancelled.';
+            outputDiv.textContent += 'passwd: Operation cancelled.';
         }
         return outputDiv;
     }
@@ -4971,7 +4980,7 @@ const $aa54ae2db82f2dc3$var$DEFAULT_UUID = '00000000-0000-0000-0000-000000000000
                     value: $aa54ae2db82f2dc3$var$DEFAULT_HOST
                 });
                 break;
-            case 'UUID':
+            case (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).UUID:
                 const uuid = this.#view?.getAttribute('uuid') || $aa54ae2db82f2dc3$var$DEFAULT_UUID;
                 respond({
                     value: uuid
@@ -5355,6 +5364,7 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */ 
 
+
 /**
  * @class LocalStorageService
  * @description Manages all direct interactions with the browser's localStorage for environment variables.
@@ -5364,6 +5374,7 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
  * Both events can optionally take a `namespace` string in their payload.
  */ class $e8647c5b0ada794e$export$fda5b86bc4921cb9 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
     #storageKeyPrefix = 'AREFI_LOCAL_ENV';
+    #DEFAULT_NAMESPACE = 'DEFAULT';
     constructor(eventBus){
         super(eventBus);
         this.log.log('Initializing...');
@@ -5376,28 +5387,26 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).DELETE_LOCAL_VAR]: this.#handleDeleteLocalVar.bind(this)
         };
     }
-    async #getStorageKey(namespace) {
+    /**
+     * Generates a unique localStorage key for a specific variable.
+     * Format: PREFIX_UUID_NAMESPACE_KEY
+     */ async #getStorageKey(namespace, key) {
         const { value: uuid } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
-            key: 'UUID'
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).UUID
         });
-        return namespace ? `${this.#storageKeyPrefix}_${uuid}_${namespace.toUpperCase()}` : `${this.#storageKeyPrefix}_${uuid}`;
+        const ns = (namespace || this.#DEFAULT_NAMESPACE).toUpperCase();
+        const k = key.toUpperCase();
+        return `${this.#storageKeyPrefix}[${uuid}][${ns}][${k}]`;
     }
-    async #readAllLocal(namespace) {
-        const stored = localStorage.getItem(await this.#getStorageKey(namespace));
-        if (!stored) return {};
-        try {
-            return JSON.parse(stored);
-        } catch (e) {
-            this.log.error('Failed to parse local environment variables from localStorage:', e);
-            return {};
-        }
-    }
-    async #writeAllLocal(data, namespace) {
-        try {
-            localStorage.setItem(await this.#getStorageKey(namespace), JSON.stringify(data));
-        } catch (e) {
-            this.log.error('Failed to write to localStorage:', e);
-        }
+    /**
+     * Generates the prefix used to find all keys for a given namespace and UUID.
+     * Format: PREFIX_UUID_NAMESPACE_
+     */ async #getNamespacePrefix(namespace) {
+        const { value: uuid } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).UUID
+        });
+        const ns = (namespace || this.#DEFAULT_NAMESPACE).toUpperCase();
+        return `${this.#storageKeyPrefix}[${uuid}][${ns}]`;
     }
     async #handleSaveLocalVar({ key: key, value: value, respond: respond, namespace: namespace }) {
         if (key === undefined || value === undefined) {
@@ -5407,19 +5416,54 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
             });
             return;
         }
-        let currentData = await this.#readAllLocal(namespace);
-        currentData[key] = value;
-        await this.#writeAllLocal(currentData, namespace);
-        if (respond) respond({
-            success: true
-        });
+        try {
+            const storageKey = await this.#getStorageKey(namespace, key);
+            localStorage.setItem(storageKey, JSON.stringify(value));
+            if (respond) respond({
+                success: true
+            });
+        } catch (e) {
+            this.log.error('Failed to write to localStorage:', e);
+            if (respond) respond({
+                success: false,
+                error: e
+            });
+        }
     }
     async #handleLoadLocalVar({ key: key, respond: respond, namespace: namespace }) {
-        const allData = await this.#readAllLocal(namespace);
-        const value = key !== undefined ? allData[key] : allData;
-        if (respond) respond({
-            value: value
-        });
+        if (key !== undefined) {
+            // Load a single variable
+            const storageKey = await this.#getStorageKey(namespace, key);
+            const storedValue = localStorage.getItem(storageKey);
+            let value = undefined;
+            if (storedValue !== null) try {
+                value = JSON.parse(storedValue);
+            } catch (e) {
+                this.log.error(`Failed to parse localStorage key ${storageKey}:`, e);
+            }
+            if (respond) respond({
+                value: value
+            });
+        } else {
+            // Load all variables for the namespace
+            const prefix = await this.#getNamespacePrefix(namespace);
+            const allData = {};
+            for(let i = 0; i < localStorage.length; i++){
+                const storageKey = localStorage.key(i);
+                if (storageKey.startsWith(prefix)) {
+                    const varKey = storageKey.substring(prefix.length);
+                    const storedValue = localStorage.getItem(storageKey);
+                    try {
+                        allData[varKey] = JSON.parse(storedValue);
+                    } catch (e) {
+                        this.log.error(`Failed to parse localStorage key ${storageKey}:`, e);
+                    }
+                }
+            }
+            if (respond) respond({
+                value: allData
+            });
+        }
     }
     async #handleDeleteLocalVar({ key: key, respond: respond, namespace: namespace }) {
         if (key === undefined) {
@@ -5429,16 +5473,21 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
             });
             return;
         }
-        let currentData = await this.#readAllLocal(namespace);
-        delete currentData[key];
-        await this.#writeAllLocal(currentData, namespace);
+        const storageKey = await this.#getStorageKey(namespace, key);
+        localStorage.removeItem(storageKey);
         if (respond) respond({
             success: true
         });
     }
     async #handleResetLocalVar({ namespace: namespace }) {
         this.log.log(`Resetting localStorage for namespace: ${namespace}`);
-        localStorage.removeItem(await this.#getStorageKey(namespace));
+        const prefix = await this.#getNamespacePrefix(namespace);
+        const keysToRemove = [];
+        for(let i = 0; i < localStorage.length; i++){
+            const key = localStorage.key(i);
+            if (key.startsWith(prefix)) keysToRemove.push(key);
+        }
+        keysToRemove.forEach((key)=>localStorage.removeItem(key));
     }
 }
 

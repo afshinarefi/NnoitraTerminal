@@ -90,7 +90,7 @@ class TerminalService extends BaseService{
             case ENV_VARS.HOST:
                 respond({ value: DEFAULT_HOST });
                 break;
-            case 'UUID':
+            case ENV_VARS.UUID:
                 const uuid = this.#view?.getAttribute('uuid') || DEFAULT_UUID;
                 respond({ value: uuid });
                 break;
