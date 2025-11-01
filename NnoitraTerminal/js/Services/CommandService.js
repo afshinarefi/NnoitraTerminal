@@ -43,6 +43,8 @@ import { Export } from '../Commands/export.js';
 import { Unset } from '../Commands/unset.js';
 import { Theme } from '../Commands/theme.js';
 import { Version } from '../Commands/version.js';
+import { Date } from '../Commands/date.js';
+import { Cal } from '../Commands/cal.js';
 
 /**
  * @class CommandBusService
@@ -90,6 +92,8 @@ class CommandService extends BaseService{
         this.register('unset', Unset, ['deleteUserspaceVariable', 'getAllCategorizedVariables']);
         this.register('theme', Theme, ['getValidThemes', 'setTheme', 'getSystemVariable']);
         this.register('version', Version, []);
+        this.register('date', Date, []);
+        this.register('cal', Cal, []);
     }
 
     get eventHandlers() {
