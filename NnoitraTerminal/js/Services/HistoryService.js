@@ -37,9 +37,10 @@ const DEFAULT_HISTSIZE = '1000';
  * @dispatches `VAR_SET_REQUEST` - To set the HISTSIZE variable.
  */
 class HistoryService extends BaseService{
-    #history = [];
+    #navigationHistoryCache = null;
     #cursorIndex = 0;
-    #maxSize = parseInt(DEFAULT_HISTSIZE, 10);
+    #isNavigating = false;
+
 
     constructor(eventBus) {
         super(eventBus);
@@ -59,6 +60,7 @@ class HistoryService extends BaseService{
 
     #handleAddCommand({ commandString }) {
         this.addCommand(commandString);
+        this.resetCursor();
     }
 
 
@@ -69,60 +71,60 @@ class HistoryService extends BaseService{
     }
 
     async #handleUserChanged() {
-        const { history } = await this.request(EVENTS.HISTORY_LOAD_REQUEST);
-        this.loadHistory(history);
-    }
-
-    #updateMaxSize(histSizeValue) {
-        const parsedSize = parseInt(histSizeValue, 10);
-        if (!isNaN(parsedSize) && parsedSize >= 0) {
-            this.#maxSize = parsedSize;
-        } else {
-            this.log.warn(`Invalid HISTSIZE value "${histSizeValue}". Resetting to default: ${DEFAULT_HISTSIZE}`);
-            this.#maxSize = parseInt(DEFAULT_HISTSIZE, 10);
-        }
+        // When user changes, clear any cached history and reset cursor.
+        this.#navigationHistoryCache = null;
+        this.resetCursor();
     }
 
     async addCommand(command) {
         const trimmedCommand = command.trim();
-        if (!trimmedCommand || (this.#history.length > 0 && this.#history[0] === trimmedCommand)) {
-            return; // Don't add empty or duplicate consecutive commands
-        }
+        if (!trimmedCommand) return;
 
-        this.#history.unshift(trimmedCommand);
-        this.dispatch(EVENTS.COMMAND_PERSIST_REQUEST, { command: trimmedCommand });
-
-        // Lazily get HISTSIZE and update the internal max size.
+        // Lazily get HISTSIZE to pass along with the persist request.
         const { value } = await this.request(EVENTS.VAR_GET_SYSTEM_REQUEST, { key: ENV_VARS.HISTSIZE });
-        this.#updateMaxSize(value || DEFAULT_HISTSIZE);
+        const histsize = value || DEFAULT_HISTSIZE;
 
-        if (this.#history.length > this.#maxSize) {
-            this.#history.pop();
+        // Check against the last known command to prevent duplicates.
+        // We fetch it here to ensure we have the most recent state.
+        const { history: latestHistory } = await this.request(EVENTS.HISTORY_LOAD_REQUEST);
+        if (latestHistory.length > 0 && latestHistory[latestHistory.length - 1] === trimmedCommand) {
+            return;
         }
+
+        this.dispatch(EVENTS.COMMAND_PERSIST_REQUEST, { command: trimmedCommand, histsize });
         this.resetCursor();
     }
 
     resetCursor() {
         this.#cursorIndex = 0;
+        this.#isNavigating = false;
+        this.#navigationHistoryCache = null;
     }
 
-    #handleGetPrevious() {
-        if (this.#cursorIndex < this.#history.length) {
+    async #handleGetPrevious() {
+        if (!this.#isNavigating) {
+            const { history } = await this.request(EVENTS.HISTORY_LOAD_REQUEST);
+            // History from accounting is oldest-to-newest. We need newest-to-oldest for navigation.
+            this.#navigationHistoryCache = history.slice().reverse();
+            this.#isNavigating = true;
+        }
+
+        if (this.#cursorIndex < this.#navigationHistoryCache.length) {
             this.#cursorIndex++;
         }
         const response = {
-            command: this.#history[this.#cursorIndex - 1] || '',
+            command: this.#navigationHistoryCache[this.#cursorIndex - 1] || '',
             index: this.#cursorIndex
         };
         this.dispatch(EVENTS.HISTORY_INDEXED_RESPONSE, response);
     }
 
-    #handleGetNext() {
+    async #handleGetNext() {
         if (this.#cursorIndex > 0) {
             this.#cursorIndex--;
         }
         const response = {
-            command: this.#history[this.#cursorIndex - 1] || '',
+            command: this.#navigationHistoryCache ? (this.#navigationHistoryCache[this.#cursorIndex - 1] || '') : '',
             index: this.#cursorIndex
         };
         this.dispatch(EVENTS.HISTORY_INDEXED_RESPONSE, response);
@@ -130,25 +132,17 @@ class HistoryService extends BaseService{
 
     #handleGetAllHistory({ respond }) {
         // The history is stored with the most recent command at index 0.
-        // For display, we reverse it to show oldest to newest.
-        const displayHistory = this.#history.slice().reverse();
-        respond({ history: displayHistory });
-    }
-
-    loadHistory(data) {
-        if (data) {
-            // The backend returns an object with timestamps as keys. We want the values, sorted by key (timestamp).
-            const sortedCommands = Object.keys(data).sort().map(key => data[key]);
-            // The local history is newest-first, so we need to reverse the loaded history which is oldest-first.
-            this.#history = sortedCommands.reverse();
-            this.resetCursor();
-            this.log.log(`Loaded ${this.#history.length} commands into history.`);
-        }
-    }
-
-    clearHistory() {
-        this.#history = [];
-        this.resetCursor();
+        // For display, we want oldest to newest. Accounting service now provides it in this order.
+        (async () => {
+            const { history } = await this.request(EVENTS.HISTORY_LOAD_REQUEST);
+            if (!history || history.length === 0) {
+                respond({ history: [] });
+                return;
+            }
+            // The `history` command numbers from 1 to N, oldest to newest.
+            const displayHistory = history.map((item, index) => ` ${String(history.length - index).padStart(String(history.length).length)}:  ${item}`);
+            respond({ history: displayHistory });
+        })();
     }
 }
 

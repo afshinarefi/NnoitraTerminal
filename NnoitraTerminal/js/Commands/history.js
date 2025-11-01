@@ -65,11 +65,8 @@ class History extends BaseCommand {
             return;
         }
 
-        // Calculate the padding needed for the line numbers based on the total number of history items.
-        const padding = String(historyData.length).length;
-
-        // Display in chronological order (oldest to newest), but number from newest to oldest.
-        const historyText = historyData.map((item, index) => ` ${String(historyData.length - index).padStart(padding)}:  ${item}`).join('<br>');
+        // The data is now pre-formatted by HistoryService.
+        const historyText = historyData.join('<br>');
         outputDiv.innerHTML = historyText;
     }
 }

@@ -211,16 +211,31 @@ class AccountingService extends BaseService {
     async #handlePersistCommand(payload) {
         
         const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
+        // For guest users, we perform a read-modify-write on a single history key.
         if (user === GUEST_USER) {
-            const storageKey = `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}_${new Date().toISOString()}`;
-            const node = { meta: { type: 'history' }, content: payload.command };
-            this.#makeStorageRequest('LOCAL', STORAGE_APIS.SET_NODE, { key: storageKey, node });
+            const historyKey = `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}`;
+            // Acquire a lock to ensure atomicity of the read-modify-write operation.
+            const { lockId } = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LOCK_NODE, { key: historyKey });
+            try {
+                // Read the existing history array.
+                const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: historyKey, lockId });
+                const history = node?.content || [];
+                // Add the new command.
+                history.push(payload.command);
+                // Write the updated array back.
+                const newNode = { meta: { type: 'history' }, content: history };
+                await this.#makeStorageRequest('LOCAL', STORAGE_APIS.SET_NODE, { key: historyKey, node: newNode, lockId });
+            } finally {
+                // Always release the lock.
+                await this.#makeStorageRequest('LOCAL', STORAGE_APIS.UNLOCK_NODE, { key: historyKey, lockId });
+            }
         } else {
+            // For logged-in users, continue saving each command individually to the remote backend.
             const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
             this.#apiManager.post('set_data', {
                 category: HISTORY_CATEGORY,
                 key: new Date().toISOString(),
-                value: payload.command
+                value: command
             }, token);
         }
     }
@@ -228,24 +243,11 @@ class AccountingService extends BaseService {
     async #handleHistoryLoad({ respond }) {
         const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
         if (user === GUEST_USER) {
-            const lockKey = `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}`;
-            //const { lockId } = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LOCK_NODE, { key: lockKey });
-            //this.log.warn("AAAAA",lockId);
-            try {
-                const prefix = `${lockKey}_`;
-                const keys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { prefix });
-                const guestHistory = {};
-                for (const key of keys) {
-                    const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key });
-                    if (node) {
-                        const timestamp = key.substring(prefix.length);
-                        guestHistory[timestamp] = node.content;
-                    }
-                }
-                if (respond) respond({ history: guestHistory });
-            } finally {
-                //await this.#makeStorageRequest('LOCAL', STORAGE_APIS.UNLOCK_NODE, { key: lockKey, lockId });
-            }
+            // Read the single history key. This is a read-only operation, so no lock is needed.
+            const historyKey = `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}`;
+            const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: historyKey });
+            const historyArray = node?.content || [];
+            if (respond) respond({ history: historyArray });
         } else {
             try {
                 const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
@@ -254,8 +256,11 @@ class AccountingService extends BaseService {
                 }, token);
 
                 this.log.log("History data received from server:", result);
+                // The backend returns an object with timestamps as keys. We want the values, sorted by key (timestamp).
+                const sortedCommands = Object.keys(result.data || {}).sort().map(key => result.data[key]);
+
                 if (respond) {
-                    respond({ history: result.data || [] });
+                    respond({ history: sortedCommands });
                 }
             } catch (error) {
                 this.log.error("Failed to load history from server:", error);
@@ -272,40 +277,29 @@ class AccountingService extends BaseService {
 
             for (const cat of categories) {
                 if (key !== undefined) {
-                    // Lock on the specific resource key
+                    // This is a read-only operation, so no lock is needed.
                     const storageKey = `${GUEST_STORAGE_PREFIX}${cat}_${key}`;
-                    const { lockId } = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LOCK_NODE, { key: storageKey });
-                    try {
-                        const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: storageKey, lockId });
-                        const value = node ? node.content : undefined;
-                        if (value !== undefined) {
-                            variables[key] = value;
-                        }
-                    } finally {
-                        await this.#makeStorageRequest('LOCAL', STORAGE_APIS.UNLOCK_NODE, { key: storageKey, lockId });
+                    const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: storageKey });
+                    const value = node ? node.content : undefined;
+                    if (value !== undefined) {
+                        variables[key] = value;
                     }
                 } else {
-                    // Lock on the category when listing multiple items
-                    const lockKey = `${GUEST_STORAGE_PREFIX}${cat}`;
-                    //const { lockId } = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LOCK_NODE, { key: lockKey });
-                    try {
-                        const prefix = `${lockKey}_`;
-                        const keys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { prefix });
-                        const catVars = {};
-                        for (const storageKey of keys) {
-                            const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: storageKey });
-                            if (node) {
-                                const varName = storageKey.substring(prefix.length);
-                                catVars[varName] = node.content;
-                            }
+                    // This is a read-only operation, so no lock is needed.
+                    const prefix = `${GUEST_STORAGE_PREFIX}${cat}_`;
+                    const keys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { prefix });
+                    const catVars = {};
+                    for (const storageKey of keys) {
+                        const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: storageKey });
+                        if (node) {
+                            const varName = storageKey.substring(prefix.length);
+                            catVars[varName] = node.content;
                         }
-                        if (Array.isArray(category)) {
-                            variables[cat] = catVars;
-                        } else {
-                            Object.assign(variables, catVars);
-                        }
-                    } finally {
-                        //await this.#makeStorageRequest('LOCAL', STORAGE_APIS.UNLOCK_NODE, { key: lockKey, lockId });
+                    }
+                    if (Array.isArray(category)) {
+                        variables[cat] = catVars;
+                    } else {
+                        Object.assign(variables, catVars);
                     }
                 }
             }

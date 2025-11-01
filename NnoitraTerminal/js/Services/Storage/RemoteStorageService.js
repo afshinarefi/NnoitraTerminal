@@ -16,9 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { BaseStorageService } from './BaseStorageService.js';
-import { ApiManager } from '../Managers/ApiManager.js';
-import { EVENTS } from '../Core/Events.js';
-import { ENV_VARS } from '../Core/Variables.js';
+import { ApiManager } from '../../Managers/ApiManager.js';
+import { EVENTS } from '../../Core/Events.js';
+import { ENV_VARS } from '../../Core/Variables.js';
 
 /**
  * @class RemoteStorageService

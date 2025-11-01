@@ -28,7 +28,7 @@ import { FaviconService } from '../Services/FaviconService.js';
 import { TerminalService } from '../Services/TerminalService.js';
 import { AutocompleteService } from '../Services/AutocompleteService.js';
 import { MediaService } from '../Services/MediaService.js';
-import { LocalStorageService } from '../Services/LocalStorageService.js';
+import { LocalStorageService } from '../Services/Storage/LocalStorageService.js';
 
 /**
  * A container that initializes and holds all application services for a single

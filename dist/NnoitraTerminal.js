@@ -1192,26 +1192,50 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
         const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
             key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
         });
+        // For guest users, we perform a read-modify-write on a single history key.
         if (user === $34004656f0914987$var$GUEST_USER) {
-            const storageKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}_${new Date().toISOString()}`;
-            const node = {
-                meta: {
-                    type: 'history'
-                },
-                content: payload.command
-            };
-            this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
-                key: storageKey,
-                node: node
+            const historyKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`;
+            // Acquire a lock to ensure atomicity of the read-modify-write operation.
+            const { lockId: lockId } = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE, {
+                key: historyKey
             });
+            try {
+                // Read the existing history array.
+                const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                    key: historyKey,
+                    lockId: lockId
+                });
+                const history = node?.content || [];
+                // Add the new command.
+                history.push(payload.command);
+                // Write the updated array back.
+                const newNode = {
+                    meta: {
+                        type: 'history'
+                    },
+                    content: history
+                };
+                await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+                    key: historyKey,
+                    node: newNode,
+                    lockId: lockId
+                });
+            } finally{
+                // Always release the lock.
+                await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE, {
+                    key: historyKey,
+                    lockId: lockId
+                });
+            }
         } else {
+            // For logged-in users, continue saving each command individually to the remote backend.
             const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
                 key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
             });
             this.#apiManager.post('set_data', {
                 category: $34004656f0914987$var$HISTORY_CATEGORY,
                 key: new Date().toISOString(),
-                value: payload.command
+                value: command
             }, token);
         }
     }
@@ -1220,26 +1244,15 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
             key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
         });
         if (user === $34004656f0914987$var$GUEST_USER) {
-            const lockKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`;
-            {
-                const prefix = `${lockKey}_`;
-                const keys = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX, {
-                    prefix: prefix
-                });
-                const guestHistory = {};
-                for (const key of keys){
-                    const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
-                        key: key
-                    });
-                    if (node) {
-                        const timestamp = key.substring(prefix.length);
-                        guestHistory[timestamp] = node.content;
-                    }
-                }
-                if (respond) respond({
-                    history: guestHistory
-                });
-            }
+            // Read the single history key. This is a read-only operation, so no lock is needed.
+            const historyKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`;
+            const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                key: historyKey
+            });
+            const historyArray = node?.content || [];
+            if (respond) respond({
+                history: historyArray
+            });
         } else try {
             const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
                 key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
@@ -1248,8 +1261,10 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
                 category: $34004656f0914987$var$HISTORY_CATEGORY
             }, token);
             this.log.log("History data received from server:", result);
+            // The backend returns an object with timestamps as keys. We want the values, sorted by key (timestamp).
+            const sortedCommands = Object.keys(result.data || {}).sort().map((key)=>result.data[key]);
             if (respond) respond({
-                history: result.data || []
+                history: sortedCommands
             });
         } catch (error) {
             this.log.error("Failed to load history from server:", error);
@@ -1269,45 +1284,31 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
                 category
             ];
             for (const cat of categories)if (key !== undefined) {
-                // Lock on the specific resource key
+                // This is a read-only operation, so no lock is needed.
                 const storageKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${cat}_${key}`;
-                const { lockId: lockId } = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE, {
+                const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
                     key: storageKey
                 });
-                try {
-                    const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
-                        key: storageKey,
-                        lockId: lockId
-                    });
-                    const value = node ? node.content : undefined;
-                    if (value !== undefined) variables[key] = value;
-                } finally{
-                    await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE, {
-                        key: storageKey,
-                        lockId: lockId
-                    });
-                }
+                const value = node ? node.content : undefined;
+                if (value !== undefined) variables[key] = value;
             } else {
-                // Lock on the category when listing multiple items
-                const lockKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${cat}`;
-                {
-                    const prefix = `${lockKey}_`;
-                    const keys = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX, {
-                        prefix: prefix
+                // This is a read-only operation, so no lock is needed.
+                const prefix = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${cat}_`;
+                const keys = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX, {
+                    prefix: prefix
+                });
+                const catVars = {};
+                for (const storageKey of keys){
+                    const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                        key: storageKey
                     });
-                    const catVars = {};
-                    for (const storageKey of keys){
-                        const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
-                            key: storageKey
-                        });
-                        if (node) {
-                            const varName = storageKey.substring(prefix.length);
-                            catVars[varName] = node.content;
-                        }
+                    if (node) {
+                        const varName = storageKey.substring(prefix.length);
+                        catVars[varName] = node.content;
                     }
-                    if (Array.isArray(category)) variables[cat] = catVars;
-                    else Object.assign(variables, catVars);
                 }
+                if (Array.isArray(category)) variables[cat] = catVars;
+                else Object.assign(variables, catVars);
             }
             if (respond) respond({
                 variables: variables
@@ -1386,9 +1387,9 @@ const $aa7bd8a129968d33$var$DEFAULT_HISTSIZE = '1000';
  * @dispatches `VAR_GET_REQUEST` - To get the HISTSIZE variable.
  * @dispatches `VAR_SET_REQUEST` - To set the HISTSIZE variable.
  */ class $aa7bd8a129968d33$export$682fe5af4326291 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
-    #history = [];
+    #navigationHistoryCache = null;
     #cursorIndex = 0;
-    #maxSize = parseInt($aa7bd8a129968d33$var$DEFAULT_HISTSIZE, 10);
+    #isNavigating = false;
     constructor(eventBus){
         super(eventBus);
         this.log.log('Initializing...');
@@ -1405,6 +1406,7 @@ const $aa7bd8a129968d33$var$DEFAULT_HISTSIZE = '1000';
     }
     #handleAddCommand({ commandString: commandString }) {
         this.addCommand(commandString);
+        this.resetCursor();
     }
     #handleUpdateDefaultRequest({ key: key, respond: respond }) {
         if (key === (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HISTSIZE) respond({
@@ -1412,72 +1414,72 @@ const $aa7bd8a129968d33$var$DEFAULT_HISTSIZE = '1000';
         });
     }
     async #handleUserChanged() {
-        const { history: history } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_LOAD_REQUEST);
-        this.loadHistory(history);
-    }
-    #updateMaxSize(histSizeValue) {
-        const parsedSize = parseInt(histSizeValue, 10);
-        if (!isNaN(parsedSize) && parsedSize >= 0) this.#maxSize = parsedSize;
-        else {
-            this.log.warn(`Invalid HISTSIZE value "${histSizeValue}". Resetting to default: ${$aa7bd8a129968d33$var$DEFAULT_HISTSIZE}`);
-            this.#maxSize = parseInt($aa7bd8a129968d33$var$DEFAULT_HISTSIZE, 10);
-        }
+        // When user changes, clear any cached history and reset cursor.
+        this.#navigationHistoryCache = null;
+        this.resetCursor();
     }
     async addCommand(command) {
         const trimmedCommand = command.trim();
-        if (!trimmedCommand || this.#history.length > 0 && this.#history[0] === trimmedCommand) return; // Don't add empty or duplicate consecutive commands
-        this.#history.unshift(trimmedCommand);
-        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_PERSIST_REQUEST, {
-            command: trimmedCommand
-        });
-        // Lazily get HISTSIZE and update the internal max size.
+        if (!trimmedCommand) return;
+        // Lazily get HISTSIZE to pass along with the persist request.
         const { value: value } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_SYSTEM_REQUEST, {
             key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HISTSIZE
         });
-        this.#updateMaxSize(value || $aa7bd8a129968d33$var$DEFAULT_HISTSIZE);
-        if (this.#history.length > this.#maxSize) this.#history.pop();
+        const histsize = value || $aa7bd8a129968d33$var$DEFAULT_HISTSIZE;
+        // Check against the last known command to prevent duplicates.
+        // We fetch it here to ensure we have the most recent state.
+        const { history: latestHistory } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_LOAD_REQUEST);
+        if (latestHistory.length > 0 && latestHistory[latestHistory.length - 1] === trimmedCommand) return;
+        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_PERSIST_REQUEST, {
+            command: trimmedCommand,
+            histsize: histsize
+        });
         this.resetCursor();
     }
     resetCursor() {
         this.#cursorIndex = 0;
+        this.#isNavigating = false;
+        this.#navigationHistoryCache = null;
     }
-    #handleGetPrevious() {
-        if (this.#cursorIndex < this.#history.length) this.#cursorIndex++;
+    async #handleGetPrevious() {
+        if (!this.#isNavigating) {
+            const { history: history } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_LOAD_REQUEST);
+            // History from accounting is oldest-to-newest. We need newest-to-oldest for navigation.
+            this.#navigationHistoryCache = history.slice().reverse();
+            this.#isNavigating = true;
+        }
+        if (this.#cursorIndex < this.#navigationHistoryCache.length) this.#cursorIndex++;
         const response = {
-            command: this.#history[this.#cursorIndex - 1] || '',
+            command: this.#navigationHistoryCache[this.#cursorIndex - 1] || '',
             index: this.#cursorIndex
         };
         this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_INDEXED_RESPONSE, response);
     }
-    #handleGetNext() {
+    async #handleGetNext() {
         if (this.#cursorIndex > 0) this.#cursorIndex--;
         const response = {
-            command: this.#history[this.#cursorIndex - 1] || '',
+            command: this.#navigationHistoryCache ? this.#navigationHistoryCache[this.#cursorIndex - 1] || '' : '',
             index: this.#cursorIndex
         };
         this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_INDEXED_RESPONSE, response);
     }
     #handleGetAllHistory({ respond: respond }) {
         // The history is stored with the most recent command at index 0.
-        // For display, we reverse it to show oldest to newest.
-        const displayHistory = this.#history.slice().reverse();
-        respond({
-            history: displayHistory
-        });
-    }
-    loadHistory(data) {
-        if (data) {
-            // The backend returns an object with timestamps as keys. We want the values, sorted by key (timestamp).
-            const sortedCommands = Object.keys(data).sort().map((key)=>data[key]);
-            // The local history is newest-first, so we need to reverse the loaded history which is oldest-first.
-            this.#history = sortedCommands.reverse();
-            this.resetCursor();
-            this.log.log(`Loaded ${this.#history.length} commands into history.`);
-        }
-    }
-    clearHistory() {
-        this.#history = [];
-        this.resetCursor();
+        // For display, we want oldest to newest. Accounting service now provides it in this order.
+        (async ()=>{
+            const { history: history } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_LOAD_REQUEST);
+            if (!history || history.length === 0) {
+                respond({
+                    history: []
+                });
+                return;
+            }
+            // The `history` command numbers from 1 to N, oldest to newest.
+            const displayHistory = history.map((item, index)=>` ${String(history.length - index).padStart(String(history.length).length)}:  ${item}`);
+            respond({
+                history: displayHistory
+            });
+        })();
     }
 }
 
@@ -2355,10 +2357,8 @@ const $d0a0d313036150a9$export$4051a07651545597 = [
             outputDiv.textContent = 'No history available.';
             return;
         }
-        // Calculate the padding needed for the line numbers based on the total number of history items.
-        const padding = String(historyData.length).length;
-        // Display in chronological order (oldest to newest), but number from newest to oldest.
-        const historyText = historyData.map((item, index)=>` ${String(historyData.length - index).padStart(padding)}:  ${item}`).join('<br>');
+        // The data is now pre-formatted by HistoryService.
+        const historyText = historyData.join('<br>');
         outputDiv.innerHTML = historyText;
     }
 }
@@ -5667,7 +5667,7 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
 /**
  * @class LocalStorageService
  * @description Implements a storage backend using the browser's localStorage.
- */ class $e8647c5b0ada794e$export$fda5b86bc4921cb9 extends (0, $cdeb0865826d5baf$export$282961b3a2302fe3) {
+ */ class $2336f685277e82f7$export$fda5b86bc4921cb9 extends (0, $cdeb0865826d5baf$export$282961b3a2302fe3) {
     static STORAGE_NAME = 'LOCAL';
     #storageKeyPrefix = 'NNOITRA_LOCAL';
     constructor(eventBus){
@@ -5760,7 +5760,7 @@ class $a0b5a846c0e262ae$export$f001b1e94070bef0 {
             }),
             autocomplete: (0, $6949df4f1b16bf43$export$1f14987e9cb31ec2).create(bus),
             media: (0, $9d2e60a2443f3a3e$export$28bb6dc04d8f7127).create(bus),
-            localStorage: (0, $e8647c5b0ada794e$export$fda5b86bc4921cb9).create(bus)
+            localStorage: (0, $2336f685277e82f7$export$fda5b86bc4921cb9).create(bus)
         };
     }
 }
