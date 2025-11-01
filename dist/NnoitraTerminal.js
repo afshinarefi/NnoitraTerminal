@@ -795,7 +795,7 @@ class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$ex
             };
             categorized.TEMP = Object.fromEntries(this.#tempVariables);
             const localKeys = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX, {
-                prefix: `${$1b934ed4cb64b454$var$ENV_NAMESPACE}_`
+                key: `${$1b934ed4cb64b454$var$ENV_NAMESPACE}_`
             });
             const localVars = {};
             for (const key of localKeys){
@@ -1295,7 +1295,7 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
                 // This is a read-only operation, so no lock is needed.
                 const prefix = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${cat}_`;
                 const keys = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX, {
-                    prefix: prefix
+                    key: prefix
                 });
                 const catVars = {};
                 for (const storageKey of keys){
@@ -5552,6 +5552,72 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
 
 
 /**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * @class Mutex
+ * @description Provides a simple async mutex implementation for resource locking based on keys.
+ */ class $fe33bc0387071332$export$ca12f2943758ef55 {
+    #operationQueues = new Map();
+    /**
+     * Acquires a lock for a given key.
+     * @param {string} key The key for the resource to lock.
+     * @param {string} [explicitLockId] - An existing lock ID to re-acquire. If provided, it will
+     * either grant access if the ID is correct or throw an error if it's invalid. If omitted,
+     * it will queue to acquire a new lock.
+     * @returns {Promise<string>} A promise that resolves with the lock ID.
+     */ async acquire(key, explicitLockId) {
+        const queue = this.#operationQueues.get(key);
+        if (explicitLockId) {
+            if (queue?.lockId && queue.lockId === explicitLockId) // The correct lock is already held, grant access without waiting.
+            return explicitLockId;
+            else // An incorrect or expired lock ID was provided.
+            throw new Error(`Invalid lock ID '${explicitLockId}' for operation on '${key}'. Current lock is '${queue?.lockId}'.`);
+        } else {
+            // No explicit lockId, so queue for a new lock.
+            let newGateResolver;
+            const newGatePromise = new Promise((resolve)=>{
+                newGateResolver = resolve;
+            });
+            const lastGatePromise = queue?.promise || Promise.resolve();
+            if (!queue) this.#operationQueues.set(key, {
+                promise: newGatePromise
+            });
+            else queue.promise = newGatePromise;
+            await lastGatePromise;
+            const lockId = crypto.randomUUID();
+            const currentQueue = this.#operationQueues.get(key);
+            currentQueue.resolve = newGateResolver;
+            currentQueue.lockId = lockId;
+            return lockId;
+        }
+    }
+    /**
+     * Releases a lock for a given key if the lockId is valid.
+     * @param {string} key The key for the resource to unlock.
+     * @param {string} lockId The ID of the lock to release.
+     */ release(key, lockId) {
+        const queueEntry = this.#operationQueues.get(key);
+        if (queueEntry && queueEntry.lockId === lockId) queueEntry.resolve();
+        else throw new Error(`Attempted to unlock '${key}' with an invalid or expired lockId.`);
+    }
+}
+
+
+/**
  * @class BaseStorageService
  * @description Provides a foundational class for all storage backend services (e.g., Local, Remote, Session).
  * It defines a common interface for filesystem operations and handles routing of storage API requests.
@@ -5561,9 +5627,7 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
      * Child classes MUST override this static property.
      * @type {string}
      */ static STORAGE_NAME = 'BASE';
-    // A map where the key is the resource path, and the value is the current
-    // "gate" object: { promise, resolve, lockId }
-    #operationQueues = new Map();
+    #mutex = new (0, $fe33bc0387071332$export$ca12f2943758ef55)();
     constructor(eventBus){
         super(eventBus);
         this.log.log(`Initializing ${this.constructor.STORAGE_NAME} storage service...`);
@@ -5584,40 +5648,22 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
      * @private
      */ async #handleStorageApiRequest({ storageName: storageName, api: api, data: data, respond: respond }) {
         if (storageName !== this.constructor.STORAGE_NAME) return;
-        const key = data.key;
-        const hadExplicitLockId = !!data.lockId;
+        const { key: key, lockId: explicitLockId } = data;
+        if (!key) throw new Error(`A 'key' must be provided for any storage operation. API: ${api}`);
         let result;
-        if (key == 'GUEST_STORAGE_HISTORY') this.log.warn("BBBBB", data, key, api);
-        if (key) {
-            if (!hadExplicitLockId) {
-                let newGateResolver;
-                const newGatePromise = new Promise((resolve)=>{
-                    newGateResolver = resolve;
-                });
-                // Get the promise of the operation currently in front of us.
-                const lastGatePromise = this.#operationQueues.get(key)?.promise || Promise.resolve();
-                // Ensure a queue entry exists and set our new promise as the next gate.
-                if (!this.#operationQueues.has(key)) this.#operationQueues.set(key, {});
-                this.#operationQueues.get(key).promise = newGatePromise;
-                // Wait for our turn. This is the core of the locking mechanism.
-                await lastGatePromise;
-                // Re-check and create the queue entry if it was deleted by a previous unlock operation.
-                this.#operationQueues.get(key).resolve = newGateResolver;
-                this.#operationQueues.get(key).lockId = crypto.randomUUID();
-            } else if (data.lockId !== this.#operationQueues.get(key)?.lockId) throw new Error(`Invalid lock ID for operation on '${key} for ${api}:${data} was ${data.lockId} != ${this.#operationQueues.get(key)?.lockId}'.`);
-        }
-        // Reaching here means we have reserved the resource
+        let lockId;
         try {
+            lockId = await this.#mutex.acquire(key, explicitLockId);
             if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE) result = await this.getNode(data);
             else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE) result = await this.setNode(data);
             else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).DELETE_NODE) result = await this.deleteNode(data);
             else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX) result = await this.listKeysWithPrefix(data);
-            else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE) result = await this.lockNode(data);
-            else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE) result = await this.unlockNode(data);
+            else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE) result = {
+                lockId: lockId
+            };
         } finally{
-            // If this was a queued operation (not an explicit lock), open the gate for the next one,
-            // unless it was a lockNode call, which intentionally holds the lock.
-            if (!hadExplicitLockId && api !== (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE) this.#operationQueues.get(key)?.resolve();
+            // Release the lock if it was an explicit unlock, OR if it was an implicit lock for a single operation.
+            if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE || lockId && !explicitLockId && api !== (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE) this.#mutex.release(key, lockId);
         }
         respond({
             result: result
@@ -5627,37 +5673,14 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
     async getNode({ key: key }) {
         throw new Error(`${this.constructor.name} must implement the 'getNode' method.`);
     }
-    async setNode({ key: key, node: node, lockId: lockId }) {
+    async setNode({ key: key, node: node }) {
         throw new Error(`${this.constructor.name} must implement the 'setNode' method.`);
     }
     async deleteNode({ key: key }) {
         throw new Error(`${this.constructor.name} must implement the 'deleteNode' method.`);
     }
-    async listKeysWithPrefix({ prefix: prefix }) {
+    async listKeysWithPrefix({ key: key }) {
         throw new Error(`${this.constructor.name} must implement the 'listKeysWithPrefix' method.`);
-    }
-    /**
-     * Acquires an explicit lock on a resource, preventing other operations on the same key.
-     * This method is called from within the #handleStorageApiRequest queue.
-     * It returns the lockId but does NOT resolve the promise, thus holding the lock.
-     * @param {object} data
-     * @param {string} data.key - The key of the resource to lock.
-     * @returns {Promise<{lockId: string}>}
-     */ async lockNode({ key: key, timeout: timeout = 30000 }) {
-        return {
-            lockId: this.#operationQueues.get(key).lockId
-        };
-    }
-    /**
-     * Releases an explicit lock on a resource.
-     * @param {object} data
-     * @param {string} data.key - The key of the resource to unlock.
-     * @param {string} data.lockId - The lock ID that was returned by lockNode.
-     */ async unlockNode({ key: key, lockId: lockId }) {
-        const queueEntry = this.#operationQueues.get(key);
-        if (queueEntry && queueEntry.lockId === lockId) queueEntry.resolve();
-        else // It's better to throw an error for an invalid unlock attempt.
-        throw new Error(`Attempted to unlock '${key}' with an invalid or expired lockId.`);
     }
 }
 
@@ -5714,15 +5737,15 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
     /**
      * Returns a list of all keys that start with a given prefix.
      * @param {object} data
-     * @param {string} data.prefix - The prefix to search for.
+     * @param {string} data.key - The prefix to search for.
      * @returns {Promise<string[]>} A list of matching keys.
-     */ async listKeysWithPrefix({ prefix: prefix }) {
-        const physicalPrefix = await this.#getPhysicalKey(prefix);
+     */ async listKeysWithPrefix({ key: key }) {
+        const physicalPrefix = await this.#getPhysicalKey(key);
         const matchingKeys = [];
         for(let i = 0; i < localStorage.length; i++){
-            const key = localStorage.key(i);
-            if (key.startsWith(physicalPrefix)) // Return the logical key, not the physical one
-            matchingKeys.push(key.substring(physicalPrefix.length - prefix.length));
+            const k = localStorage.key(i);
+            if (k.startsWith(physicalPrefix)) // Return the logical key, not the physical one
+            matchingKeys.push(k.substring(physicalPrefix.length - key.length));
         }
         return matchingKeys;
     }

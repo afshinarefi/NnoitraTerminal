@@ -80,17 +80,17 @@ class LocalStorageService extends BaseStorageService {
     /**
      * Returns a list of all keys that start with a given prefix.
      * @param {object} data
-     * @param {string} data.prefix - The prefix to search for.
+     * @param {string} data.key - The prefix to search for.
      * @returns {Promise<string[]>} A list of matching keys.
      */
-    async listKeysWithPrefix({ prefix }) {
-        const physicalPrefix = await this.#getPhysicalKey(prefix);
+    async listKeysWithPrefix({ key }) {
+        const physicalPrefix = await this.#getPhysicalKey(key);
         const matchingKeys = [];
         for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key.startsWith(physicalPrefix)) {
+            const k = localStorage.key(i);
+            if (k.startsWith(physicalPrefix)) {
                 // Return the logical key, not the physical one
-                matchingKeys.push(key.substring(physicalPrefix.length - prefix.length));
+                matchingKeys.push(k.substring(physicalPrefix.length - key.length));
             }
         }
         return matchingKeys;

@@ -287,7 +287,7 @@ class AccountingService extends BaseService {
                 } else {
                     // This is a read-only operation, so no lock is needed.
                     const prefix = `${GUEST_STORAGE_PREFIX}${cat}_`;
-                    const keys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { prefix });
+                    const keys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { key: prefix });
                     const catVars = {};
                     for (const storageKey of keys) {
                         const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: storageKey });

@@ -236,7 +236,7 @@ class EnvironmentService extends BaseService{
 
             categorized.TEMP = Object.fromEntries(this.#tempVariables);
 
-            const localKeys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { prefix: `${ENV_NAMESPACE}_` });
+            const localKeys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { key: `${ENV_NAMESPACE}_` });
             const localVars = {};
             for (const key of localKeys) {
                 const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key });
