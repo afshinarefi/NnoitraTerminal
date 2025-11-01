@@ -34,12 +34,9 @@ class Clear extends BaseCommand {
      * @param {string[]} args - Command arguments (not used)
      * @returns {HTMLElement} An empty div, as this command produces no visible output.
      */
-    execute(args) {
+    execute(args, outputElement) {
         this.log.log('Executing clear command.');
         this.#clearScreen();
-        const outputDiv = document.createElement('div');
-        // The command itself produces no output, so we return an empty element.
-        return outputDiv;
     }
 
     /**

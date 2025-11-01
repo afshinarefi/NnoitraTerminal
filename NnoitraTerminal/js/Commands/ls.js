@@ -60,9 +60,9 @@ class Ls extends BaseCommand {
         }
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
-        const outputDiv = document.createElement('div');
+        const outputDiv = outputElement; // Use the provided container directly
         const pathArg = args[1] || '.';
         
         try {
@@ -72,7 +72,7 @@ class Ls extends BaseCommand {
                 const pre = document.createElement('pre');
                 pre.innerText = contents;
                 outputDiv.appendChild(pre);
-                return outputDiv;
+                return;
             }
 
             // Delegate all formatting and list creation to the utility.
@@ -83,8 +83,6 @@ class Ls extends BaseCommand {
             this.log.warn(`Cannot access path: "${pathArg}"`, error);
             outputDiv.textContent = `ls: cannot access '${pathArg}': ${error.message}`;
         }
-
-        return outputDiv;
     }
 }
 

@@ -44,9 +44,11 @@ class Logout extends BaseCommand {
         return context.isLoggedIn;
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing...');
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         try {
             const result = await this.#logout();
             outputDiv.textContent = result.message;
@@ -54,8 +56,6 @@ class Logout extends BaseCommand {
             this.log.error('Network or parsing error during logout:', error);
             outputDiv.textContent = `Error: ${error.message}`;
         }
-
-        return outputDiv;
     }
 }
 

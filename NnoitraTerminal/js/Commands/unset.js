@@ -49,14 +49,16 @@ class Unset extends BaseCommand {
         return userSpaceVarNames.filter(name => name.startsWith(input));
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
-        const output = document.createElement('pre');
+        const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         const varName = args[1];
 
         if (!varName) {
-            output.textContent = 'unset: usage: unset <variable_name>';
-            return output;
+            outputDiv.textContent = 'unset: usage: unset <variable_name>';
+            return;
         }
 
         const upperVarName = varName.toUpperCase();
@@ -67,10 +69,8 @@ class Unset extends BaseCommand {
             await this.#deleteUserspaceVariable(upperVarName);
             // No output on success, which is standard shell behavior.
         } else {
-            output.textContent = `unset: ${varName}: not found in userspace`;
+            outputDiv.textContent = `unset: ${varName}: not found in userspace`;
         }
-
-        return output;
     }
 }
 

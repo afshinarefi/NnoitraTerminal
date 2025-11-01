@@ -56,25 +56,25 @@ export class Cat extends BaseCommand {
         }
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
-        const output = document.createElement('pre');
+        const outputPre = document.createElement('pre');
+        if (outputElement) outputElement.appendChild(outputPre);
+
         const filePathArg = args.slice(1).join('').trim();
 
         if (!filePathArg) {
             this.log.warn('Missing file operand.');
-            output.textContent = 'cat: missing file operand';
-            return output;
+            outputPre.textContent = 'cat: missing file operand';
+            return;
         }
 
         try {
             const content = await this.#getFileContents(filePathArg);
-            output.textContent = content;
+            outputPre.textContent = content;
         } catch (error) {
             this.log.error(`Failed to get file content for "${filePathArg}":`, error);
-            output.textContent = `cat: ${filePathArg}: ${error.message}`;
+            outputPre.textContent = `cat: ${filePathArg}: ${error.message}`;
         }
-
-        return output;
     }
 }

@@ -79,19 +79,19 @@ class Man extends BaseCommand {
      * @param {string[]} args - An array of arguments passed to the command.
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the manual page.
      */
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         if (args.length <= 1) {
             outputDiv.textContent = 'Usage: man <command>\nPlease specify a command name.';
-            return outputDiv;
+            return;
         }
         const cmdName = args[1];
         if (!cmdName) {
-            const p = document.createElement('p');
-            p.textContent = 'Usage: man <command>\nPlease specify a command name.';
-            outputDiv.appendChild(p);
-            return outputDiv;
+            outputDiv.textContent = 'Usage: man <command>\nPlease specify a command name.';
+            return;
         }
         const lowerCmdName = cmdName.toLowerCase();
         // Debug: print all command names and lookup result
@@ -110,21 +110,19 @@ class Man extends BaseCommand {
             } else if (matches.length > 1) {
                 outputDiv.textContent = `man: ambiguous command '${cmdName}'; possibilities: ${matches.join(' ')}`;
                 this.log.warn('Ambiguous command:', { input: cmdName, matches });
-                return outputDiv;
+                return;
             } else {
                 outputDiv.textContent = `No manual entry for '${cmdName}'.`;
-                return outputDiv;
+                return;
             }
         }
         if (manContent) {
             this.log.log('Displaying man page.');
             outputDiv.style.whiteSpace = 'pre-wrap';
             outputDiv.textContent = manContent;
-            return outputDiv;
         } else { // This else block is redundant if manContent is already checked above.
             this.log.warn(`No man page function found for command: "${cmdName}"`);
             outputDiv.textContent = `No manual entry for '${cmdName}'.`;
-            return outputDiv;
         }
     }
 }

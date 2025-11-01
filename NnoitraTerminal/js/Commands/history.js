@@ -53,26 +53,24 @@ class History extends BaseCommand {
      * @param {string[]} args - An array of arguments passed to the command (not used by this command).
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the history.
      */
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing...');
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         const historyData = await this.#getHistory();
 
         if (!historyData || historyData.length === 0) {
             outputDiv.textContent = 'No history available.';
-            return outputDiv;
+            return;
         }
 
         // Calculate the padding needed for the line numbers based on the total number of history items.
         const padding = String(historyData.length).length;
 
-        // Use CSS to preserve whitespace, avoiding the need for a <pre> tag.
-        outputDiv.style.whiteSpace = 'pre-wrap';
         // Display in chronological order (oldest to newest), but number from newest to oldest.
-        const historyText = historyData.map((item, index) => ` ${String(historyData.length - index).padStart(padding)}:  ${item}`).join('\n');
-        outputDiv.textContent = historyText;
-
-        return outputDiv;
+        const historyText = historyData.map((item, index) => ` ${String(historyData.length - index).padStart(padding)}:  ${item}`).join('<br>');
+        outputDiv.innerHTML = historyText;
     }
 }
 

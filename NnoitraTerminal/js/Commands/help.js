@@ -56,33 +56,32 @@ class Help extends BaseCommand {
      * @param {string[]} args - An array of arguments passed to the command (not used by this command).
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the list of commands.
      */
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing...');
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         // Use the injected service function to get the list of commands.
         const commands = await this.#getCommandList();
 
         if (commands.length === 0) {
             outputDiv.textContent = 'No commands available.';
-            return outputDiv;
+            return;
         }
 
         // Find the length of the longest command name for alignment.
         const maxLength = Math.max(...commands.map(cmd => cmd.length));
         const padding = maxLength + 4;
 
-        // Use CSS to preserve whitespace, avoiding the need for a <pre> tag.
-        outputDiv.style.whiteSpace = 'pre-wrap';
         let helpText = '';
 
         // Asynchronously fetch the description for each command.
         for (const cmdName of commands) {
             const description = await this.#getCommandMeta(cmdName, 'DESCRIPTION') || 'No description available.';
-            helpText += `${cmdName.padEnd(padding)} : ${description}\n`;
+            helpText += `${cmdName.padEnd(padding)} : ${description}<br>`;
         }
 
-        outputDiv.textContent = helpText.trim();
-        return outputDiv;
+        outputDiv.innerHTML = helpText;
     }
 }
 

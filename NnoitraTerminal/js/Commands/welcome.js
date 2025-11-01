@@ -34,19 +34,20 @@ class Welcome extends BaseCommand {
         super(services);
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
       this.log.log('Executing...');
-      const outputDiv = document.createElement('div');
-      outputDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
+      const outputPre = document.createElement('div');
+      outpuPre.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
+      if (outputElement) outputElement.appendChild(outputPre);
+
       try {
         const welcomeText = await fetchTextFile(Welcome.DATA_FILE); // Use static property
         this.log.log(`Welcome message loaded successfully. ${welcomeText.length} characters.`);
-        outputDiv.innerText = welcomeText;
+        outputPre.textContent = welcomeText;
       } catch (error) {
         this.log.error('Error loading welcome message:', error);
-        outputDiv.innerText = 'Error: Could not load welcome message.';
+        outputPre.textContent = 'Error: Could not load welcome message.';
       }
-      return outputDiv;
     }
 
     /**

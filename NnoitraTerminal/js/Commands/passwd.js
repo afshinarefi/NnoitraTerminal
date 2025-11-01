@@ -56,46 +56,44 @@ DESCRIPTION
         return true;
     }
 
-    async execute(args) { // Made async for consistency
+    async execute(args, outputElement) {
         this.log.log('Executing...');
-        const outputDiv = document.createElement('div');
+
         const promptOptions = { isSecret: true, allowHistory: false, allowAutocomplete: false };
 
         try {
             const oldPassword = await this.#prompt('Old password: ', promptOptions);
             if (oldPassword === null) throw new Error('Operation cancelled.');
-            outputDiv.textContent += 'Old password received.\n';
+            outputElement.innerHTML += 'Old password received.<br>';
 
             const newPassword = await this.#prompt('New password: ', promptOptions);
             if (newPassword === null) throw new Error('Operation cancelled.');
-            outputDiv.textContent += 'New password received.\n';
+            outputElement.innerHTML += 'New password received.<br>';
 
             const confirmPassword = await this.#prompt('Confirm new password: ', promptOptions);
             if (confirmPassword === null) throw new Error('Operation cancelled.');
-            outputDiv.textContent += 'Confirmation received.\n';
+            outputElement.innerHTML += 'Confirmation received.<br>';
 
             if (newPassword !== confirmPassword) {
-                outputDiv.textContent += '\npasswd: Passwords do not match. Password not changed.';
-                return outputDiv;
+                outputElement.innerHTML += '<br>passwd: Passwords do not match. Password not changed.';
+                return;
             }
 
             if (!newPassword) {
-                outputDiv.textContent += '\npasswd: Password cannot be empty.';
-                return outputDiv;
+                outputElement.innerHTML += '<br>passwd: Password cannot be empty.';
+                return;
             }
 
-            outputDiv.textContent += 'Changing password...';
+            outputElement.innerHTML += 'Changing password...';
             const result = await this.#changePassword(oldPassword, newPassword);
             // Append the final result to the existing acknowledgments
-            outputDiv.textContent += `\n${result.message}`;
+            outputElement.innerHTML += `<br>${result.message}`;
 
         } catch (error) {
             // A timeout on the prompt means the user cancelled (e.g., Ctrl+C)
             this.log.warn('Password change operation cancelled or failed:', error);
-            outputDiv.textContent += 'passwd: Operation cancelled.';
+            outputElement.innerHTML += 'passwd: Operation cancelled.';
         }
-
-        return outputDiv;
     }
 }
 

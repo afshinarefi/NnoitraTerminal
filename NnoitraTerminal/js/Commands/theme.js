@@ -48,29 +48,29 @@ class Theme extends BaseCommand {
         return (await this.#getValidThemes()).filter(name => name.startsWith(input));
     }
 
-    async execute(args) {
-        const output = document.createElement('div');
+    async execute(args, outputElement) {
+        const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         const themeName = args[1];
         const validThemes = await this.#getValidThemes();
 
         if (!themeName) {
             // Get the current theme variable from the correct category.
             const { value: currentTheme } = await this.#getSystemVariable('THEME');
-            output.textContent = `Current theme: ${currentTheme}\nAvailable themes: ${validThemes.join(', ')}`;
-            return output;
+            outputDiv.innerHTML = `Current theme: ${currentTheme}<br>Available themes: ${validThemes.join(', ')}`;
+            return;
         }
 
         if (validThemes.includes(themeName)) {
             // Set the environment variable. The Terminal component will listen for this change.
             this.#setTheme(themeName);
-            output.textContent = `Theme set to '${themeName}'.`;
+            outputDiv.textContent = `Theme set to '${themeName}'.`;
             this.log.log(`Theme set to: ${themeName}`);
         } else {
-            output.textContent = `Error: Invalid theme '${themeName}'.\nAvailable themes: ${validThemes.join(', ')}`;
+            outputDiv.innerHTML = `Error: Invalid theme '${themeName}'.<br>Available themes: ${validThemes.join(', ')}`;
             this.log.warn(`Invalid theme name provided: ${themeName}`);
         }
-
-        return output;
     }
 }
 

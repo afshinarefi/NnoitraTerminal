@@ -78,9 +78,11 @@ class Export extends BaseCommand {
         return [];
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
-        const output = document.createElement('pre');
+        const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         const exportString = args.slice(1).join(' ');
 
         const allVars = await this.#getAllCategorizedVariables();
@@ -90,10 +92,10 @@ class Export extends BaseCommand {
         if (!exportString) {
             let outputText = '';
             for (const [name, value] of Object.entries(userSpaceVars)) {
-                outputText += `export ${name}="${value}"\n`;
+                outputText += `export ${name}="${value}"<br>`;
             }
-            output.textContent = outputText.trim() || 'No user variables defined.';
-            return output;
+            outputDiv.innerHTML = outputText.trim() || 'No user variables defined.';
+            return;
         }
 
         // If arguments are provided, define a new variable
@@ -111,14 +113,12 @@ class Export extends BaseCommand {
                 this.#setUserspaceVariable(upperVarName, newVar.value);
                 this.log.log(`Set variable: ${newVar.name}='${newVar.value}'`);
             } else {
-                output.textContent = `export: permission denied: \`${newVar.name}\` is a read-only variable.`;
+                outputDiv.textContent = `export: permission denied: \`${newVar.name}\` is a read-only variable.`;
             }
         } else {
-            output.textContent = `export: invalid format. Use name="value"`;
+            outputDiv.textContent = `export: invalid format. Use name="value"`;
             this.log.warn('Invalid export format:', exportString);
         }
-
-        return output;
     }
 }
 

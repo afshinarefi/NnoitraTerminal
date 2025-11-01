@@ -55,9 +55,11 @@ class Cd extends BaseCommand {
         }
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         const pathArg = args.slice(1).join('').trim() || '/';
 
         try {
@@ -65,8 +67,6 @@ class Cd extends BaseCommand {
         } catch (error) {
             outputDiv.textContent = `cd: ${pathArg}: ${error.message}`;
         }
-
-        return outputDiv;
     }
 }
 

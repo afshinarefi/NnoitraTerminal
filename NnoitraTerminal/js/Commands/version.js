@@ -33,22 +33,22 @@ class Version extends BaseCommand {
         super(services);
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
       this.log.log('Executing...');
-      const outputDiv = document.createElement('div');
-      outputDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
+      const outputPre = document.createElement('pre');
+      if (outputElement) outputElement.appendChild(outputPre);
+
       try {
         const response = await fetch(Version.DATA_FILE);
         if (!response.ok) {
           throw new Error(`Failed to load version information: ${response.statusText}`);
         }
         const versionText = await response.text();
-        outputDiv.innerText = versionText;
+        outputPre.textContent = versionText;
       } catch (error) {
         this.log.error('Error loading version information:', error);
-        outputDiv.innerText = 'Error: Could not load version information.';
+        outputPre.textContent = 'Error: Could not load version information.';
       }
-      return outputDiv;
     }
 
     static man() {

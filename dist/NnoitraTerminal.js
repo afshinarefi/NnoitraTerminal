@@ -61,7 +61,7 @@ var parcelRegister = parcelRequire.register;
 var $e415f539f646a2f9$exports = {};
 $parcel$extendImportMap({
     "H44nx": "motd.6d76bb23.txt",
-    "ccCIq": "version.46c3666d.txt",
+    "ccCIq": "version.4fc8a35d.txt",
     "euAS4": "UbuntuMono-R.54fdcd79.ttf",
     "4acmQ": "UbuntuMono-B.1f21d913.ttf",
     "jRB9m": "UbuntuMono-RI.0df7809e.ttf",
@@ -1771,19 +1771,19 @@ $fed81596da0f4423$exports = $parcel$resolve("H44nx");
     constructor(services){
         super(services);
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing...');
-        const outputDiv = document.createElement('div');
-        outputDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
+        const outputPre = document.createElement('div');
+        outpuPre.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
+        if (outputElement) outputElement.appendChild(outputPre);
         try {
             const welcomeText = await (0, $268f5c7225abb997$export$7d79caac809a3f17)($e0c064800146e1d9$export$23191e4434a9e834.DATA_FILE); // Use static property
             this.log.log(`Welcome message loaded successfully. ${welcomeText.length} characters.`);
-            outputDiv.innerText = welcomeText;
+            outputPre.textContent = welcomeText;
         } catch (error) {
             this.log.error('Error loading welcome message:', error);
-            outputDiv.innerText = 'Error: Could not load welcome message.';
+            outputPre.textContent = 'Error: Could not load welcome message.';
         }
-        return outputDiv;
     }
     /**
      * Provides a detailed manual page for the welcome command.
@@ -1857,9 +1857,9 @@ const $d0a0d313036150a9$export$4051a07651545597 = [
     async autocompleteArgs(currentArgs) {
         return []; // 'about' command takes no arguments.
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing...');
-        const outputDiv = document.createElement('div');
+        const outputDiv = outputElement; // Use the provided container directly
         try {
             for (const item of (0, $d0a0d313036150a9$export$4051a07651545597)){
                 const wrapper = document.createElement('div');
@@ -1891,7 +1891,6 @@ const $d0a0d313036150a9$export$4051a07651545597 = [
             this.log.error('Failed to fetch about information:', error);
             outputDiv.textContent = `Error: ${error.message}`;
         }
-        return outputDiv;
     }
 }
 
@@ -1935,20 +1934,21 @@ const $d0a0d313036150a9$export$4051a07651545597 = [
      * Retrieves all environment variables from the EnvironmentService and formats them for display.
      * @param {string[]} args - An array of arguments passed to the command (not used by this command).
      * @returns {Promise<HTMLPreElement>} A promise that resolves with a `<pre>` HTML element containing the environment variables.
-     */ async execute(args) {
+     */ async execute(args, outputElement) {
         this.log.log('Executing...');
-        const pre = document.createElement('pre');
+        const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         const categorizedVars = await this.#getAllCategorizedVariables();
         let output = '';
         const formatCategory = (title, vars)=>{
             if (Object.keys(vars).length === 0) return '';
-            let categoryOutput = `\n# ${title} Variables\n`;
+            let categoryOutput = `<br># ${title} Variables<br>`;
             for (const [key, value] of Object.entries(vars)){
                 // Check if the value contains spaces or is a JSON-like string, and quote it if so.
                 // Also ensure the value is a string before calling string methods on it.
-                if (typeof value === 'string' && (/\s/.test(value) || value.startsWith('{') && value.endsWith('}'))) categoryOutput += `${key}="${value}"\n`;
-                else if (value !== undefined && value !== null) categoryOutput += `${key}=${value}\n`;
-                else categoryOutput += `${key}=${value}\n`;
+                if (typeof value === 'string' && (/\s/.test(value) || value.startsWith('{') && value.endsWith('}'))) categoryOutput += `${key}="${value}"<br>`;
+                else if (value !== undefined && value !== null) categoryOutput += `${key}=${value}<br>`;
+                else categoryOutput += `${key}=${value}<br>`;
             }
             return categoryOutput;
         };
@@ -1957,8 +1957,7 @@ const $d0a0d313036150a9$export$4051a07651545597 = [
         output += formatCategory('Local (Browser Storage)', categorizedVars.LOCAL);
         output += formatCategory('Remote (User Account)', categorizedVars.SYSTEM);
         output += formatCategory('User (Configurable)', categorizedVars.USERSPACE);
-        pre.innerText = output.trim();
-        return pre;
+        outputDiv.innerHTML = output.trim();
     }
     /**
      * Provides a detailed manual page for the env command.
@@ -2018,28 +2017,26 @@ const $d0a0d313036150a9$export$4051a07651545597 = [
      * Retrieves all registered commands and their descriptions from the CommandService and formats them for display.
      * @param {string[]} args - An array of arguments passed to the command (not used by this command).
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the list of commands.
-     */ async execute(args) {
+     */ async execute(args, outputElement) {
         this.log.log('Executing...');
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         // Use the injected service function to get the list of commands.
         const commands = await this.#getCommandList();
         if (commands.length === 0) {
             outputDiv.textContent = 'No commands available.';
-            return outputDiv;
+            return;
         }
         // Find the length of the longest command name for alignment.
         const maxLength = Math.max(...commands.map((cmd)=>cmd.length));
         const padding = maxLength + 4;
-        // Use CSS to preserve whitespace, avoiding the need for a <pre> tag.
-        outputDiv.style.whiteSpace = 'pre-wrap';
         let helpText = '';
         // Asynchronously fetch the description for each command.
         for (const cmdName of commands){
             const description = await this.#getCommandMeta(cmdName, 'DESCRIPTION') || 'No description available.';
-            helpText += `${cmdName.padEnd(padding)} : ${description}\n`;
+            helpText += `${cmdName.padEnd(padding)} : ${description}<br>`;
         }
-        outputDiv.textContent = helpText.trim();
-        return outputDiv;
+        outputDiv.innerHTML = helpText;
     }
 }
 
@@ -2105,19 +2102,18 @@ const $d0a0d313036150a9$export$4051a07651545597 = [
      * Displays the manual page for the specified command.
      * @param {string[]} args - An array of arguments passed to the command.
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the manual page.
-     */ async execute(args) {
+     */ async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         if (args.length <= 1) {
             outputDiv.textContent = 'Usage: man <command>\nPlease specify a command name.';
-            return outputDiv;
+            return;
         }
         const cmdName = args[1];
         if (!cmdName) {
-            const p = document.createElement('p');
-            p.textContent = 'Usage: man <command>\nPlease specify a command name.';
-            outputDiv.appendChild(p);
-            return outputDiv;
+            outputDiv.textContent = 'Usage: man <command>\nPlease specify a command name.';
+            return;
         }
         const lowerCmdName = cmdName.toLowerCase();
         // Debug: print all command names and lookup result
@@ -2139,21 +2135,19 @@ const $d0a0d313036150a9$export$4051a07651545597 = [
                     input: cmdName,
                     matches: matches
                 });
-                return outputDiv;
+                return;
             } else {
                 outputDiv.textContent = `No manual entry for '${cmdName}'.`;
-                return outputDiv;
+                return;
             }
         }
         if (manContent) {
             this.log.log('Displaying man page.');
             outputDiv.style.whiteSpace = 'pre-wrap';
             outputDiv.textContent = manContent;
-            return outputDiv;
         } else {
             this.log.warn(`No man page function found for command: "${cmdName}"`);
             outputDiv.textContent = `No manual entry for '${cmdName}'.`;
-            return outputDiv;
         }
     }
 }
@@ -2204,22 +2198,20 @@ const $d0a0d313036150a9$export$4051a07651545597 = [
      * Displays the command history.
      * @param {string[]} args - An array of arguments passed to the command (not used by this command).
      * @returns {Promise<HTMLDivElement>} A promise that resolves with a `<div>` HTML element containing the history.
-     */ async execute(args) {
+     */ async execute(args, outputElement) {
         this.log.log('Executing...');
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         const historyData = await this.#getHistory();
         if (!historyData || historyData.length === 0) {
             outputDiv.textContent = 'No history available.';
-            return outputDiv;
+            return;
         }
         // Calculate the padding needed for the line numbers based on the total number of history items.
         const padding = String(historyData.length).length;
-        // Use CSS to preserve whitespace, avoiding the need for a <pre> tag.
-        outputDiv.style.whiteSpace = 'pre-wrap';
         // Display in chronological order (oldest to newest), but number from newest to oldest.
-        const historyText = historyData.map((item, index)=>` ${String(historyData.length - index).padStart(padding)}:  ${item}`).join('\n');
-        outputDiv.textContent = historyText;
-        return outputDiv;
+        const historyText = historyData.map((item, index)=>` ${String(historyData.length - index).padStart(padding)}:  ${item}`).join('<br>');
+        outputDiv.innerHTML = historyText;
     }
 }
 
@@ -2341,9 +2333,9 @@ function $c61f1fac801ee4e9$export$b27ec03c767c18ba(contents) {
             return []; // On error, return no suggestions.
         }
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
-        const outputDiv = document.createElement('div');
+        const outputDiv = outputElement; // Use the provided container directly
         const pathArg = args[1] || '.';
         try {
             const contents = await this.#getDirectoryContents(pathArg);
@@ -2351,7 +2343,7 @@ function $c61f1fac801ee4e9$export$b27ec03c767c18ba(contents) {
                 const pre = document.createElement('pre');
                 pre.innerText = contents;
                 outputDiv.appendChild(pre);
-                return outputDiv;
+                return;
             }
             // Delegate all formatting and list creation to the utility.
             const ul = (0, $c61f1fac801ee4e9$export$b27ec03c767c18ba)(contents);
@@ -2360,7 +2352,6 @@ function $c61f1fac801ee4e9$export$b27ec03c767c18ba(contents) {
             this.log.warn(`Cannot access path: "${pathArg}"`, error);
             outputDiv.textContent = `ls: cannot access '${pathArg}': ${error.message}`;
         }
-        return outputDiv;
     }
 }
 
@@ -2412,16 +2403,16 @@ function $c61f1fac801ee4e9$export$b27ec03c767c18ba(contents) {
             return []; // On error, return no suggestions.
         }
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         const pathArg = args.slice(1).join('').trim() || '/';
         try {
             await this.#changeDirectory(pathArg);
         } catch (error) {
             outputDiv.textContent = `cd: ${pathArg}: ${error.message}`;
         }
-        return outputDiv;
     }
 }
 
@@ -2475,23 +2466,23 @@ class $f56f4db7338f947e$export$15fe218ce13d3b19 extends (0, $0a4c644366d85fc4$ex
             return []; // On error, return no suggestions.
         }
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
-        const output = document.createElement('pre');
+        const outputPre = document.createElement('pre');
+        if (outputElement) outputElement.appendChild(outputPre);
         const filePathArg = args.slice(1).join('').trim();
         if (!filePathArg) {
             this.log.warn('Missing file operand.');
-            output.textContent = 'cat: missing file operand';
-            return output;
+            outputPre.textContent = 'cat: missing file operand';
+            return;
         }
         try {
             const content = await this.#getFileContents(filePathArg);
-            output.textContent = content;
+            outputPre.textContent = content;
         } catch (error) {
             this.log.error(`Failed to get file content for "${filePathArg}":`, error);
-            output.textContent = `cat: ${filePathArg}: ${error.message}`;
+            outputPre.textContent = `cat: ${filePathArg}: ${error.message}`;
         }
-        return output;
     }
 }
 
@@ -2527,12 +2518,9 @@ class $f56f4db7338f947e$export$15fe218ce13d3b19 extends (0, $0a4c644366d85fc4$ex
      * Executes the clear command by dispatching a terminal-clear event
      * @param {string[]} args - Command arguments (not used)
      * @returns {HTMLElement} An empty div, as this command produces no visible output.
-     */ execute(args) {
+     */ execute(args, outputElement) {
         this.log.log('Executing clear command.');
         this.#clearScreen();
-        const outputDiv = document.createElement('div');
-        // The command itself produces no output, so we return an empty element.
-        return outputDiv;
     }
     /**
      * Returns manual page content for the clear command
@@ -2604,27 +2592,27 @@ DESCRIPTION
             return []; // On error, return no suggestions.
         }
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         // Reconstruct the file path from all argument tokens.
         const commandArgs = args.slice(1);
         const filePathArg = commandArgs.join('').trim();
         if (!filePathArg) {
             this.log.warn('Missing file operand.');
             outputDiv.textContent = 'view: missing file operand';
-            return outputDiv;
+            return;
         }
         const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
         if (!supportedFormats.test(filePathArg)) {
             this.log.warn(`File is not a supported media type: "${filePathArg}"`);
             outputDiv.textContent = `view: ${filePathArg}: Unsupported file type.`;
-            return outputDiv;
+            return;
         }
         const mediaSrc = await this.#getPublicUrl(filePathArg);
         const mediaElement = await this.#requestMedia(mediaSrc);
         outputDiv.appendChild(mediaElement);
-        return outputDiv;
     }
 }
 
@@ -2677,18 +2665,19 @@ DESCRIPTION
             description: '<USERNAME>'
         };
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         const username = args[1];
         if (!username) {
             outputDiv.textContent = 'adduser: missing username operand.';
-            return outputDiv;
+            return;
         }
         const usernameRegex = /^[a-zA-Z0-9_]{3,32}$/;
         if (!usernameRegex.test(username)) {
             outputDiv.textContent = `adduser: invalid username '${username}'. Usernames must be 3-32 characters and contain only letters, numbers, and underscores.`;
-            return outputDiv;
+            return;
         }
         try {
             // Prompt for password
@@ -2697,33 +2686,27 @@ DESCRIPTION
                 allowHistory: false,
                 allowAutocomplete: false
             });
-            if (password === null) {
-                outputDiv.textContent = 'adduser: Operation cancelled.';
-                return outputDiv;
-            }
+            if (password === null) throw new Error('Operation cancelled.');
+            outputDiv.innerHTML += 'Password received.<br>';
             // Prompt for password confirmation
             const confirmPassword = await this.#prompt('Confirm password: ', {
                 isSecret: true,
                 allowHistory: false,
                 allowAutocomplete: false
             });
-            if (confirmPassword === null) {
-                outputDiv.textContent = 'adduser: Operation cancelled.';
-                return outputDiv;
-            }
+            if (confirmPassword === null) throw new Error('Operation cancelled.');
+            outputDiv.innerHTML += 'Confirmation received.<br>';
             if (password !== confirmPassword) {
-                outputDiv.textContent = 'adduser: Passwords do not match. User not created.';
-                return outputDiv;
+                outputDiv.innerHTML += '<br>adduser: Passwords do not match. User not created.';
+                return;
             }
-            outputDiv.textContent = 'Creating user...';
+            outputDiv.innerHTML += 'Creating user...';
             const result = await this.#addUser(username, password);
-            if (result.status === 'success') outputDiv.textContent = `User '${username}' created successfully.`;
-            else outputDiv.textContent = `adduser: ${result.message}`;
+            outputDiv.innerHTML += `<br>${result.status === 'success' ? `User '${username}' created successfully.` : `adduser: ${result.message}`}`;
         } catch (error) {
             this.log.error('Error during user creation:', error);
-            outputDiv.textContent = 'adduser: An unexpected error occurred.';
+            outputDiv.innerHTML += '<br>adduser: Operation cancelled.';
         }
-        return outputDiv;
     }
 }
 
@@ -2776,13 +2759,14 @@ DESCRIPTION
      */ static isAvailable(context) {
         return !context.isLoggedIn;
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         const username = args[1];
         if (!username) {
             outputDiv.textContent = 'Usage: login <username>';
-            return outputDiv;
+            return;
         }
         // Always prompt for the password interactively for security reasons.
         this.log.log('Prompting user for password.');
@@ -2791,6 +2775,10 @@ DESCRIPTION
             allowHistory: false,
             allowAutocomplete: false
         });
+        if (password === null) {
+            outputDiv.textContent = 'login: Operation cancelled.';
+            return;
+        }
         try {
             const loginResult = await this.#login(username, password);
             outputDiv.textContent = loginResult.message;
@@ -2798,7 +2786,6 @@ DESCRIPTION
             this.log.error('Network or parsing error during login:', error);
             outputDiv.textContent = `Error: ${error.message}`;
         }
-        return outputDiv;
     }
 }
 
@@ -2841,9 +2828,10 @@ DESCRIPTION
      */ static isAvailable(context) {
         return context.isLoggedIn;
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing...');
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         try {
             const result = await this.#logout();
             outputDiv.textContent = result.message;
@@ -2851,7 +2839,6 @@ DESCRIPTION
             this.log.error('Network or parsing error during logout:', error);
             outputDiv.textContent = `Error: ${error.message}`;
         }
-        return outputDiv;
     }
 }
 
@@ -2906,9 +2893,8 @@ DESCRIPTION
      */ static isAvailable(context) {
         return true;
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing...');
-        const outputDiv = document.createElement('div');
         const promptOptions = {
             isSecret: true,
             allowHistory: false,
@@ -2917,31 +2903,30 @@ DESCRIPTION
         try {
             const oldPassword = await this.#prompt('Old password: ', promptOptions);
             if (oldPassword === null) throw new Error('Operation cancelled.');
-            outputDiv.textContent += 'Old password received.\n';
+            outputElement.innerHTML += 'Old password received.<br>';
             const newPassword = await this.#prompt('New password: ', promptOptions);
             if (newPassword === null) throw new Error('Operation cancelled.');
-            outputDiv.textContent += 'New password received.\n';
+            outputElement.innerHTML += 'New password received.<br>';
             const confirmPassword = await this.#prompt('Confirm new password: ', promptOptions);
             if (confirmPassword === null) throw new Error('Operation cancelled.');
-            outputDiv.textContent += 'Confirmation received.\n';
+            outputElement.innerHTML += 'Confirmation received.<br>';
             if (newPassword !== confirmPassword) {
-                outputDiv.textContent += '\npasswd: Passwords do not match. Password not changed.';
-                return outputDiv;
+                outputElement.innerHTML += '<br>passwd: Passwords do not match. Password not changed.';
+                return;
             }
             if (!newPassword) {
-                outputDiv.textContent += '\npasswd: Password cannot be empty.';
-                return outputDiv;
+                outputElement.innerHTML += '<br>passwd: Password cannot be empty.';
+                return;
             }
-            outputDiv.textContent += 'Changing password...';
+            outputElement.innerHTML += 'Changing password...';
             const result = await this.#changePassword(oldPassword, newPassword);
             // Append the final result to the existing acknowledgments
-            outputDiv.textContent += `\n${result.message}`;
+            outputElement.innerHTML += `<br>${result.message}`;
         } catch (error) {
             // A timeout on the prompt means the user cancelled (e.g., Ctrl+C)
             this.log.warn('Password change operation cancelled or failed:', error);
-            outputDiv.textContent += 'passwd: Operation cancelled.';
+            outputElement.innerHTML += 'passwd: Operation cancelled.';
         }
-        return outputDiv;
     }
 }
 
@@ -2987,21 +2972,21 @@ DESCRIPTION
         if (args.length <= 1) {
             if (Object.keys(aliases).length === 0) {
                 this.log.log('No aliases found to display.');
-                output.textContent = 'No aliases defined.';
+                outputDiv.textContent = 'No aliases defined.';
             } else {
                 let aliasText = '';
-                for (const [name, value] of Object.entries(aliases))aliasText += `alias ${name}='${value}'\n`;
-                output.textContent = aliasText.trim();
+                for (const [name, value] of Object.entries(aliases))aliasText += `alias ${name}='${value}'<br>`;
+                outputDiv.innerHTML = aliasText;
                 this.log.log('Displaying all defined aliases.');
             }
-            return output;
+            return;
         }
         // Reconstruct the full argument string from the tokens to parse it.
         const aliasString = args.slice(1).join('');
         const assignmentIndex = aliasString.indexOf('=');
         if (assignmentIndex === -1) {
-            output.textContent = 'alias: usage: alias [name[=value] ...]';
-            return output;
+            outputDiv.textContent = 'alias: usage: alias [name[=value] ...]';
+            return;
         }
         const name = aliasString.substring(0, assignmentIndex).trim();
         let value = aliasString.substring(assignmentIndex + 1).trim();
@@ -3013,9 +2998,8 @@ DESCRIPTION
             this.log.log(`Created alias: ${name}='${value}'`);
         } else {
             this.log.warn('Invalid alias format:', aliasString);
-            output.textContent = `alias: invalid alias name`;
+            outputDiv.textContent = `alias: invalid alias name`;
         }
-        return output;
     }
 }
 
@@ -3059,26 +3043,26 @@ DESCRIPTION
         const input = currentArgs[0] || '';
         return aliasNames.filter((name)=>name.startsWith(input));
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
-        const output = document.createElement('pre');
+        const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         const aliasName = args[1];
         if (!aliasName) {
             this.log.warn('No alias name provided.');
-            output.textContent = 'unalias: usage: unalias <alias_name>';
-            return output;
+            outputDiv.textContent = 'unalias: usage: unalias <alias_name>';
+            return;
         }
         const aliases = await this.#getAliases();
         if (aliasName in aliases) {
             this.log.log(`Removing alias: "${aliasName}"`);
             delete aliases[aliasName];
             this.#setAliases(aliases);
-            output.textContent = `Alias '${aliasName}' removed.`;
+            outputDiv.textContent = `Alias '${aliasName}' removed.`;
         } else {
             this.log.warn(`Alias not found: "${aliasName}"`);
-            output.textContent = `unalias: ${aliasName}: not found`;
+            outputDiv.textContent = `unalias: ${aliasName}: not found`;
         }
-        return output;
     }
 }
 
@@ -3181,18 +3165,19 @@ DESCRIPTION
         }
         return [];
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
-        const output = document.createElement('pre');
+        const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         const exportString = args.slice(1).join(' ');
         const allVars = await this.#getAllCategorizedVariables();
         const userSpaceVars = allVars.USERSPACE || {};
         // If no arguments, display all USERSPACE variables
         if (!exportString) {
             let outputText = '';
-            for (const [name, value] of Object.entries(userSpaceVars))outputText += `export ${name}="${value}"\n`;
-            output.textContent = outputText.trim() || 'No user variables defined.';
-            return output;
+            for (const [name, value] of Object.entries(userSpaceVars))outputText += `export ${name}="${value}"<br>`;
+            outputDiv.innerHTML = outputText.trim() || 'No user variables defined.';
+            return;
         }
         // If arguments are provided, define a new variable
         const newVar = (0, $fd5a8ab557e9974d$export$5469367a6e633daf)(exportString);
@@ -3204,12 +3189,11 @@ DESCRIPTION
             if (!isReadOnly) {
                 this.#setUserspaceVariable(upperVarName, newVar.value);
                 this.log.log(`Set variable: ${newVar.name}='${newVar.value}'`);
-            } else output.textContent = `export: permission denied: \`${newVar.name}\` is a read-only variable.`;
+            } else outputDiv.textContent = `export: permission denied: \`${newVar.name}\` is a read-only variable.`;
         } else {
-            output.textContent = `export: invalid format. Use name="value"`;
+            outputDiv.textContent = `export: invalid format. Use name="value"`;
             this.log.warn('Invalid export format:', exportString);
         }
-        return output;
     }
 }
 
@@ -3254,20 +3238,20 @@ DESCRIPTION
         const input = (currentArgs[0] || '').toUpperCase();
         return userSpaceVarNames.filter((name)=>name.startsWith(input));
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
-        const output = document.createElement('pre');
+        const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         const varName = args[1];
         if (!varName) {
-            output.textContent = 'unset: usage: unset <variable_name>';
-            return output;
+            outputDiv.textContent = 'unset: usage: unset <variable_name>';
+            return;
         }
         const upperVarName = varName.toUpperCase();
         const allVars = await this.#getAllCategorizedVariables();
         const userSpaceVars = allVars.USERSPACE || {};
         if (Object.keys(userSpaceVars).includes(upperVarName)) await this.#deleteUserspaceVariable(upperVarName);
-        else output.textContent = `unset: ${varName}: not found in userspace`;
-        return output;
+        else outputDiv.textContent = `unset: ${varName}: not found in userspace`;
     }
 }
 
@@ -3313,26 +3297,26 @@ DESCRIPTION
         const input = currentArgs[0] || '';
         return (await this.#getValidThemes()).filter((name)=>name.startsWith(input));
     }
-    async execute(args) {
-        const output = document.createElement('div');
+    async execute(args, outputElement) {
+        const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         const themeName = args[1];
         const validThemes = await this.#getValidThemes();
         if (!themeName) {
             // Get the current theme variable from the correct category.
             const { value: currentTheme } = await this.#getSystemVariable('THEME');
-            output.textContent = `Current theme: ${currentTheme}\nAvailable themes: ${validThemes.join(', ')}`;
-            return output;
+            outputDiv.innerHTML = `Current theme: ${currentTheme}<br>Available themes: ${validThemes.join(', ')}`;
+            return;
         }
         if (validThemes.includes(themeName)) {
             // Set the environment variable. The Terminal component will listen for this change.
             this.#setTheme(themeName);
-            output.textContent = `Theme set to '${themeName}'.`;
+            outputDiv.textContent = `Theme set to '${themeName}'.`;
             this.log.log(`Theme set to: ${themeName}`);
         } else {
-            output.textContent = `Error: Invalid theme '${themeName}'.\nAvailable themes: ${validThemes.join(', ')}`;
+            outputDiv.innerHTML = `Error: Invalid theme '${themeName}'.<br>Available themes: ${validThemes.join(', ')}`;
             this.log.warn(`Invalid theme name provided: ${themeName}`);
         }
-        return output;
     }
 }
 
@@ -3371,20 +3355,19 @@ $329030bb3c43881e$exports = $parcel$resolve("ccCIq");
     constructor(services){
         super(services);
     }
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing...');
-        const outputDiv = document.createElement('div');
-        outputDiv.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
+        const outputPre = document.createElement('pre');
+        if (outputElement) outputElement.appendChild(outputPre);
         try {
             const response = await fetch($2f656a0166ae0dde$export$682c179f50ab847d.DATA_FILE);
             if (!response.ok) throw new Error(`Failed to load version information: ${response.statusText}`);
             const versionText = await response.text();
-            outputDiv.innerText = versionText;
+            outputPre.textContent = versionText;
         } catch (error) {
             this.log.error('Error loading version information:', error);
-            outputDiv.innerText = 'Error: Could not load version information.';
+            outputPre.textContent = 'Error: Could not load version information.';
         }
-        return outputDiv;
     }
     static man() {
         return `NAME\n       version - Show version information.\n\nDESCRIPTION\n       The version command displays the application's version and build information.`;
@@ -3598,8 +3581,7 @@ $329030bb3c43881e$exports = $parcel$resolve("ccCIq");
             if (this.#registry.has(commandName)) try {
                 const commandHandler = this.getCommand(commandName);
                 this.log.log(`Executing command: "${resolvedArgs}"`);
-                const resultElement = await commandHandler.execute(resolvedArgs);
-                if (outputElement) outputElement.appendChild(resultElement);
+                await commandHandler.execute(resolvedArgs, outputElement);
             } catch (e) {
                 if (outputElement) outputElement.textContent = `Error executing ${commandName}: ${e.message}`;
                 this.log.error(`Error executing ${commandName}:`, e);

@@ -47,16 +47,16 @@ class Alias extends BaseCommand {
         if (args.length <= 1) {
             if (Object.keys(aliases).length === 0) {
                 this.log.log('No aliases found to display.');
-                output.textContent = 'No aliases defined.';
+                outputDiv.textContent = 'No aliases defined.';
             } else {
                 let aliasText = '';
                 for (const [name, value] of Object.entries(aliases)) {
-                    aliasText += `alias ${name}='${value}'\n`;
+                    aliasText += `alias ${name}='${value}'<br>`;
                 }
-                output.textContent = aliasText.trim();
+                outputDiv.innerHTML = aliasText;
                 this.log.log('Displaying all defined aliases.');
             }
-            return output;
+            return;
         }
 
         // Reconstruct the full argument string from the tokens to parse it.
@@ -64,8 +64,8 @@ class Alias extends BaseCommand {
         const assignmentIndex = aliasString.indexOf('=');
 
         if (assignmentIndex === -1) {
-            output.textContent = 'alias: usage: alias [name[=value] ...]'
-            return output;
+            outputDiv.textContent = 'alias: usage: alias [name[=value] ...]';
+            return;
         }
 
         const name = aliasString.substring(0, assignmentIndex).trim();
@@ -82,10 +82,8 @@ class Alias extends BaseCommand {
             this.log.log(`Created alias: ${name}='${value}'`);
         } else {
             this.log.warn('Invalid alias format:', aliasString);
-            output.textContent = `alias: invalid alias name`;
+            outputDiv.textContent = `alias: invalid alias name`;
         }
-
-        return output;
     }
 }
 

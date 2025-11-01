@@ -57,19 +57,25 @@ class Login extends BaseCommand {
         return !context.isLoggedIn;
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         const username = args[1];
 
         if (!username) {
             outputDiv.textContent = 'Usage: login <username>';
-            return outputDiv;
+            return;
         }
 
         // Always prompt for the password interactively for security reasons.
         this.log.log('Prompting user for password.');
         const password = await this.#prompt('Password: ', { isSecret: true, allowHistory: false, allowAutocomplete: false });
+        if (password === null) {
+            outputDiv.textContent = 'login: Operation cancelled.';
+            return;
+        }
 
         try {
             const loginResult = await this.#login(username, password);
@@ -78,8 +84,6 @@ class Login extends BaseCommand {
             this.log.error('Network or parsing error during login:', error);
             outputDiv.textContent = `Error: ${error.message}`;
         }
-
-        return outputDiv;
     }
 }
 

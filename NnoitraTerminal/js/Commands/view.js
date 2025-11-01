@@ -61,9 +61,10 @@ class View extends BaseCommand {
         }
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
         
         // Reconstruct the file path from all argument tokens.
         const commandArgs = args.slice(1);
@@ -72,20 +73,18 @@ class View extends BaseCommand {
         if (!filePathArg) {
             this.log.warn('Missing file operand.');
             outputDiv.textContent = 'view: missing file operand';
-            return outputDiv;
+            return;
         }
 
         const supportedFormats = /\.(png|jpg|jpeg|gif|webp|mp4|webm)$/i;
         if (!supportedFormats.test(filePathArg)) {
             this.log.warn(`File is not a supported media type: "${filePathArg}"`);
             outputDiv.textContent = `view: ${filePathArg}: Unsupported file type.`;
-            return outputDiv;
+            return;
         }
         const mediaSrc = await this.#getPublicUrl(filePathArg);
         const mediaElement = await this.#requestMedia(mediaSrc);
         outputDiv.appendChild(mediaElement);
-
-        return outputDiv;
     }
 }
 

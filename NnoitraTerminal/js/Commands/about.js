@@ -38,9 +38,10 @@ class About extends BaseCommand {
         return []; // 'about' command takes no arguments.
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing...');
-        const outputDiv = document.createElement('div');
+        const outputDiv = outputElement; // Use the provided container directly
+
         try {
             for (const item of data) {
                 const wrapper = document.createElement('div');
@@ -77,7 +78,6 @@ class About extends BaseCommand {
             this.log.error('Failed to fetch about information:', error);
             outputDiv.textContent = `Error: ${error.message}`;
         }
-        return outputDiv;
     }
 }
 

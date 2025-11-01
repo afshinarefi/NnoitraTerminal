@@ -46,25 +46,27 @@ class Env extends BaseCommand {
      * @param {string[]} args - An array of arguments passed to the command (not used by this command).
      * @returns {Promise<HTMLPreElement>} A promise that resolves with a `<pre>` HTML element containing the environment variables.
      */
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing...');
-        const pre = document.createElement('pre');
+        const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         const categorizedVars = await this.#getAllCategorizedVariables();
         let output = '';
 
         const formatCategory = (title, vars) => {
             if (Object.keys(vars).length === 0) return '';
 
-            let categoryOutput = `\n# ${title} Variables\n`;
+            let categoryOutput = `<br># ${title} Variables<br>`;
             for (const [key, value] of Object.entries(vars)) {
                 // Check if the value contains spaces or is a JSON-like string, and quote it if so.
                 // Also ensure the value is a string before calling string methods on it.
                 if (typeof value === 'string' && (/\s/.test(value) || (value.startsWith('{') && value.endsWith('}')))) {
-                    categoryOutput += `${key}="${value}"\n`;
+                    categoryOutput += `${key}="${value}"<br>`;
                 } else if (value !== undefined && value !== null) {
-                    categoryOutput += `${key}=${value}\n`;
+                    categoryOutput += `${key}=${value}<br>`;
                 } else {
-                    categoryOutput += `${key}=${value}\n`;
+                    categoryOutput += `${key}=${value}<br>`;
                 }
             }
             return categoryOutput;
@@ -76,8 +78,7 @@ class Env extends BaseCommand {
         output += formatCategory('Remote (User Account)', categorizedVars.SYSTEM);
         output += formatCategory('User (Configurable)', categorizedVars.USERSPACE);
 
-        pre.innerText = output.trim();
-        return pre;
+        outputDiv.innerHTML = output.trim();
     }
 
     /**

@@ -47,15 +47,17 @@ class Unalias extends BaseCommand {
         return aliasNames.filter(name => name.startsWith(input));
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
-        const output = document.createElement('pre');
+        const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         const aliasName = args[1];
 
         if (!aliasName) {
             this.log.warn('No alias name provided.');
-            output.textContent = 'unalias: usage: unalias <alias_name>';
-            return output;
+            outputDiv.textContent = 'unalias: usage: unalias <alias_name>';
+            return;
         }
 
         const aliases = await this.#getAliases();
@@ -64,13 +66,11 @@ class Unalias extends BaseCommand {
             this.log.log(`Removing alias: "${aliasName}"`);
             delete aliases[aliasName];
             this.#setAliases(aliases);
-            output.textContent = `Alias '${aliasName}' removed.`;
+            outputDiv.textContent = `Alias '${aliasName}' removed.`;
         } else {
             this.log.warn(`Alias not found: "${aliasName}"`);
-            output.textContent = `unalias: ${aliasName}: not found`;
+            outputDiv.textContent = `unalias: ${aliasName}: not found`;
         }
-
-        return output;
     }
 }
 

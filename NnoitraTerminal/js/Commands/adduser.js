@@ -53,57 +53,49 @@ DESCRIPTION
         };
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const outputDiv = document.createElement('div');
+        if (outputElement) outputElement.appendChild(outputDiv);
+
         const username = args[1];
 
         if (!username) {
             outputDiv.textContent = 'adduser: missing username operand.';
-            return outputDiv;
+            return;
         }
 
         const usernameRegex = /^[a-zA-Z0-9_]{3,32}$/;
         if (!usernameRegex.test(username)) {
             outputDiv.textContent = `adduser: invalid username '${username}'. Usernames must be 3-32 characters and contain only letters, numbers, and underscores.`;
-            return outputDiv;
+            return;
         }
 
         try {
             // Prompt for password
             const password = await this.#prompt('Password: ', { isSecret: true, allowHistory: false, allowAutocomplete: false });
-            if (password === null) { // User cancelled with Ctrl+C
-                outputDiv.textContent = 'adduser: Operation cancelled.';
-                return outputDiv;
-            }
+            if (password === null) throw new Error('Operation cancelled.');
+            outputDiv.innerHTML += 'Password received.<br>';
 
             // Prompt for password confirmation
             const confirmPassword = await this.#prompt('Confirm password: ', { isSecret: true, allowHistory: false, allowAutocomplete: false });
-            if (confirmPassword === null) { // User cancelled with Ctrl+C
-                outputDiv.textContent = 'adduser: Operation cancelled.';
-                return outputDiv;
-            }
+            if (confirmPassword === null) throw new Error('Operation cancelled.');
+            outputDiv.innerHTML += 'Confirmation received.<br>';
 
             if (password !== confirmPassword) {
-                outputDiv.textContent = 'adduser: Passwords do not match. User not created.';
-                return outputDiv;
+                outputDiv.innerHTML += '<br>adduser: Passwords do not match. User not created.';
+                return;
             }
 
-            outputDiv.textContent = 'Creating user...';
+            outputDiv.innerHTML += 'Creating user...';
 
             const result = await this.#addUser(username, password);
 
-            if (result.status === 'success') {
-                outputDiv.textContent = `User '${username}' created successfully.`;
-            } else {
-                outputDiv.textContent = `adduser: ${result.message}`;
-            }
+            outputDiv.innerHTML += `<br>${result.status === 'success' ? `User '${username}' created successfully.` : `adduser: ${result.message}`}`;
         } catch (error) {
             this.log.error('Error during user creation:', error);
-            outputDiv.textContent = 'adduser: An unexpected error occurred.';
+            outputDiv.innerHTML += '<br>adduser: Operation cancelled.';
         }
-
-        return outputDiv;
     }
 }
 

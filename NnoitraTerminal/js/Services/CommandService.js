@@ -217,8 +217,7 @@ class CommandService extends BaseService{
                 try {
                     const commandHandler = this.getCommand(commandName);
                     this.log.log(`Executing command: "${resolvedArgs}"`);
-                    const resultElement = await commandHandler.execute(resolvedArgs);
-                    if (outputElement) outputElement.appendChild(resultElement);
+                    await commandHandler.execute(resolvedArgs, outputElement);
                 } catch (e) {
                     if (outputElement) outputElement.textContent = `Error executing ${commandName}: ${e.message}`;
                     this.log.error(`Error executing ${commandName}:`, e);
