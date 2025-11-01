@@ -61,7 +61,7 @@ var parcelRegister = parcelRequire.register;
 var $e415f539f646a2f9$exports = {};
 $parcel$extendImportMap({
     "H44nx": "motd.6d76bb23.txt",
-    "ccCIq": "version.4fc8a35d.txt",
+    "ccCIq": "version.a3fd00c7.txt",
     "euAS4": "UbuntuMono-R.54fdcd79.ttf",
     "4acmQ": "UbuntuMono-B.1f21d913.ttf",
     "jRB9m": "UbuntuMono-RI.0df7809e.ttf",
@@ -555,6 +555,35 @@ const $9919a9f5491eef72$var$log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)
 }
 
 
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * @description Central repository for all storage API method names.
+ * This prevents the use of "magic strings" when dispatching STORAGE_API_REQUEST events.
+ */ const $fa4d2f5b4bb4a3ef$export$95d56908f64857f4 = {
+    GET_NODE: 'getNode',
+    SET_NODE: 'setNode',
+    DELETE_NODE: 'deleteNode',
+    LIST_KEYS_WITH_PREFIX: 'listKeysWithPrefix',
+    LOCK_NODE: 'lockNode',
+    UNLOCK_NODE: 'unlockNode'
+};
+
+
 const $1b934ed4cb64b454$var$TEMP_NAMESPACE = 'TEMP';
 const $1b934ed4cb64b454$var$LOCAL_NAMESPACE = 'LOCAL';
 const $1b934ed4cb64b454$var$ENV_NAMESPACE = 'ENV';
@@ -606,23 +635,37 @@ class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$ex
     }
     async #handleGetLocalVariable({ key: key, respond: respond }) {
         const upperKey = key.toUpperCase();
-        const { value: storedValue } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOAD_LOCAL_VAR, {
-            key: upperKey,
-            namespace: $1b934ed4cb64b454$var$ENV_NAMESPACE
+        const storageKey = `${$1b934ed4cb64b454$var$ENV_NAMESPACE}_${upperKey}`;
+        // Lock the resource to prevent race conditions on read-modify-write.
+        const { lockId: lockId } = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE, {
+            key: storageKey
         });
-        let value = storedValue;
-        if (value === undefined) {
-            this.log.log(`Local variable "${upperKey}" is undefined, requesting its default value.`);
-            const response = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST, {
-                key: upperKey
+        try {
+            const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                key: storageKey,
+                lockId: lockId
             });
-            value = response.value;
-            // The owner provides the default, and we set it here.
-            if (value !== undefined) this.#setLocalVariable(upperKey, value);
+            let value = node ? node.content : undefined;
+            if (value === undefined) {
+                this.log.log(`Local variable "${upperKey}" is undefined, requesting its default value.`);
+                const response = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST, {
+                    key: upperKey
+                });
+                value = response.value;
+                // The owner provides the default, and we set it here.
+                if (value !== undefined) // Use the existing lockId to perform the write.
+                await this.#setLocalVariable(upperKey, value, lockId);
+            }
+            respond({
+                value: value
+            });
+        } finally{
+            // Always ensure the lock is released.
+            await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE, {
+                key: storageKey,
+                lockId: lockId
+            });
         }
-        respond({
-            value: value
-        });
     }
     async #handleGetUserSpaceVariable({ key: key, respond: respond }) {
         return this.#handleGetRemoteVariable({
@@ -698,12 +741,19 @@ class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$ex
         if (!this.#validate(key, value)) return;
         this.#tempVariables.set(key, value);
     }
-    #setLocalVariable(key, value) {
+    #setLocalVariable(key, value, lockId) {
         if (!this.#validate(key, value)) return;
-        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).SAVE_LOCAL_VAR, {
-            key: key,
-            value: value,
-            namespace: $1b934ed4cb64b454$var$ENV_NAMESPACE
+        const storageKey = `${$1b934ed4cb64b454$var$ENV_NAMESPACE}_${key}`;
+        const node = {
+            meta: {
+                type: 'variable'
+            },
+            content: value
+        };
+        this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+            key: storageKey,
+            node: node,
+            lockId: lockId
         });
     }
     #setRemoteVariable(key, value, category) {
@@ -720,9 +770,9 @@ class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$ex
         this.#tempVariables.delete(key);
     }
     #deleteLocalVariable(key) {
-        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).DELETE_LOCAL_VAR, {
-            key: key,
-            namespace: $1b934ed4cb64b454$var$ENV_NAMESPACE
+        const storageKey = `${$1b934ed4cb64b454$var$ENV_NAMESPACE}_${key}`;
+        this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).DELETE_NODE, {
+            key: storageKey
         });
     }
     #deleteRemoteVariable(key, category) {
@@ -744,9 +794,20 @@ class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$ex
                 USERSPACE: {}
             };
             categorized.TEMP = Object.fromEntries(this.#tempVariables);
-            categorized.LOCAL = (await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOAD_LOCAL_VAR, {
-                namespace: $1b934ed4cb64b454$var$ENV_NAMESPACE
-            })).value;
+            const localKeys = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX, {
+                prefix: `${$1b934ed4cb64b454$var$ENV_NAMESPACE}_`
+            });
+            const localVars = {};
+            for (const key of localKeys){
+                const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                    key: key
+                });
+                if (node) {
+                    const varName = key.substring($1b934ed4cb64b454$var$ENV_NAMESPACE.length + 1);
+                    localVars[varName] = node.content;
+                }
+            }
+            categorized.LOCAL = localVars;
             const { variables: remoteData } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_LOAD_REMOTE_REQUEST, {
                 category: [
                     $1b934ed4cb64b454$var$SYSTEM_NAMESPACE,
@@ -759,6 +820,22 @@ class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$ex
                 categorized: categorized
             });
         })();
+    }
+    /**
+     * Makes a request to a storage backend.
+     * @param {string} storageName - The name of the storage service (e.g., 'SESSION').
+     * @param {string} api - The API method to call (from STORAGE_APIS).
+     * @param {object} data - The data payload for the API method.
+     * @returns {Promise<any>}
+     * @private
+     */ async #makeStorageRequest(storageName, api, data) {
+        const { result: result, error: error } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).STORAGE_API_REQUEST, {
+            storageName: storageName,
+            api: api,
+            data: data
+        });
+        if (error) throw error;
+        return result;
     }
 }
 
@@ -874,6 +951,7 @@ class $fa0ff2eef523a395$export$cd2fa11040f69795 {
     TOKEN: 'TOKEN',
     TOKEN_EXPIRY: 'TOKEN_EXPIRY'
 };
+
 
 
 
@@ -1068,12 +1146,19 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
         const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
             key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
         });
-        if (user === $34004656f0914987$var$GUEST_USER) this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).SAVE_LOCAL_VAR, {
-            namespace: `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${payload.category}`,
-            key: payload.key,
-            value: payload.value
-        });
-        else {
+        if (user === $34004656f0914987$var$GUEST_USER) {
+            const storageKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${payload.category}_${payload.key}`;
+            const node = {
+                meta: {
+                    type: 'variable'
+                },
+                content: payload.value
+            };
+            this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+                key: storageKey,
+                node: node
+            });
+        } else {
             const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
                 key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
             });
@@ -1088,11 +1173,12 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
         const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
             key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
         });
-        if (user === $34004656f0914987$var$GUEST_USER) this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).DELETE_LOCAL_VAR, {
-            namespace: `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${payload.category}`,
-            key: payload.key
-        });
-        else {
+        if (user === $34004656f0914987$var$GUEST_USER) {
+            const storageKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${payload.category}_${payload.key}`;
+            this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).DELETE_NODE, {
+                key: storageKey
+            });
+        } else {
             const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
                 key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
             });
@@ -1106,12 +1192,19 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
         const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
             key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
         });
-        if (user === $34004656f0914987$var$GUEST_USER) this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).SAVE_LOCAL_VAR, {
-            namespace: `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`,
-            key: new Date().toISOString(),
-            value: payload.command
-        });
-        else {
+        if (user === $34004656f0914987$var$GUEST_USER) {
+            const storageKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}_${new Date().toISOString()}`;
+            const node = {
+                meta: {
+                    type: 'history'
+                },
+                content: payload.command
+            };
+            this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+                key: storageKey,
+                node: node
+            });
+        } else {
             const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
                 key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
             });
@@ -1127,12 +1220,26 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
             key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
         });
         if (user === $34004656f0914987$var$GUEST_USER) {
-            const { value: guestHistory } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOAD_LOCAL_VAR, {
-                namespace: `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`
-            });
-            if (respond) respond({
-                history: guestHistory || {}
-            });
+            const lockKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`;
+            {
+                const prefix = `${lockKey}_`;
+                const keys = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX, {
+                    prefix: prefix
+                });
+                const guestHistory = {};
+                for (const key of keys){
+                    const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                        key: key
+                    });
+                    if (node) {
+                        const timestamp = key.substring(prefix.length);
+                        guestHistory[timestamp] = node.content;
+                    }
+                }
+                if (respond) respond({
+                    history: guestHistory
+                });
+            }
         } else try {
             const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
                 key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
@@ -1161,23 +1268,46 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
             const categories = Array.isArray(category) ? category : [
                 category
             ];
-            for (const cat of categories){
-                const namespace = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${cat}`;
-                // If a key is provided, we are fetching a single variable.
-                // If no key, we are fetching all variables for the category (or categories).
-                const { value: value } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOAD_LOCAL_VAR, {
-                    namespace: namespace,
-                    key: key
+            for (const cat of categories)if (key !== undefined) {
+                // Lock on the specific resource key
+                const storageKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${cat}_${key}`;
+                const { lockId: lockId } = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE, {
+                    key: storageKey
                 });
-                if (key !== undefined) // If a key was requested, the value is the variable's value.
-                // The expected response format is { [key]: value }.
-                {
+                try {
+                    const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                        key: storageKey,
+                        lockId: lockId
+                    });
+                    const value = node ? node.content : undefined;
                     if (value !== undefined) variables[key] = value;
-                } else // If no key, value is an object of all variables for that category.
-                if (Array.isArray(category)) // If multiple categories were requested, nest the results.
-                variables[cat] = value || {};
-                else // If a single category was requested, merge into the top level.
-                Object.assign(variables, value || {});
+                } finally{
+                    await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE, {
+                        key: storageKey,
+                        lockId: lockId
+                    });
+                }
+            } else {
+                // Lock on the category when listing multiple items
+                const lockKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${cat}`;
+                {
+                    const prefix = `${lockKey}_`;
+                    const keys = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX, {
+                        prefix: prefix
+                    });
+                    const catVars = {};
+                    for (const storageKey of keys){
+                        const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                            key: storageKey
+                        });
+                        if (node) {
+                            const varName = storageKey.substring(prefix.length);
+                            catVars[varName] = node.content;
+                        }
+                    }
+                    if (Array.isArray(category)) variables[cat] = catVars;
+                    else Object.assign(variables, catVars);
+                }
             }
             if (respond) respond({
                 variables: variables
@@ -1201,6 +1331,22 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
                 error: error
             });
         }
+    }
+    /**
+     * Makes a request to a storage backend.
+     * @param {string} storageName - The name of the storage service (e.g., 'SESSION').
+     * @param {string} api - The API method to call (from STORAGE_APIS).
+     * @param {object} data - The data payload for the API method.
+     * @returns {Promise<any>}
+     * @private
+     */ async #makeStorageRequest(storageName, api, data) {
+        const { result: result, error: error } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).STORAGE_API_REQUEST, {
+            storageName: storageName,
+            api: api,
+            data: data
+        });
+        if (error) throw error;
+        return result;
     }
 }
 
@@ -1776,7 +1922,7 @@ $fed81596da0f4423$exports = $parcel$resolve("H44nx");
     async execute(args, outputElement) {
         this.log.log('Executing...');
         const outputPre = document.createElement('div');
-        outpuPre.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
+        outputPre.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
         if (outputElement) outputElement.appendChild(outputPre);
         try {
             const welcomeText = await (0, $268f5c7225abb997$export$7d79caac809a3f17)($e0c064800146e1d9$export$23191e4434a9e834.DATA_FILE); // Use static property
@@ -5386,132 +5532,209 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */ 
 
 
 /**
- * @class LocalStorageService
- * @description Manages all direct interactions with the browser's localStorage for environment variables.
- *
- * @listens for `SAVE_LOCAL_VAR` - Saves a specific key-value pair or overwrites all local data.
- * @listens for `LOAD_LOCAL_VAR` - Loads a specific key's value or all local data.
- * Both events can optionally take a `namespace` string in their payload.
- */ class $e8647c5b0ada794e$export$fda5b86bc4921cb9 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
-    #storageKeyPrefix = 'AREFI_LOCAL_ENV';
-    #DEFAULT_NAMESPACE = 'DEFAULT';
+ * @class BaseStorageService
+ * @description Provides a foundational class for all storage backend services (e.g., Local, Remote, Session).
+ * It defines a common interface for filesystem operations and handles routing of storage API requests.
+ */ class $cdeb0865826d5baf$export$282961b3a2302fe3 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
+    /**
+     * The unique name of this storage service (e.g., 'LOCAL', 'REMOTE').
+     * Child classes MUST override this static property.
+     * @type {string}
+     */ static STORAGE_NAME = 'BASE';
+    // A map where the key is the resource path, and the value is the current
+    // "gate" object: { promise, resolve, lockId }
+    #operationQueues = new Map();
     constructor(eventBus){
         super(eventBus);
-        this.log.log('Initializing...');
+        this.log.log(`Initializing ${this.constructor.STORAGE_NAME} storage service...`);
     }
     get eventHandlers() {
         return {
-            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).SAVE_LOCAL_VAR]: this.#handleSaveLocalVar.bind(this),
-            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOAD_LOCAL_VAR]: this.#handleLoadLocalVar.bind(this),
-            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).RESET_LOCAL_VAR]: this.#handleResetLocalVar.bind(this),
-            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).DELETE_LOCAL_VAR]: this.#handleDeleteLocalVar.bind(this)
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).STORAGE_API_REQUEST]: this.#handleStorageApiRequest.bind(this)
         };
     }
     /**
-     * Generates a unique localStorage key for a specific variable.
-     * Format: PREFIX_UUID_NAMESPACE_KEY
-     */ async #getStorageKey(namespace, key) {
-        const { value: uuid } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
-            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).UUID
+     * Handles incoming storage API requests and routes them to the appropriate method
+     * if the request is intended for this specific storage service.
+     * @param {object} payload - The event payload.
+     * @param {string} payload.storageName - The name of the target storage service.
+     * @param {string} payload.api - The name of the method to call.
+     * @param {object} payload.data - The data for the method.
+     * @param {Function} payload.respond - The function to call with the result.
+     * @private
+     */ async #handleStorageApiRequest({ storageName: storageName, api: api, data: data, respond: respond }) {
+        if (storageName !== this.constructor.STORAGE_NAME) return;
+        const key = data.key;
+        const hadExplicitLockId = !!data.lockId;
+        let result;
+        if (key == 'GUEST_STORAGE_HISTORY') this.log.warn("BBBBB", data, key, api);
+        if (key) {
+            if (!hadExplicitLockId) {
+                let newGateResolver;
+                const newGatePromise = new Promise((resolve)=>{
+                    newGateResolver = resolve;
+                });
+                // Get the promise of the operation currently in front of us.
+                const lastGatePromise = this.#operationQueues.get(key)?.promise || Promise.resolve();
+                // Ensure a queue entry exists and set our new promise as the next gate.
+                if (!this.#operationQueues.has(key)) this.#operationQueues.set(key, {});
+                this.#operationQueues.get(key).promise = newGatePromise;
+                // Wait for our turn. This is the core of the locking mechanism.
+                await lastGatePromise;
+                // Re-check and create the queue entry if it was deleted by a previous unlock operation.
+                this.#operationQueues.get(key).resolve = newGateResolver;
+                this.#operationQueues.get(key).lockId = crypto.randomUUID();
+            } else if (data.lockId !== this.#operationQueues.get(key)?.lockId) throw new Error(`Invalid lock ID for operation on '${key} for ${api}:${data} was ${data.lockId} != ${this.#operationQueues.get(key)?.lockId}'.`);
+        }
+        // Reaching here means we have reserved the resource
+        try {
+            if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE) result = await this.getNode(data);
+            else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE) result = await this.setNode(data);
+            else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).DELETE_NODE) result = await this.deleteNode(data);
+            else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX) result = await this.listKeysWithPrefix(data);
+            else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE) result = await this.lockNode(data);
+            else if (api === (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE) result = await this.unlockNode(data);
+        } finally{
+            // If this was a queued operation (not an explicit lock), open the gate for the next one,
+            // unless it was a lockNode call, which intentionally holds the lock.
+            if (!hadExplicitLockId && api !== (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE) this.#operationQueues.get(key)?.resolve();
+        }
+        respond({
+            result: result
         });
-        const ns = (namespace || this.#DEFAULT_NAMESPACE).toUpperCase();
-        const k = key.toUpperCase();
-        return `${this.#storageKeyPrefix}[${uuid}][${ns}][${k}]`;
+    }
+    // --- Abstract methods to be implemented by child classes ---
+    async getNode({ key: key }) {
+        throw new Error(`${this.constructor.name} must implement the 'getNode' method.`);
+    }
+    async setNode({ key: key, node: node, lockId: lockId }) {
+        throw new Error(`${this.constructor.name} must implement the 'setNode' method.`);
+    }
+    async deleteNode({ key: key }) {
+        throw new Error(`${this.constructor.name} must implement the 'deleteNode' method.`);
+    }
+    async listKeysWithPrefix({ prefix: prefix }) {
+        throw new Error(`${this.constructor.name} must implement the 'listKeysWithPrefix' method.`);
     }
     /**
-     * Generates the prefix used to find all keys for a given namespace and UUID.
-     * Format: PREFIX_UUID_NAMESPACE_
-     */ async #getNamespacePrefix(namespace) {
+     * Acquires an explicit lock on a resource, preventing other operations on the same key.
+     * This method is called from within the #handleStorageApiRequest queue.
+     * It returns the lockId but does NOT resolve the promise, thus holding the lock.
+     * @param {object} data
+     * @param {string} data.key - The key of the resource to lock.
+     * @returns {Promise<{lockId: string}>}
+     */ async lockNode({ key: key, timeout: timeout = 30000 }) {
+        return {
+            lockId: this.#operationQueues.get(key).lockId
+        };
+    }
+    /**
+     * Releases an explicit lock on a resource.
+     * @param {object} data
+     * @param {string} data.key - The key of the resource to unlock.
+     * @param {string} data.lockId - The lock ID that was returned by lockNode.
+     */ async unlockNode({ key: key, lockId: lockId }) {
+        const queueEntry = this.#operationQueues.get(key);
+        if (queueEntry && queueEntry.lockId === lockId) queueEntry.resolve();
+        else // It's better to throw an error for an invalid unlock attempt.
+        throw new Error(`Attempted to unlock '${key}' with an invalid or expired lockId.`);
+    }
+}
+
+
+
+
+/**
+ * @class LocalStorageService
+ * @description Implements a storage backend using the browser's localStorage.
+ */ class $e8647c5b0ada794e$export$fda5b86bc4921cb9 extends (0, $cdeb0865826d5baf$export$282961b3a2302fe3) {
+    static STORAGE_NAME = 'LOCAL';
+    #storageKeyPrefix = 'NNOITRA_LOCAL';
+    constructor(eventBus){
+        super(eventBus);
+    }
+    /**
+     * Retrieves a node by its key (path).
+     * @param {object} data
+     * @param {string} data.key - The key (path) of the node.
+     * @returns {Promise<object|undefined>} The node object or undefined if not found.
+     */ async getNode({ key: key }) {
+        const physicalKey = await this.#getPhysicalKey(key);
+        const storedValue = localStorage.getItem(physicalKey);
+        if (storedValue === null) return undefined;
+        try {
+            return JSON.parse(storedValue);
+        } catch (e) {
+            this.log.error(`Failed to parse localStorage key ${physicalKey}:`, e);
+            return undefined;
+        }
+    }
+    /**
+     * Sets a node for a given key (path).
+     * @param {object} data
+     * @param {string} data.key - The key (path) of the node.
+     * @param {object} data.node - The node object to store.
+     */ async setNode({ key: key, node: node }) {
+        const physicalKey = await this.#getPhysicalKey(key);
+        try {
+            localStorage.setItem(physicalKey, JSON.stringify(node));
+        } catch (e) {
+            this.log.error(`Failed to write to localStorage for key ${physicalKey}:`, e);
+            throw e;
+        }
+    }
+    /**
+     * Deletes a node by its key (path).
+     * @param {object} data
+     * @param {string} data.key - The key (path) of the node to delete.
+     */ async deleteNode({ key: key }) {
+        const physicalKey = await this.#getPhysicalKey(key);
+        localStorage.removeItem(physicalKey);
+    }
+    /**
+     * Returns a list of all keys that start with a given prefix.
+     * @param {object} data
+     * @param {string} data.prefix - The prefix to search for.
+     * @returns {Promise<string[]>} A list of matching keys.
+     */ async listKeysWithPrefix({ prefix: prefix }) {
+        const physicalPrefix = await this.#getPhysicalKey(prefix);
+        const matchingKeys = [];
+        for(let i = 0; i < localStorage.length; i++){
+            const key = localStorage.key(i);
+            if (key.startsWith(physicalPrefix)) // Return the logical key, not the physical one
+            matchingKeys.push(key.substring(physicalPrefix.length - prefix.length));
+        }
+        return matchingKeys;
+    }
+    /**
+     * Constructs the actual key used in localStorage by prepending the UUID.
+     * @param {string} logicalKey - The key provided by the consuming service.
+     * @returns {Promise<string>} The physical key for localStorage.
+     */ async #getPhysicalKey(logicalKey) {
         const { value: uuid } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
             key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).UUID
         });
-        const ns = (namespace || this.#DEFAULT_NAMESPACE).toUpperCase();
-        return `${this.#storageKeyPrefix}[${uuid}][${ns}]`;
-    }
-    async #handleSaveLocalVar({ key: key, value: value, respond: respond, namespace: namespace }) {
-        if (key === undefined || value === undefined) {
-            this.log.warn('SAVE_LOCAL_VAR requires both a key and a value.');
-            if (respond) respond({
-                success: false
-            });
-            return;
-        }
-        try {
-            const storageKey = await this.#getStorageKey(namespace, key);
-            localStorage.setItem(storageKey, JSON.stringify(value));
-            if (respond) respond({
-                success: true
-            });
-        } catch (e) {
-            this.log.error('Failed to write to localStorage:', e);
-            if (respond) respond({
-                success: false,
-                error: e
-            });
-        }
-    }
-    async #handleLoadLocalVar({ key: key, respond: respond, namespace: namespace }) {
-        if (key !== undefined) {
-            // Load a single variable
-            const storageKey = await this.#getStorageKey(namespace, key);
-            const storedValue = localStorage.getItem(storageKey);
-            let value = undefined;
-            if (storedValue !== null) try {
-                value = JSON.parse(storedValue);
-            } catch (e) {
-                this.log.error(`Failed to parse localStorage key ${storageKey}:`, e);
-            }
-            if (respond) respond({
-                value: value
-            });
-        } else {
-            // Load all variables for the namespace
-            const prefix = await this.#getNamespacePrefix(namespace);
-            const allData = {};
-            for(let i = 0; i < localStorage.length; i++){
-                const storageKey = localStorage.key(i);
-                if (storageKey.startsWith(prefix)) {
-                    const varKey = storageKey.substring(prefix.length);
-                    const storedValue = localStorage.getItem(storageKey);
-                    try {
-                        allData[varKey] = JSON.parse(storedValue);
-                    } catch (e) {
-                        this.log.error(`Failed to parse localStorage key ${storageKey}:`, e);
-                    }
-                }
-            }
-            if (respond) respond({
-                value: allData
-            });
-        }
-    }
-    async #handleDeleteLocalVar({ key: key, respond: respond, namespace: namespace }) {
-        if (key === undefined) {
-            this.log.warn('DELETE_LOCAL_VAR requires a key.');
-            if (respond) respond({
-                success: false
-            });
-            return;
-        }
-        const storageKey = await this.#getStorageKey(namespace, key);
-        localStorage.removeItem(storageKey);
-        if (respond) respond({
-            success: true
-        });
-    }
-    async #handleResetLocalVar({ namespace: namespace }) {
-        this.log.log(`Resetting localStorage for namespace: ${namespace}`);
-        const prefix = await this.#getNamespacePrefix(namespace);
-        const keysToRemove = [];
-        for(let i = 0; i < localStorage.length; i++){
-            const key = localStorage.key(i);
-            if (key.startsWith(prefix)) keysToRemove.push(key);
-        }
-        keysToRemove.forEach((key)=>localStorage.removeItem(key));
+        return `${this.#storageKeyPrefix}_${uuid}_${logicalKey}`;
     }
 }
 

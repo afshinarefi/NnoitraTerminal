@@ -39,6 +39,7 @@ const USERSPACE_NAMESPACE = 'USERSPACE';
  */
 import { EVENTS } from '../Core/Events.js';
 import { BaseService } from '../Core/BaseService.js';
+import { STORAGE_APIS } from '../Core/StorageApis.js';
 class EnvironmentService extends BaseService{
 	#tempVariables = new Map();
 
@@ -89,19 +90,29 @@ class EnvironmentService extends BaseService{
 
     async #handleGetLocalVariable({ key, respond }) {
         const upperKey = key.toUpperCase();
-        const { value: storedValue } = await this.request(EVENTS.LOAD_LOCAL_VAR, { key: upperKey, namespace: ENV_NAMESPACE });
-        let value = storedValue;
+        const storageKey = `${ENV_NAMESPACE}_${upperKey}`;
+        
+        // Lock the resource to prevent race conditions on read-modify-write.
+        const { lockId } = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LOCK_NODE, { key: storageKey });
+        try {
+            const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: storageKey, lockId });
+            let value = node ? node.content : undefined;
 
-        if (value === undefined) {
-            this.log.log(`Local variable "${upperKey}" is undefined, requesting its default value.`);
-            const response = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
-            value = response.value;
-            // The owner provides the default, and we set it here.
-            if (value !== undefined) {
-                this.#setLocalVariable(upperKey, value);
+            if (value === undefined) {
+                this.log.log(`Local variable "${upperKey}" is undefined, requesting its default value.`);
+                const response = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
+                value = response.value;
+                // The owner provides the default, and we set it here.
+                if (value !== undefined) {
+                    // Use the existing lockId to perform the write.
+                    await this.#setLocalVariable(upperKey, value, lockId);
+                }
             }
+            respond({ value });
+        } finally {
+            // Always ensure the lock is released.
+            await this.#makeStorageRequest('LOCAL', STORAGE_APIS.UNLOCK_NODE, { key: storageKey, lockId });
         }
-        respond({ value });
     }
 
     async #handleGetUserSpaceVariable({ key, respond }) {
@@ -182,9 +193,11 @@ class EnvironmentService extends BaseService{
         this.#tempVariables.set(key, value);
     }
 
-    #setLocalVariable(key, value) {
+    #setLocalVariable(key, value, lockId = undefined) {
         if (!this.#validate(key, value)) return;
-        this.dispatch(EVENTS.SAVE_LOCAL_VAR, { key, value, namespace: ENV_NAMESPACE });
+        const storageKey = `${ENV_NAMESPACE}_${key}`;
+        const node = { meta: { type: 'variable' }, content: value };
+        this.#makeStorageRequest('LOCAL', STORAGE_APIS.SET_NODE, { key: storageKey, node, lockId });
     }
 
     #setRemoteVariable(key, value, category) {
@@ -199,7 +212,8 @@ class EnvironmentService extends BaseService{
     }
 
     #deleteLocalVariable(key) {
-        this.dispatch(EVENTS.DELETE_LOCAL_VAR, { key, namespace: ENV_NAMESPACE });
+        const storageKey = `${ENV_NAMESPACE}_${key}`;
+        this.#makeStorageRequest('LOCAL', STORAGE_APIS.DELETE_NODE, { key: storageKey });
     }
 
     #deleteRemoteVariable(key, category) {
@@ -221,7 +235,17 @@ class EnvironmentService extends BaseService{
             };
 
             categorized.TEMP = Object.fromEntries(this.#tempVariables);
-            categorized.LOCAL = (await this.request(EVENTS.LOAD_LOCAL_VAR, { namespace: ENV_NAMESPACE })).value;
+
+            const localKeys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { prefix: `${ENV_NAMESPACE}_` });
+            const localVars = {};
+            for (const key of localKeys) {
+                const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key });
+                if (node) {
+                    const varName = key.substring(ENV_NAMESPACE.length + 1);
+                    localVars[varName] = node.content;
+                }
+            }
+            categorized.LOCAL = localVars;
 
             const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: [SYSTEM_NAMESPACE, USERSPACE_NAMESPACE] });
             Object.assign(categorized.SYSTEM, remoteData.SYSTEM || {});
@@ -229,6 +253,24 @@ class EnvironmentService extends BaseService{
 
             respond({ categorized });
         })();
+    }
+
+    /**
+     * Makes a request to a storage backend.
+     * @param {string} storageName - The name of the storage service (e.g., 'SESSION').
+     * @param {string} api - The API method to call (from STORAGE_APIS).
+     * @param {object} data - The data payload for the API method.
+     * @returns {Promise<any>}
+     * @private
+     */
+    async #makeStorageRequest(storageName, api, data) {
+        const { result, error } = await this.request(EVENTS.STORAGE_API_REQUEST, {
+            storageName,
+            api,
+            data
+        });
+        if (error) throw error;
+        return result;
     }
 }
 

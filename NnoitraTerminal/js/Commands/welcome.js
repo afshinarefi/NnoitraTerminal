@@ -37,7 +37,7 @@ class Welcome extends BaseCommand {
     async execute(args, outputElement) {
       this.log.log('Executing...');
       const outputPre = document.createElement('div');
-      outpuPre.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
+      outputPre.style.whiteSpace = 'pre-wrap'; // Preserve whitespace and line breaks
       if (outputElement) outputElement.appendChild(outputPre);
 
       try {

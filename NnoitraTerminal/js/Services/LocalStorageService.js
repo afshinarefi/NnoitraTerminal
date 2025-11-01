@@ -15,130 +15,95 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { BaseStorageService } from '../Core/BaseStorageService.js';
 import { EVENTS } from '../Core/Events.js';
-import { BaseService } from '../Core/BaseService.js';
 import { ENV_VARS } from '../Core/Variables.js';
 
 /**
  * @class LocalStorageService
- * @description Manages all direct interactions with the browser's localStorage for environment variables.
- *
- * @listens for `SAVE_LOCAL_VAR` - Saves a specific key-value pair or overwrites all local data.
- * @listens for `LOAD_LOCAL_VAR` - Loads a specific key's value or all local data.
- * Both events can optionally take a `namespace` string in their payload.
+ * @description Implements a storage backend using the browser's localStorage.
  */
-class LocalStorageService extends BaseService {
-    #storageKeyPrefix = 'AREFI_LOCAL_ENV';
-    #DEFAULT_NAMESPACE = 'DEFAULT'; // Fallback namespace
-
+class LocalStorageService extends BaseStorageService {
+    static STORAGE_NAME = 'LOCAL';
+    #storageKeyPrefix = 'NNOITRA_LOCAL';
 
     constructor(eventBus) {
         super(eventBus);
-        this.log.log('Initializing...');
-    }
-
-    get eventHandlers() {
-        return {
-            [EVENTS.SAVE_LOCAL_VAR]: this.#handleSaveLocalVar.bind(this),
-            [EVENTS.LOAD_LOCAL_VAR]: this.#handleLoadLocalVar.bind(this),
-            [EVENTS.RESET_LOCAL_VAR]: this.#handleResetLocalVar.bind(this),
-            [EVENTS.DELETE_LOCAL_VAR]: this.#handleDeleteLocalVar.bind(this),
-        };
     }
 
     /**
-     * Generates a unique localStorage key for a specific variable.
-     * Format: PREFIX_UUID_NAMESPACE_KEY
+     * Retrieves a node by its key (path).
+     * @param {object} data
+     * @param {string} data.key - The key (path) of the node.
+     * @returns {Promise<object|undefined>} The node object or undefined if not found.
      */
-    async #getStorageKey(namespace, key) {
-        const { value: uuid } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.UUID });
-        const ns = (namespace || this.#DEFAULT_NAMESPACE).toUpperCase();
-        const k = key.toUpperCase();
-        return `${this.#storageKeyPrefix}[${uuid}][${ns}][${k}]`;
-    }
-
-    /**
-     * Generates the prefix used to find all keys for a given namespace and UUID.
-     * Format: PREFIX_UUID_NAMESPACE_
-     */
-    async #getNamespacePrefix(namespace) {
-        const { value: uuid } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.UUID });
-        const ns = (namespace || this.#DEFAULT_NAMESPACE).toUpperCase();
-        return `${this.#storageKeyPrefix}[${uuid}][${ns}]`;
-    }
-
-    async #handleSaveLocalVar({ key, value, respond, namespace }) {
-        if (key === undefined || value === undefined) {
-            this.log.warn('SAVE_LOCAL_VAR requires both a key and a value.');
-            if (respond) respond({ success: false });
-            return;
+    async getNode({ key }) {
+        const physicalKey = await this.#getPhysicalKey(key);
+        const storedValue = localStorage.getItem(physicalKey);
+        if (storedValue === null) {
+            return undefined;
         }
         try {
-            const storageKey = await this.#getStorageKey(namespace, key);
-            localStorage.setItem(storageKey, JSON.stringify(value));
-            if (respond) respond({ success: true });
+            return JSON.parse(storedValue);
         } catch (e) {
-            this.log.error('Failed to write to localStorage:', e);
-            if (respond) respond({ success: false, error: e });
+            this.log.error(`Failed to parse localStorage key ${physicalKey}:`, e);
+            return undefined;
         }
     }
 
-    async #handleLoadLocalVar({ key, respond, namespace }) {
-        if (key !== undefined) {
-            // Load a single variable
-            const storageKey = await this.#getStorageKey(namespace, key);
-            const storedValue = localStorage.getItem(storageKey);
-            let value = undefined;
-            if (storedValue !== null) {
-                try {
-                    value = JSON.parse(storedValue);
-                } catch (e) {
-                    this.log.error(`Failed to parse localStorage key ${storageKey}:`, e);
-                }
-            }
-            if (respond) respond({ value });
-        } else {
-            // Load all variables for the namespace
-            const prefix = await this.#getNamespacePrefix(namespace);
-            const allData = {};
-            for (let i = 0; i < localStorage.length; i++) {
-                const storageKey = localStorage.key(i);
-                if (storageKey.startsWith(prefix)) {
-                    const varKey = storageKey.substring(prefix.length);
-                    const storedValue = localStorage.getItem(storageKey);
-                    try {
-                        allData[varKey] = JSON.parse(storedValue);
-                    } catch (e) {
-                        this.log.error(`Failed to parse localStorage key ${storageKey}:`, e);
-                    }
-                }
-            }
-            if (respond) respond({ value: allData });
+    /**
+     * Sets a node for a given key (path).
+     * @param {object} data
+     * @param {string} data.key - The key (path) of the node.
+     * @param {object} data.node - The node object to store.
+     */
+    async setNode({ key, node }) {
+        const physicalKey = await this.#getPhysicalKey(key);
+        try {
+            localStorage.setItem(physicalKey, JSON.stringify(node));
+        } catch (e) {
+            this.log.error(`Failed to write to localStorage for key ${physicalKey}:`, e);
+            throw e;
         }
     }
 
-    async #handleDeleteLocalVar({ key, respond, namespace }) {
-        if (key === undefined) {
-            this.log.warn('DELETE_LOCAL_VAR requires a key.');
-            if (respond) respond({ success: false });
-            return;
-        }
-        const storageKey = await this.#getStorageKey(namespace, key);
-        localStorage.removeItem(storageKey);
-        if (respond) respond({ success: true });
+    /**
+     * Deletes a node by its key (path).
+     * @param {object} data
+     * @param {string} data.key - The key (path) of the node to delete.
+     */
+    async deleteNode({ key }) {
+        const physicalKey = await this.#getPhysicalKey(key);
+        localStorage.removeItem(physicalKey);
     }
 
-    async #handleResetLocalVar({ namespace }) {
-        this.log.log(`Resetting localStorage for namespace: ${namespace}`);
-        const prefix = await this.#getNamespacePrefix(namespace);
-        const keysToRemove = [];
+    /**
+     * Returns a list of all keys that start with a given prefix.
+     * @param {object} data
+     * @param {string} data.prefix - The prefix to search for.
+     * @returns {Promise<string[]>} A list of matching keys.
+     */
+    async listKeysWithPrefix({ prefix }) {
+        const physicalPrefix = await this.#getPhysicalKey(prefix);
+        const matchingKeys = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key.startsWith(prefix)) {
-                keysToRemove.push(key);
+            if (key.startsWith(physicalPrefix)) {
+                // Return the logical key, not the physical one
+                matchingKeys.push(key.substring(physicalPrefix.length - prefix.length));
             }
         }
-        keysToRemove.forEach(key => localStorage.removeItem(key));
+        return matchingKeys;
+    }
+
+    /**
+     * Constructs the actual key used in localStorage by prepending the UUID.
+     * @param {string} logicalKey - The key provided by the consuming service.
+     * @returns {Promise<string>} The physical key for localStorage.
+     */
+    async #getPhysicalKey(logicalKey) {
+        const { value: uuid } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.UUID });
+        return `${this.#storageKeyPrefix}_${uuid}_${logicalKey}`;
     }
 }
 

@@ -18,6 +18,7 @@
 import { ApiManager } from '../Managers/ApiManager.js';
 import { ENV_VARS } from '../Core/Variables.js';
 import { EVENTS } from '../Core/Events.js';
+import { STORAGE_APIS } from '../Core/StorageApis.js';
 import { BaseService } from '../Core/BaseService.js';
 
 // Define constants for hardcoded strings to improve maintainability.
@@ -179,7 +180,9 @@ class AccountingService extends BaseService {
     async #handlePersistVariable(payload) {
         const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
         if (user === GUEST_USER) {
-            this.dispatch(EVENTS.SAVE_LOCAL_VAR, { namespace: `${GUEST_STORAGE_PREFIX}${payload.category}`, key: payload.key, value: payload.value });
+            const storageKey = `${GUEST_STORAGE_PREFIX}${payload.category}_${payload.key}`;
+            const node = { meta: { type: 'variable' }, content: payload.value };
+            this.#makeStorageRequest('LOCAL', STORAGE_APIS.SET_NODE, { key: storageKey, node });
         } else {
             const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
             this.#apiManager.post('set_data', {
@@ -193,7 +196,8 @@ class AccountingService extends BaseService {
     async #handleDeleteRemoteVariable(payload) {
         const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
         if (user === GUEST_USER) {
-            this.dispatch(EVENTS.DELETE_LOCAL_VAR, { namespace: `${GUEST_STORAGE_PREFIX}${payload.category}`, key: payload.key });
+            const storageKey = `${GUEST_STORAGE_PREFIX}${payload.category}_${payload.key}`;
+            this.#makeStorageRequest('LOCAL', STORAGE_APIS.DELETE_NODE, { key: storageKey });
         } else {
             const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
             this.#apiManager.post('delete_data', {
@@ -208,7 +212,9 @@ class AccountingService extends BaseService {
         
         const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
         if (user === GUEST_USER) {
-            this.dispatch(EVENTS.SAVE_LOCAL_VAR, { namespace: `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}`, key: new Date().toISOString(), value: payload.command });
+            const storageKey = `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}_${new Date().toISOString()}`;
+            const node = { meta: { type: 'history' }, content: payload.command };
+            this.#makeStorageRequest('LOCAL', STORAGE_APIS.SET_NODE, { key: storageKey, node });
         } else {
             const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
             this.#apiManager.post('set_data', {
@@ -222,8 +228,24 @@ class AccountingService extends BaseService {
     async #handleHistoryLoad({ respond }) {
         const { value: user } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER });
         if (user === GUEST_USER) {
-            const { value: guestHistory } = await this.request(EVENTS.LOAD_LOCAL_VAR, { namespace: `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}` });
-            if (respond) respond({ history: guestHistory || {} });
+            const lockKey = `${GUEST_STORAGE_PREFIX}${HISTORY_CATEGORY}`;
+            //const { lockId } = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LOCK_NODE, { key: lockKey });
+            //this.log.warn("AAAAA",lockId);
+            try {
+                const prefix = `${lockKey}_`;
+                const keys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { prefix });
+                const guestHistory = {};
+                for (const key of keys) {
+                    const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key });
+                    if (node) {
+                        const timestamp = key.substring(prefix.length);
+                        guestHistory[timestamp] = node.content;
+                    }
+                }
+                if (respond) respond({ history: guestHistory });
+            } finally {
+                //await this.#makeStorageRequest('LOCAL', STORAGE_APIS.UNLOCK_NODE, { key: lockKey, lockId });
+            }
         } else {
             try {
                 const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
@@ -249,30 +271,46 @@ class AccountingService extends BaseService {
             const categories = Array.isArray(category) ? category : [category];
 
             for (const cat of categories) {
-                const namespace = `${GUEST_STORAGE_PREFIX}${cat}`;
-                // If a key is provided, we are fetching a single variable.
-                // If no key, we are fetching all variables for the category (or categories).
-                const { value } = await this.request(EVENTS.LOAD_LOCAL_VAR, { namespace, key });
-
                 if (key !== undefined) {
-                    // If a key was requested, the value is the variable's value.
-                    // The expected response format is { [key]: value }.
-                    if (value !== undefined) {
-                        variables[key] = value;
+                    // Lock on the specific resource key
+                    const storageKey = `${GUEST_STORAGE_PREFIX}${cat}_${key}`;
+                    const { lockId } = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LOCK_NODE, { key: storageKey });
+                    try {
+                        const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: storageKey, lockId });
+                        const value = node ? node.content : undefined;
+                        if (value !== undefined) {
+                            variables[key] = value;
+                        }
+                    } finally {
+                        await this.#makeStorageRequest('LOCAL', STORAGE_APIS.UNLOCK_NODE, { key: storageKey, lockId });
                     }
                 } else {
-                    // If no key, value is an object of all variables for that category.
-                    if (Array.isArray(category)) {
-                        // If multiple categories were requested, nest the results.
-                        variables[cat] = value || {};
-                    } else {
-                        // If a single category was requested, merge into the top level.
-                        Object.assign(variables, value || {});
+                    // Lock on the category when listing multiple items
+                    const lockKey = `${GUEST_STORAGE_PREFIX}${cat}`;
+                    //const { lockId } = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LOCK_NODE, { key: lockKey });
+                    try {
+                        const prefix = `${lockKey}_`;
+                        const keys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { prefix });
+                        const catVars = {};
+                        for (const storageKey of keys) {
+                            const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: storageKey });
+                            if (node) {
+                                const varName = storageKey.substring(prefix.length);
+                                catVars[varName] = node.content;
+                            }
+                        }
+                        if (Array.isArray(category)) {
+                            variables[cat] = catVars;
+                        } else {
+                            Object.assign(variables, catVars);
+                        }
+                    } finally {
+                        //await this.#makeStorageRequest('LOCAL', STORAGE_APIS.UNLOCK_NODE, { key: lockKey, lockId });
                     }
                 }
             }
             if (respond) respond({ variables });
-        } else {
+        } else { // Logged-in user logic remains the same
             try {
                 const { value: token } = await this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.TOKEN });
 
@@ -290,6 +328,24 @@ class AccountingService extends BaseService {
                 if (respond) respond({ variables: {}, error });
             }
         }
+    }
+
+    /**
+     * Makes a request to a storage backend.
+     * @param {string} storageName - The name of the storage service (e.g., 'SESSION').
+     * @param {string} api - The API method to call (from STORAGE_APIS).
+     * @param {object} data - The data payload for the API method.
+     * @returns {Promise<any>}
+     * @private
+     */
+    async #makeStorageRequest(storageName, api, data) {
+        const { result, error } = await this.request(EVENTS.STORAGE_API_REQUEST, {
+            storageName,
+            api,
+            data
+        });
+        if (error) throw error;
+        return result;
     }
 }
 

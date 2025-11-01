@@ -25,4 +25,6 @@ export const STORAGE_APIS = {
     SET_NODE: 'setNode',
     DELETE_NODE: 'deleteNode',
     LIST_KEYS_WITH_PREFIX: 'listKeysWithPrefix',
+    LOCK_NODE: 'lockNode',
+    UNLOCK_NODE: 'unlockNode',
 };

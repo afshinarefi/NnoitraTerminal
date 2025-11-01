@@ -17,6 +17,7 @@
  */
 import { BaseService } from '../Core/BaseService.js';
 import { EVENTS } from '../Core/Events.js';
+import { STORAGE_APIS } from '../Core/StorageApis.js';
 
 /**
  * @class BaseStorageService
@@ -31,6 +32,10 @@ class BaseStorageService extends BaseService {
      * @type {string}
      */
     static STORAGE_NAME = 'BASE';
+
+    // A map where the key is the resource path, and the value is the current
+    // "gate" object: { promise, resolve, lockId }
+    #operationQueues = new Map();
 
     constructor(eventBus) {
         super(eventBus);
@@ -54,24 +59,61 @@ class BaseStorageService extends BaseService {
      * @private
      */
     async #handleStorageApiRequest({ storageName, api, data, respond }) {
-        if (storageName !== this.constructor.STORAGE_NAME) {
-            return; // Not for this storage service
+        if (storageName !== this.constructor.STORAGE_NAME) return;
+        const key = data.key;
+        const hadExplicitLockId = !!data.lockId;
+        let result;
+        if (key == 'GUEST_STORAGE_HISTORY') {
+            this.log.warn("BBBBB",data, key, api);
         }
+        if(key) {
+            if (!hadExplicitLockId) {
+                let newGateResolver;
+                const newGatePromise = new Promise(resolve => { newGateResolver = resolve; });
+                // Get the promise of the operation currently in front of us.
+                const lastGatePromise = this.#operationQueues.get(key)?.promise || Promise.resolve();
 
-        if (typeof this[api] !== 'function') {
-            const errorMsg = `${this.constructor.name} does not implement API method: ${api}`;
-            this.log.error(errorMsg);
-            if (respond) respond({ error: new Error(errorMsg) });
-            return;
+                // Ensure a queue entry exists and set our new promise as the next gate.
+                if (!this.#operationQueues.has(key)) {
+                    this.#operationQueues.set(key, {});
+                }
+                this.#operationQueues.get(key).promise = newGatePromise;
+
+                // Wait for our turn. This is the core of the locking mechanism.
+                await lastGatePromise;
+
+                // Re-check and create the queue entry if it was deleted by a previous unlock operation.
+                this.#operationQueues.get(key).resolve = newGateResolver;
+                this.#operationQueues.get(key).lockId = crypto.randomUUID();
+            } else if (data.lockId !== this.#operationQueues.get(key)?.lockId) {
+                throw new Error(`Invalid lock ID for operation on '${key} for ${api}:${data} was ${data.lockId} != ${this.#operationQueues.get(key)?.lockId}'.`);
+            }
         }
+        // Reaching here means we have reserved the resource
 
         try {
-            const result = await this[api](data);
-            if (respond) respond({ result });
-        } catch (error) {
-            this.log.error(`Error executing API method '${api}' in ${this.constructor.name}:`, error);
-            if (respond) respond({ error });
+            if (api === STORAGE_APIS.GET_NODE) {
+                result = await this.getNode(data);
+            } else if (api === STORAGE_APIS.SET_NODE) {
+                result = await this.setNode(data);
+            } else if (api === STORAGE_APIS.DELETE_NODE) {
+                result = await this.deleteNode(data);
+            } else if (api === STORAGE_APIS.LIST_KEYS_WITH_PREFIX) {
+                result = await this.listKeysWithPrefix(data);
+            } else if (api === STORAGE_APIS.LOCK_NODE) {
+                result = await this.lockNode(data);
+            } else if (api === STORAGE_APIS.UNLOCK_NODE) {
+                result = await this.unlockNode(data);
+            }
+        } finally {
+            // If this was a queued operation (not an explicit lock), open the gate for the next one,
+            // unless it was a lockNode call, which intentionally holds the lock.
+            if (!hadExplicitLockId && api !== STORAGE_APIS.LOCK_NODE) {
+                this.#operationQueues.get(key)?.resolve();
+            }
         }
+        respond({ result });
+
     }
 
     // --- Abstract methods to be implemented by child classes ---
@@ -80,7 +122,7 @@ class BaseStorageService extends BaseService {
         throw new Error(`${this.constructor.name} must implement the 'getNode' method.`);
     }
 
-    async setNode({ key, node }) {
+    async setNode({ key, node, lockId }) {
         throw new Error(`${this.constructor.name} must implement the 'setNode' method.`);
     }
 
@@ -90,6 +132,34 @@ class BaseStorageService extends BaseService {
 
     async listKeysWithPrefix({ prefix }) {
         throw new Error(`${this.constructor.name} must implement the 'listKeysWithPrefix' method.`);
+    }
+
+    /**
+     * Acquires an explicit lock on a resource, preventing other operations on the same key.
+     * This method is called from within the #handleStorageApiRequest queue.
+     * It returns the lockId but does NOT resolve the promise, thus holding the lock.
+     * @param {object} data
+     * @param {string} data.key - The key of the resource to lock.
+     * @returns {Promise<{lockId: string}>}
+     */
+    async lockNode({ key, timeout = 30000 }) {
+        return {lockId: this.#operationQueues.get(key).lockId};
+    }
+
+    /**
+     * Releases an explicit lock on a resource.
+     * @param {object} data
+     * @param {string} data.key - The key of the resource to unlock.
+     * @param {string} data.lockId - The lock ID that was returned by lockNode.
+     */
+    async unlockNode({ key, lockId }) {
+        const queueEntry = this.#operationQueues.get(key);
+        if (queueEntry && queueEntry.lockId === lockId) {
+            queueEntry.resolve();
+        } else {
+            // It's better to throw an error for an invalid unlock attempt.
+            throw new Error(`Attempted to unlock '${key}' with an invalid or expired lockId.`);
+        }
     }
 }
 
