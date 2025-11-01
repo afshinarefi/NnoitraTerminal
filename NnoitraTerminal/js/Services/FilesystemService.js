@@ -32,6 +32,20 @@ const DEFAULT_PWD = '/';
  */
 class FilesystemService extends BaseService{
     #apiManager;
+    #storageServices = {
+        SESSION: [EVENTS.STORAGE_API_REQUEST,'SESSION'],
+        LOCAL: [EVENTS.STORAGE_API_REQUEST,'LOCAL'],
+        REMOTE: [EVENTS.STORAGE_API_REQUEST, 'REMOTE']
+    };
+
+    #filesystem = {
+        '/': [undefined, undefined],
+        '/home': [this.#storageServices.REMOTE, '/home'],
+        '/home/guest': [this.#storageServices.LOCAL, '/home/guest'],
+        '/var/local': [this.#storageServices.LOCAL, '/var/local'],
+        '/var/remote': [this.#storageServices.REMOTE, '/var/remote'],
+        '/var/session': [this.#storageServices.SESSION, '/var/session']
+    };
 
     constructor(eventBus, config = {}) {
         super(eventBus);

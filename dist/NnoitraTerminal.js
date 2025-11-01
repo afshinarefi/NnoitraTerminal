@@ -468,7 +468,9 @@ const $9919a9f5491eef72$var$log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)
     FS_GET_DIRECTORY_CONTENTS_REQUEST: 'fs-get-directory-contents-request',
     FS_GET_FILE_CONTENTS_REQUEST: 'fs-get-file-contents-request',
     FS_GET_PUBLIC_URL_REQUEST: 'fs-get-public-url-request',
-    FS_RESOLVE_PATH_REQUEST: 'fs-resolve-path-request'
+    FS_RESOLVE_PATH_REQUEST: 'fs-resolve-path-request',
+    // Unified Storage API
+    STORAGE_API_REQUEST: 'storage-api-request'
 };
 
 
@@ -3705,6 +3707,46 @@ const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
  * @listens for `FS_GET_FILE_CONTENTS_REQUEST` - Responds with file contents.
  */ class $1f7b71a98b9db741$export$dd775def1f4d3576 extends (0, $6684178f93132198$export$3b34f4e23c444fa8) {
     #apiManager;
+    #storageServices = {
+        SESSION: [
+            (0, $e7af321b64423fde$export$fa3d5b535a2458a1).STORAGE_API_REQUEST,
+            'SESSION'
+        ],
+        LOCAL: [
+            (0, $e7af321b64423fde$export$fa3d5b535a2458a1).STORAGE_API_REQUEST,
+            'LOCAL'
+        ],
+        REMOTE: [
+            (0, $e7af321b64423fde$export$fa3d5b535a2458a1).STORAGE_API_REQUEST,
+            'REMOTE'
+        ]
+    };
+    #filesystem = {
+        '/': [
+            undefined,
+            undefined
+        ],
+        '/home': [
+            this.#storageServices.REMOTE,
+            '/home'
+        ],
+        '/home/guest': [
+            this.#storageServices.LOCAL,
+            '/home/guest'
+        ],
+        '/var/local': [
+            this.#storageServices.LOCAL,
+            '/var/local'
+        ],
+        '/var/remote': [
+            this.#storageServices.REMOTE,
+            '/var/remote'
+        ],
+        '/var/session': [
+            this.#storageServices.SESSION,
+            '/var/session'
+        ]
+    };
     constructor(eventBus, config = {}){
         super(eventBus);
         this.#apiManager = new (0, $fa0ff2eef523a395$export$cd2fa11040f69795)(config.apiUrl);

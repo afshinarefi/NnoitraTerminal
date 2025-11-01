@@ -91,4 +91,7 @@ export const EVENTS = {
     FS_GET_FILE_CONTENTS_REQUEST: 'fs-get-file-contents-request',
     FS_GET_PUBLIC_URL_REQUEST: 'fs-get-public-url-request',
     FS_RESOLVE_PATH_REQUEST: 'fs-resolve-path-request',
+
+    // Unified Storage API
+    STORAGE_API_REQUEST: 'storage-api-request',
 };
