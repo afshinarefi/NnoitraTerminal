@@ -20,6 +20,7 @@ import { ENV_VARS } from '../Core/Variables.js';
 import { BaseService } from '../Core/BaseService.js';
 
 const DEFAULT_HISTSIZE = '1000';
+const HISTORY_FILE = '.nnoitra_history';
 
 /**
  * @class HistoryBusService
@@ -58,8 +59,8 @@ class HistoryService extends BaseService{
         };
     }
 
-    #handleAddCommand({ commandString }) {
-        this.addCommand(commandString);
+    async #handleAddCommand({ commandString }) {
+        await this.addCommand(commandString);
         this.resetCursor();
     }
 
@@ -80,18 +81,35 @@ class HistoryService extends BaseService{
         const trimmedCommand = command.trim();
         if (!trimmedCommand) return;
 
-        // Lazily get HISTSIZE to pass along with the persist request.
-        const { value } = await this.request(EVENTS.VAR_GET_SYSTEM_REQUEST, { key: ENV_VARS.HISTSIZE });
-        const histsize = value || DEFAULT_HISTSIZE;
+        const { value: home } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HOME, category: 'TEMP' });
+        const historyFilePath = `${home}/${HISTORY_FILE}`;
 
-        // Check against the last known command to prevent duplicates.
-        // We fetch it here to ensure we have the most recent state.
-        const { history: latestHistory } = await this.request(EVENTS.HISTORY_LOAD_REQUEST);
-        if (latestHistory.length > 0 && latestHistory[latestHistory.length - 1] === trimmedCommand) {
+        let history = [];
+        try {
+            const { contents } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: historyFilePath });
+            history = contents.split('\n').filter(line => line.trim() !== '');
+        } catch (error) {
+            // File probably doesn't exist, which is fine. We'll create it.
+            this.log.log(`History file not found at ${historyFilePath}. A new one will be created.`);
+        }
+
+        // Prevent adding duplicate consecutive commands
+        if (history.length > 0 && history[history.length - 1] === trimmedCommand) {
             return;
         }
 
-        this.dispatch(EVENTS.COMMAND_PERSIST_REQUEST, { command: trimmedCommand, histsize });
+        history.push(trimmedCommand);
+
+        // Enforce HISTSIZE limit
+        const { value: histsizeStr } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HISTSIZE, category: 'SYSTEM' });
+        const histsize = parseInt(histsizeStr || DEFAULT_HISTSIZE, 10);
+        if (history.length > histsize) {
+            history.splice(0, history.length - histsize);
+        }
+
+        // Write the updated history back to the file
+        await this.request(EVENTS.FS_WRITE_FILE_REQUEST, { path: historyFilePath, content: history.join('\n') });
+
         this.resetCursor();
     }
 
@@ -103,7 +121,7 @@ class HistoryService extends BaseService{
 
     async #handleGetPrevious() {
         if (!this.#isNavigating) {
-            const { history } = await this.request(EVENTS.HISTORY_LOAD_REQUEST);
+            const history = await this.#loadHistoryFromFile();
             // History from accounting is oldest-to-newest. We need newest-to-oldest for navigation.
             this.#navigationHistoryCache = history.slice().reverse();
             this.#isNavigating = true;
@@ -134,15 +152,27 @@ class HistoryService extends BaseService{
         // The history is stored with the most recent command at index 0.
         // For display, we want oldest to newest. Accounting service now provides it in this order.
         (async () => {
-            const { history } = await this.request(EVENTS.HISTORY_LOAD_REQUEST);
+            const history = await this.#loadHistoryFromFile();
             if (!history || history.length === 0) {
                 respond({ history: [] });
                 return;
             }
             // The `history` command numbers from 1 to N, oldest to newest.
-            const displayHistory = history.map((item, index) => ` ${String(history.length - index).padStart(String(history.length).length)}:  ${item}`);
+            const displayHistory = history.map((item, index) => ` ${String(index + 1).padStart(String(history.length).length)}:  ${item}`);
             respond({ history: displayHistory });
         })();
+    }
+
+    async #loadHistoryFromFile() {
+        const { value: home } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HOME, category: 'TEMP' });
+        const historyFilePath = `${home}/${HISTORY_FILE}`;
+        try {
+            const { contents } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: historyFilePath });
+            return contents.split('\n').filter(line => line.trim() !== '');
+        } catch (error) {
+            this.log.warn(`Could not load history file: ${error.message}`);
+            return [];
+        }
     }
 }
 

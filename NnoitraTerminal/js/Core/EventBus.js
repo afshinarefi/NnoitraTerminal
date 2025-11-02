@@ -63,7 +63,7 @@ class EventBus {
                     listeners.forEach(listener => {
                         // We don't await here. This ensures each listener is
                         // invoked independently.
-                        log.log(`Dispatching event "${eventName}" to listener "${listener.name}"`);
+                        log.log(`Dispatching event "${eventName}" to listener "${listener.name} with payload: ${JSON.stringify(payload)}"`);
                         Promise.resolve().then(() => listener.callback(payload));
                     });
                 }

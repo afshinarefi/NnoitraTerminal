@@ -39,9 +39,13 @@ const USERSPACE_NAMESPACE = 'USERSPACE';
  */
 import { EVENTS } from '../Core/Events.js';
 import { BaseService } from '../Core/BaseService.js';
-import { STORAGE_APIS } from '../Core/StorageApis.js';
 class EnvironmentService extends BaseService{
-	#tempVariables = new Map();
+	#categoryPaths = {
+        TEMP: `/var/session/${ENV_NAMESPACE}`,
+        LOCAL: `/var/local/${ENV_NAMESPACE}`,
+        SYSTEM: `/var/remote/${SYSTEM_NAMESPACE}`,
+        USERSPACE: `/var/remote/${USERSPACE_NAMESPACE}`
+    };
 
 	constructor(eventBus) {
         super(eventBus);
@@ -51,131 +55,36 @@ class EnvironmentService extends BaseService{
     get eventHandlers() {
         return {
             [EVENTS.GET_ALL_CATEGORIZED_VARS_REQUEST]: this.#handleGetAllCategorized.bind(this),
-            [EVENTS.USER_CHANGED_BROADCAST]: this.#handleUserChanged.bind(this),
-            [EVENTS.VAR_GET_LOCAL_REQUEST]: this.#handleGetLocalVariable.bind(this),
-            [EVENTS.VAR_GET_SYSTEM_REQUEST]: this.#handleGetSystemVariable.bind(this),
-            [EVENTS.VAR_GET_TEMP_REQUEST]: this.#handleGetTempVariable.bind(this),
-            [EVENTS.VAR_GET_USERSPACE_REQUEST]: this.#handleGetUserSpaceVariable.bind(this),
-            [EVENTS.VAR_SET_LOCAL_REQUEST]: this.#handleSetLocalVariable.bind(this),
-            [EVENTS.VAR_SET_SYSTEM_REQUEST]: this.#handleSetVariableRemote.bind(this),
-            [EVENTS.VAR_SET_TEMP_REQUEST]: this.#handleSetTempVariable.bind(this),
-            [EVENTS.VAR_SET_USERSPACE_REQUEST]: this.#handleSetVariableUserspace.bind(this),
-            [EVENTS.VAR_DEL_LOCAL_REQUEST]: this.#handleDeleteLocalVariable.bind(this),
-            [EVENTS.VAR_DEL_SYSTEM_REQUEST]: this.#handleDeleteSystemVariable.bind(this),
-            [EVENTS.VAR_DEL_TEMP_REQUEST]: this.#handleDeleteTempVariable.bind(this),
-            [EVENTS.VAR_DEL_USERSPACE_REQUEST]: this.#handleDeleteUserspaceVariable.bind(this),
+            [EVENTS.VAR_GET_REQUEST]: this.#handleGetVariable.bind(this),
+            [EVENTS.VAR_SET_REQUEST]: this.#handleSetVariable.bind(this),
+            [EVENTS.VAR_DEL_REQUEST]: this.#handleDeleteVariable.bind(this),
         };
     }
 
-	start() {
-		// No longer loading from storage at startup. This is now lazy.
-        // No startup logic needed.
-	}
-
-    async #handleGetTempVariable({ key, respond }) {
+    async #handleGetVariable({ key, category, respond }) {
         const upperKey = key.toUpperCase();
-        let value = this.#tempVariables.get(upperKey);
-
-        if (value === undefined) {
-            this.log.log(`Temp variable "${upperKey}" is undefined, requesting its default value.`);
-            const response = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
-            value = response.value;
-            // The owner provides the default, and we set it here.
-            if (value !== undefined) {
-                this.#setTempVariable(upperKey, value);
-            }
+        const basePath = this.#categoryPaths[category];
+        if (!basePath) {
+            const error = new Error(`Invalid variable category: ${category}`);
+            this.log.error(error.message);
+            respond({ error });
+            return;
         }
-        respond({ value });
-    }
+        const filePath = `${basePath}/${upperKey}`;
 
-    async #handleGetLocalVariable({ key, respond }) {
-        const upperKey = key.toUpperCase();
-        const storageKey = `${ENV_NAMESPACE}_${upperKey}`;
-        
-        // Lock the resource to prevent race conditions on read-modify-write.
-        const { lockId } = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LOCK_NODE, { key: storageKey });
         try {
-            const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key: storageKey, lockId });
-            let value = node ? node.content : undefined;
-
-            if (value === undefined) {
-                this.log.log(`Local variable "${upperKey}" is undefined, requesting its default value.`);
-                const response = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
-                value = response.value;
-                // The owner provides the default, and we set it here.
-                if (value !== undefined) {
-                    // Use the existing lockId to perform the write.
-                    await this.#setLocalVariable(upperKey, value, lockId);
-                }
+            const { contents } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: filePath });
+            respond({ value: contents });
+        } catch (error) {
+            this.log.log(`Variable file "${filePath}" not found, requesting default value.`);
+            const { value } = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
+            if (value !== undefined) {
+                this.dispatch(EVENTS.FS_WRITE_FILE_REQUEST, { path: filePath, content: value });
             }
             respond({ value });
-        } finally {
-            // Always ensure the lock is released.
-            await this.#makeStorageRequest('LOCAL', STORAGE_APIS.UNLOCK_NODE, { key: storageKey, lockId });
         }
     }
-
-    async #handleGetUserSpaceVariable({ key, respond }) {
-        return this.#handleGetRemoteVariable({ key, respond }, USERSPACE_NAMESPACE);
-    }
-
-    async #handleGetSystemVariable({ key, respond }) {
-        return this.#handleGetRemoteVariable({ key, respond }, SYSTEM_NAMESPACE);
-    }
-
-
-    async #handleGetRemoteVariable({ key, respond }, category) {
-        const upperKey = key.toUpperCase();
-        let value;
-
-        // Request from AccountingService on-demand.
-        const { variables } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { key: upperKey, category });
-        value = variables ? variables[upperKey] : undefined;
-
-        if (value === undefined) {
-            this.log.log(`Remote/Userspace variable "${upperKey}" is undefined, requesting its default value.`);
-            const response = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
-            value = response.value;
-            // The owner provides the default, and we set it here.
-            if (value !== undefined) {
-                this.#setRemoteVariable(upperKey, value, category);
-            }
-        }
-        respond({ value });
-    }
-
-    #handleSetTempVariable({ key, value }) {
-        this.#setTempVariable(key.toUpperCase(), value);
-    }
-
-    #handleSetLocalVariable({ key, value }) {
-        this.#setLocalVariable(key.toUpperCase(), value);
-    }
-
-    #handleSetVariableRemote({ key, value }) {
-        this.#setRemoteVariable(key.toUpperCase(), value, SYSTEM_NAMESPACE);
-    }
-
-    #handleSetVariableUserspace({ key, value }) {
-        this.#setRemoteVariable(key.toUpperCase(), value, USERSPACE_NAMESPACE);
-    }
-
-    #handleDeleteTempVariable({ key }) {
-        this.#deleteTempVariable(key.toUpperCase());
-    }
-
-    #handleDeleteLocalVariable({ key }) {
-        this.#deleteLocalVariable(key.toUpperCase());
-    }
-
-    #handleDeleteSystemVariable({ key }) {
-        this.#deleteRemoteVariable(key.toUpperCase(), SYSTEM_NAMESPACE);
-    }
-
-    #handleDeleteUserspaceVariable({ key }) {
-        this.#deleteRemoteVariable(key.toUpperCase(), USERSPACE_NAMESPACE);
-    }
-
+    
     #validate(key, value) {
 		if (typeof value === 'number') {
 			value = String(value);
@@ -188,89 +97,47 @@ class EnvironmentService extends BaseService{
         return true;
     }
 
-    #setTempVariable(key, value) {
-        if (!this.#validate(key, value)) return;
-        this.#tempVariables.set(key, value);
+    #handleSetVariable({ key, value, category }) {
+        const upperKey = key.toUpperCase();
+        if (!this.#validate(upperKey, value)) return;
+
+        const basePath = this.#categoryPaths[category];
+        if (!basePath) return this.log.error(`Invalid variable category for set: ${category}`);
+
+        const filePath = `${basePath}/${upperKey}`;
+        this.dispatch(EVENTS.FS_WRITE_FILE_REQUEST, { path: filePath, content: value });
     }
 
-    #setLocalVariable(key, value, lockId = undefined) {
-        if (!this.#validate(key, value)) return;
-        const storageKey = `${ENV_NAMESPACE}_${key}`;
-        const node = { meta: { type: 'variable' }, content: value };
-        this.#makeStorageRequest('LOCAL', STORAGE_APIS.SET_NODE, { key: storageKey, node, lockId });
+    #handleDeleteVariable({ key, category }) {
+        const upperKey = key.toUpperCase();
+        const basePath = this.#categoryPaths[category];
+        if (!basePath) return this.log.error(`Invalid variable category for delete: ${category}`);
+
+        const filePath = `${basePath}/${upperKey}`;
+        this.dispatch(EVENTS.FS_DELETE_FILE_REQUEST, { path: filePath });
     }
 
-    #setRemoteVariable(key, value, category) {
-        if (!this.#validate(key, value)) return;
-        // The `persist` flag is now implicitly true for remote variables.
-        // Default values are handled by the getter methods and don't call this.
-        this.dispatch(EVENTS.VAR_SAVE_REMOTE_REQUEST, { key, value, category });
-    }
+    async #handleGetAllCategorized({ respond }) {
+        const categorized = {
+            TEMP: {},
+            LOCAL: {},
+            SYSTEM: {},
+            USERSPACE: {},
+        };
 
-    #deleteTempVariable(key) {
-        this.#tempVariables.delete(key);
-    }
-
-    #deleteLocalVariable(key) {
-        const storageKey = `${ENV_NAMESPACE}_${key}`;
-        this.#makeStorageRequest('LOCAL', STORAGE_APIS.DELETE_NODE, { key: storageKey });
-    }
-
-    #deleteRemoteVariable(key, category) {
-        this.dispatch(EVENTS.VAR_DEL_REMOTE_REQUEST, { key, category });
-    }
-
-    async #handleUserChanged() {
-        this.#tempVariables.clear();
-    }
-
-    #handleGetAllCategorized({ respond }) {
-        // This is now an async operation as it needs to fetch remote data.
-        (async () => {
-            const categorized = {
-                TEMP: {},
-                LOCAL: {},
-                SYSTEM: {},
-                USERSPACE: {},
-            };
-
-            categorized.TEMP = Object.fromEntries(this.#tempVariables);
-
-            const localKeys = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.LIST_KEYS_WITH_PREFIX, { key: `${ENV_NAMESPACE}_` });
-            const localVars = {};
-            for (const key of localKeys) {
-                const node = await this.#makeStorageRequest('LOCAL', STORAGE_APIS.GET_NODE, { key });
-                if (node) {
-                    const varName = key.substring(ENV_NAMESPACE.length + 1);
-                    localVars[varName] = node.content;
+        for (const [category, path] of Object.entries(this.#categoryPaths)) {
+            try {
+                const { contents } = await this.request(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, { path });
+                for (const file of contents) {
+                    const { contents: fileContent } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: `${path}/${file.name}` });
+                    categorized[category][file.name.toUpperCase()] = fileContent;
                 }
+            } catch (e) {
+                this.log.warn(`Could not list variables in ${path}:`, e.message);
             }
-            categorized.LOCAL = localVars;
+        }
 
-            const { variables: remoteData } = await this.request(EVENTS.VAR_LOAD_REMOTE_REQUEST, { category: [SYSTEM_NAMESPACE, USERSPACE_NAMESPACE] });
-            Object.assign(categorized.SYSTEM, remoteData.SYSTEM || {});
-            Object.assign(categorized.USERSPACE, remoteData.USERSPACE || {});
-
-            respond({ categorized });
-        })();
-    }
-
-    /**
-     * Makes a request to a storage backend.
-     * @param {string} storageName - The name of the storage service (e.g., 'SESSION').
-     * @param {string} api - The API method to call (from STORAGE_APIS).
-     * @param {object} data - The data payload for the API method.
-     * @returns {Promise<any>}
-     * @private
-     */
-    async #makeStorageRequest(storageName, api, data) {
-        const { result, error } = await this.request(EVENTS.STORAGE_API_REQUEST, {
-            storageName,
-            api,
-            data
-        });
-        if (error) throw error;
-        return result;
+        respond({ categorized });
     }
 }
 

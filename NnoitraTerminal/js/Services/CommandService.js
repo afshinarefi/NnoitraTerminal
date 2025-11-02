@@ -239,7 +239,7 @@ class CommandService extends BaseService{
 
     async #handleGetAliasesRequest({ respond }) {
         try {
-            const { value } = await this.request(EVENTS.VAR_GET_SYSTEM_REQUEST, { key: ENV_VARS.ALIAS });
+            const { value } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.ALIAS, category: 'SYSTEM' });
             respond({ aliases: JSON.parse(value || '{}') });
         } catch (error) {
             this.log.error("Failed to get aliases:", error);
@@ -248,7 +248,7 @@ class CommandService extends BaseService{
     }
 
     #handleSetAliasesRequest({ aliases }) {
-        this.dispatch(EVENTS.VAR_SET_SYSTEM_REQUEST, { key: ENV_VARS.ALIAS, value: JSON.stringify(aliases) });
+        this.dispatch(EVENTS.VAR_SET_REQUEST, { key: ENV_VARS.ALIAS, value: JSON.stringify(aliases), category: 'SYSTEM' });
     }
 
     async #handleGetCommandListRequest({ respond }) {

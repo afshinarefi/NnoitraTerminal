@@ -33,22 +33,50 @@
 <body>  
   <!-- The script below registers the <nnoitra-terminal> custom element. -->
   <script type="module">
-    (async () => {
-      try {
-        await import('./dist/Nnoitra.min.js');
-      } catch (e) {
-        console.warn('Could not load minified module, falling back to source.', e);
-        import('./NnoitraTerminal/NnoitraTerminal.js');
-      }
-    })();
-  </script>
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('unittests') === 'true') {
+          // Unit test mode: Create a container for test output and run tests.
+          const testOutputContainer = document.createElement('div');
+          testOutputContainer.id = 'test-output';
+          testOutputContainer.style.fontFamily = 'monospace';
+          testOutputContainer.style.whiteSpace = 'pre';
+          testOutputContainer.style.color = '#ddd';
+          testOutputContainer.style.backgroundColor = '#111';
+          testOutputContainer.style.padding = '1em';
 
-  <!-- The terminal component is used declaratively. -->
-  <nnoitra-terminal 
-    autofocus
-    uuid="8002fa03-ea89-4b6f-a1f5-12301a28a578"
-    filesystem-api="/Api/Filesystem.py"
-    accounting-api="/Api/Accounting.py">
-  </nnoitra-terminal>
+          const testStyles = document.createElement('style');
+          testStyles.textContent = `
+            details { border-left: 2px solid #444; padding-left: 1em; margin-bottom: 0.5em; }
+            summary { cursor: pointer; font-weight: bold; margin-bottom: 0.5em; }
+            summary:hover { color: #fff; }
+            details[open] > summary { margin-bottom: 1em; }
+            details > div { padding-left: 1.5em; border-left: 2px solid #333; }
+            div:has(> div) { padding-left: 0; border-left: none; } /* Reset padding for nested divs */
+            div[style*="color: rgb(34, 197, 94)"] + div { background-color: #042f1a; border-left: 2px solid #15803d; } /* EXPECTED block */
+            div[style*="color: rgb(239, 68, 68)"] + div { background-color: #450a0a; border-left: 2px solid #b91c1c; } /* ACTUAL block */
+            [part="toolbar"] { margin-bottom: 1em; }
+            [part="toolbar"] button { background-color: #333; color: #ddd; border: 1px solid #555; padding: 0.25em 0.75em; margin-right: 0.5em; cursor: pointer; border-radius: 3px; }
+            [part="toolbar"] button:hover { background-color: #444; }
+            [part="toolbar"] button:active { background-color: #555; }
+          `;
+          document.head.appendChild(testStyles);
+
+          testOutputContainer.style.padding = '1em';
+          document.body.innerHTML = ''; // Clear the body to prevent terminal from loading
+          document.body.appendChild(testOutputContainer);
+          import('/NnoitraTerminal/js/Tests/Tests.js');
+      } else {
+          // Normal application startup: dynamically create and append the terminal.
+          const terminal = document.createElement('nnoitra-terminal');
+          terminal.setAttribute('autofocus', '');
+          terminal.setAttribute('uuid', '8002fa03-ea89-4b6f-a1f5-12301a28a578');
+          terminal.setAttribute('filesystem-api', '/Api/Filesystem.py');
+          terminal.setAttribute('accounting-api', '/Api/Accounting.py');
+          document.body.appendChild(terminal);
+
+          // Now import the script that defines the element.
+          import('./NnoitraTerminal/NnoitraTerminal.js');
+      }
+  </script>
 </body>
 </html>

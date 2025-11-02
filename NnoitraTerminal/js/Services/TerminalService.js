@@ -131,10 +131,10 @@ class TerminalService extends BaseService{
         try {
             // 1. Get all required environment variables for the prompt from their specific categories.
             const [ps1, user, host, pwd] = await Promise.all([
-                this.request(EVENTS.VAR_GET_USERSPACE_REQUEST, { key: ENV_VARS.PS1 }),
-                this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER }),
-                this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.HOST }),
-                this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD })
+                this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PS1, category: 'USERSPACE' }),
+                this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.USER, category: 'LOCAL' }),
+                this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HOST, category: 'TEMP' }),
+                this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD, category: 'TEMP' })
             ]);
 
             // 2. Format and display the header.

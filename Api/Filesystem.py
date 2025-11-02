@@ -18,6 +18,7 @@
 import os
 import json
 import urllib.parse
+import sqlite3
 from pathlib import PurePath
 
 SERVER_CONF_PATH = './server.conf'
@@ -41,6 +42,32 @@ def get_fs_root_from_config():
     return os.path.abspath(os.path.join(SCRIPT_DIR, default_fs_path))
 
 FS_ROOT = get_fs_root_from_config()
+
+def get_db_file_from_config():
+    """Reads the database-location from server.conf."""
+    default_db_path_relative_to_api = '../db/users.db'
+    resolved_default_db_path = os.path.abspath(os.path.join(SCRIPT_DIR, default_db_path_relative_to_api))
+
+    try:
+        with open(SERVER_CONF_PATH, 'r') as f:
+            for line in f:
+                if line.strip().startswith('database-location'):
+                    _, raw_value = line.split('=', 1)
+                    value = raw_value.strip().strip('"')
+                    return os.path.abspath(os.path.join(SCRIPT_DIR, value))
+    except FileNotFoundError:
+        pass
+    return resolved_default_db_path
+
+DB_FILE = get_db_file_from_config()
+
+def init_db():
+    """Initializes the database and creates the vfs_nodes table if it doesn't exist."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS vfs_nodes (key TEXT PRIMARY KEY, value TEXT NOT NULL)''')
+    conn.commit()
+    conn.close()
 
 def get_query_param(params, name, default=''):
     """Safely gets a query parameter from the CGI environment."""
@@ -134,6 +161,43 @@ def handle_get_public_url(abs_sys_path):
     # We need to convert it back to a public-facing path relative to the web root.
     return {"url": abs_sys_to_relative_path(abs_sys_path, WEBSITE_ROOT)}
 
+def handle_get_node(params):
+    """Handles retrieving a VFS node from the database."""
+    key = get_query_param(params, 'key')
+    if not key: raise ValueError("Key is required.")
+    
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM vfs_nodes WHERE key = ?", (key,))
+    result = cursor.fetchone()
+    conn.close()
+    
+    node = json.loads(result[0]) if result else None
+    return {"node": node}
+
+def handle_set_node(params):
+    """Handles creating or updating a VFS node in the database."""
+    key = get_query_param(params, 'key')
+    node_str = get_query_param(params, 'node')
+    if not key or not node_str: raise ValueError("Key and node are required.")
+
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO vfs_nodes (key, value) VALUES (?, ?)", (key, node_str))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+def handle_delete_node(params):
+    """Handles deleting a VFS node from the database."""
+    key = get_query_param(params, 'key')
+    if not key: raise ValueError("Key is required.")
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM vfs_nodes WHERE key = ?", (key,))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
 # --- Main Execution ---
 
 def main():
@@ -141,6 +205,7 @@ def main():
     print("Content-Type: application/json")
     print() # Required blank line
 
+    init_db()
     query = os.environ.get('QUERY_STRING', '')
     params = urllib.parse.parse_qs(query)
     response_data = {}
@@ -149,21 +214,30 @@ def main():
         action = get_query_param(params, 'action')
         vfs_path_param = get_query_param(params, 'path', '.')
         vfs_pwd_param = get_query_param(params, 'pwd', '/')
-        
-        abs_sys_path = vfs_to_abs_sys_path(vfs_path_param, vfs_pwd_param, FS_ROOT)
-        if abs_sys_path is None:
-            raise ValueError("Invalid path: Directory traversal attempt detected.")
 
         if action == 'ls':
+            abs_sys_path = vfs_to_abs_sys_path(vfs_path_param, vfs_pwd_param, FS_ROOT)
+            if abs_sys_path is None: raise ValueError("Invalid path")
             response_data = handle_ls(abs_sys_path)
         elif action == 'cat':
+            abs_sys_path = vfs_to_abs_sys_path(vfs_path_param, vfs_pwd_param, FS_ROOT)
+            if abs_sys_path is None: raise ValueError("Invalid path")
             response_data = handle_cat(abs_sys_path)
         elif action == 'resolve':
+            abs_sys_path = vfs_to_abs_sys_path(vfs_path_param, vfs_pwd_param, FS_ROOT)
+            if abs_sys_path is None: raise ValueError("Invalid path")
             must_be_dir = get_query_param(params, 'must_be_dir', 'false').lower() == 'true'
-            # We use abs_sys_path here to ensure the path is valid before resolving
             response_data = handle_resolve(abs_sys_path, must_be_dir)
         elif action == 'get_public_url':
+            abs_sys_path = vfs_to_abs_sys_path(vfs_path_param, vfs_pwd_param, FS_ROOT)
+            if abs_sys_path is None: raise ValueError("Invalid path")
             response_data = handle_get_public_url(abs_sys_path)
+        elif action == 'get_node':
+            response_data = handle_get_node(params)
+        elif action == 'set_node':
+            response_data = handle_set_node(params)
+        elif action == 'delete_node':
+            response_data = handle_delete_node(params)
         else:
             response_data = {"error": f"Unknown action: {action}"}
 

@@ -22,19 +22,9 @@
 export const EVENTS = {
     // Environment
     GET_ALL_CATEGORIZED_VARS_REQUEST: 'get-all-categorized-vars-request',
-    VAR_EXPORT_REQUEST: 'variable-export-request',
-    VAR_GET_LOCAL_REQUEST: 'variable-get-local-request',
-    VAR_GET_SYSTEM_REQUEST: 'variable-get-system-request',
-    VAR_GET_TEMP_REQUEST: 'variable-get-temp-request',
-    VAR_GET_USERSPACE_REQUEST: 'variable-get-userspace-request',
-    VAR_SET_LOCAL_REQUEST: 'variable-set-local-request',
-    VAR_SET_SYSTEM_REQUEST: 'variable-set-system-request',
-    VAR_SET_TEMP_REQUEST: 'variable-set-temp-request',
-    VAR_SET_USERSPACE_REQUEST: 'variable-set-userspace-request',
-    VAR_DEL_LOCAL_REQUEST: 'variable-delete-local-request',
-    VAR_DEL_SYSTEM_REQUEST: 'variable-delete-system-request',
-    VAR_DEL_TEMP_REQUEST: 'variable-delete-temp-request',
-    VAR_DEL_USERSPACE_REQUEST: 'variable-delete-userspace-request',
+    VAR_GET_REQUEST: 'variable-get-request',
+    VAR_SET_REQUEST: 'variable-set-request',
+    VAR_DEL_REQUEST: 'variable-delete-request',
     
     // Local Storage
     LOAD_LOCAL_VAR: 'load-local-variable', // For LocalStorageService
@@ -88,7 +78,11 @@ export const EVENTS = {
     FS_CHANGE_DIRECTORY_REQUEST: 'fs-change-directory-request',
     FS_IS_DIR_REQUEST: 'fs-is-directory-request',
     FS_GET_DIRECTORY_CONTENTS_REQUEST: 'fs-get-directory-contents-request',
-    FS_GET_FILE_CONTENTS_REQUEST: 'fs-get-file-contents-request',
+    FS_READ_FILE_REQUEST: 'fs-read-file-request',
+    FS_WRITE_FILE_REQUEST: 'fs-write-file-request',
+    FS_DELETE_FILE_REQUEST: 'fs-delete-file-request',
+    FS_MAKE_DIRECTORY_REQUEST: 'fs-make-directory-request',
+    FS_REMOVE_DIRECTORY_REQUEST: 'fs-remove-directory-request',
     FS_GET_PUBLIC_URL_REQUEST: 'fs-get-public-url-request',
     FS_RESOLVE_PATH_REQUEST: 'fs-resolve-path-request',
 

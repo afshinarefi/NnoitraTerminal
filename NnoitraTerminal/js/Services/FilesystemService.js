@@ -17,7 +17,6 @@
  */
 import { ENV_VARS } from '../Core/Variables.js';
 import { EVENTS } from '../Core/Events.js';
-import { ApiManager } from '../Managers/ApiManager.js';
 import { STORAGE_APIS } from '../Core/StorageApis.js';
 import { BaseService } from '../Core/BaseService.js';
 import { resolvePath } from '../Utils/PathUtil.js';
@@ -33,7 +32,6 @@ const DEFAULT_PWD = '/';
  * @listens for `FS_GET_FILE_CONTENTS_REQUEST` - Responds with file contents.
  */
 class FilesystemService extends BaseService{
-    #apiManager;
     #storageServices = {
         SESSION: [EVENTS.STORAGE_API_REQUEST,'SESSION'],
         LOCAL: [EVENTS.STORAGE_API_REQUEST,'LOCAL'],
@@ -88,18 +86,21 @@ class FilesystemService extends BaseService{
 
     constructor(eventBus, config = {}) {
         super(eventBus);
-        this.#apiManager = new ApiManager(config.apiUrl);
         this.log.log('Initializing...');
     }
 
     get eventHandlers() {
         return {
-            [EVENTS.FS_GET_FILE_CONTENTS_REQUEST]: this.#handleGetFileContents.bind(this),
+            [EVENTS.FS_READ_FILE_REQUEST]: this.#handleReadFileRequest.bind(this),
+            [EVENTS.FS_WRITE_FILE_REQUEST]: this.#handleWriteFile.bind(this),
             [EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST]: this.#handleGetDirectoryContents.bind(this),
+            [EVENTS.FS_MAKE_DIRECTORY_REQUEST]: this.#handleMakeDirectory.bind(this),
+            [EVENTS.FS_DELETE_FILE_REQUEST]: this.#handleDeleteFile.bind(this),
+            [EVENTS.FS_REMOVE_DIRECTORY_REQUEST]: this.#handleRemoveDirectory.bind(this),
             [EVENTS.FS_CHANGE_DIRECTORY_REQUEST]: this.#handleChangeDirectory.bind(this),
             [EVENTS.FS_RESOLVE_PATH_REQUEST]: this.#handleResolvePathRequest.bind(this),
             [EVENTS.FS_GET_PUBLIC_URL_REQUEST]: this.#handleGetPublicUrl.bind(this),
-            [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this)
+            [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
         };
     }
 
@@ -110,8 +111,9 @@ class FilesystemService extends BaseService{
      * @private
      */
     async #resolvePathToStorage(path) {
-        // 1. Get the clean, absolute path from the user-provided input.
-        const resolvedPath = await this.#getResolvedPath(path);
+        // This method is now internal and assumes it's being called by a public handler
+        // that has already resolved the path and fetched necessary context.
+        const resolvedPath = await this.#getResolvedPath(path); // This now needs to be fixed
 
         // 2. Start traversal from the absolute root of the VFS.
         let { storageName, uuid: currentUuid } = await this.#initializeVFS();
@@ -158,14 +160,18 @@ class FilesystemService extends BaseService{
      * @private
      */
     async #getResolvedPath(path) {
-        const [pwd, user] = await Promise.all([
-            this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD }),
-            this.request(EVENTS.VAR_GET_LOCAL_REQUEST, { key: ENV_VARS.USER })
-        ]);
-        const homeDir = `/home/${user.value}`;
-        return resolvePath(path, pwd.value, homeDir);
+        let homeDir = '/home/guest'; // Provide a safe default.
+        // This is the critical fix: Only request the HOME variable if the path
+        // explicitly uses a tilde (~). This breaks the circular dependency that
+        // occurs during startup when resolving absolute paths for other variables.
+        if (path.startsWith('~')) {
+            const { value } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HOME, category: 'TEMP' });
+            homeDir = value;
+        }
+        // For resolving absolute paths (like /var/local/...), the PWD is not needed.
+        // We can safely pass '/' as the PWD to the utility.
+        return resolvePath(path, '/', homeDir);
     }
-
     /**
      * Ensures the VFS root node exists and returns its initial context.
      * @returns {Promise<{storageName: string, uuid: string}>}
@@ -274,30 +280,40 @@ class FilesystemService extends BaseService{
     }
 
     async #makeDirectory(path) {
-        const { storageName, parentUuid, childName, uuid } = await this.#resolvePathToStorage(path);
-        if (uuid) throw new Error('Directory already exists.');
-        // We need a valid parent to create a new directory in.
-        if (!parentUuid || !childName) throw new Error('Cannot create directory in a non-existent path.');
+        const resolvedPath = await this.#getResolvedPath(path);
+        if (resolvedPath === '/') return; // Cannot create root
 
-        // Create the new directory node. Its content is an empty list of children.
-        const newDirUuid = crypto.randomUUID();
-        const dirNode = { meta: { type: 'directory' }, content: JSON.stringify([]) };
-        await this.#makeStorageRequest(storageName, STORAGE_APIS.SET_NODE, { key: newDirUuid, node: dirNode });
+        let { storageName, uuid: currentUuid } = await this.#initializeVFS();
+        const parts = resolvedPath.substring(1).split('/');
 
-        // --- Read-Modify-Write with Lock ---
-        // Acquire a lock on the parent directory to safely modify its content list.
-        const { lockId } = await this.#makeStorageRequest(storageName, STORAGE_APIS.LOCK_NODE, { key: parentUuid });
-        try {
-            // 1. Read: Get the parent directory node.
-            const parentNode = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: parentUuid, lockId });
-            const children = JSON.parse(parentNode.content);
-            // 2. Modify: Add the new directory's [uuid, name] pair.
-            children.push([newDirUuid, childName]);
-            parentNode.content = JSON.stringify(children);
-            // 3. Write: Save the updated parent node.
-            await this.#makeStorageRequest(storageName, STORAGE_APIS.SET_NODE, { key: parentUuid, node: parentNode, lockId });
-        } finally {
-            await this.#makeStorageRequest(storageName, STORAGE_APIS.UNLOCK_NODE, { key: parentUuid, lockId });
+        for (const part of parts) {
+            if (!part) continue;
+
+            const result = await this.#traverseStep(storageName, currentUuid, part);
+
+            if (result.notFound) {
+                // Directory doesn't exist, so create it.
+                const newDirUuid = crypto.randomUUID();
+                const dirNode = { meta: { type: 'directory' }, content: JSON.stringify([]) };
+                await this.#makeStorageRequest(storageName, STORAGE_APIS.SET_NODE, { key: newDirUuid, node: dirNode });
+
+                // --- Read-Modify-Write with Lock to add it to the parent ---
+                const { lockId } = await this.#makeStorageRequest(storageName, STORAGE_APIS.LOCK_NODE, { key: currentUuid });
+                try {
+                    const parentNode = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: currentUuid, lockId });
+                    const children = JSON.parse(parentNode.content);
+                    children.push([newDirUuid, part]);
+                    parentNode.content = JSON.stringify(children);
+                    await this.#makeStorageRequest(storageName, STORAGE_APIS.SET_NODE, { key: currentUuid, node: parentNode, lockId });
+                } finally {
+                    await this.#makeStorageRequest(storageName, STORAGE_APIS.UNLOCK_NODE, { key: currentUuid, lockId });
+                }
+                currentUuid = newDirUuid;
+            } else {
+                // Directory exists, continue traversal.
+                storageName = result.storageName;
+                currentUuid = result.uuid;
+            }
         }
     }
 
@@ -341,18 +357,54 @@ class FilesystemService extends BaseService{
         });
     }
 
-    async #handleGetDirectoryContents({ path, respond }) {
+    async #handleWriteFile({ path, content, respond }) {
         try {
-            const contents = await this.#getDirectoryContents(path);
+            await this.#writeFile(path, content);
+            respond({ success: true });
+        } catch (error) {
+            respond({ error });
+        }
+    }
+
+    async #handleDeleteFile({ path, respond }) {
+        try {
+            await this.#deleteFile(path);
+            respond({ success: true });
+        } catch (error) {
+            respond({ error });
+        }
+    }
+
+    async #handleMakeDirectory({ path, respond }) {
+        try {
+            await this.#makeDirectory(path);
+            respond({ success: true });
+        } catch (error) {
+            respond({ error });
+        }
+    }
+
+    async #handleRemoveDirectory({ path, respond }) {
+        try {
+            await this.#removeDirectory(path);
+            respond({ success: true });
+        } catch (error) {
+            respond({ error });
+        }
+    }
+
+    async #handleReadFileRequest({ path, respond }) {
+        try {
+            const contents = await this.#readFile(path);
             respond({ contents });
         } catch (error) {
             respond({ error });
         }
     }
 
-    async #handleGetFileContents({ path, respond }) {
+    async #handleGetDirectoryContents({ path, respond }) {
         try {
-            const contents = await this.#getFileContents(path);
+            const contents = await this.#listDirectory(path);
             respond({ contents });
         } catch (error) {
             respond({ error });
@@ -361,8 +413,12 @@ class FilesystemService extends BaseService{
 
     async #handleChangeDirectory({ path, respond }) {
         try {
-            // The backend's 'resolve' action now handles path resolution relative to PWD.
-            const newPath = await this.#resolveAndValidatePath(path, true);
+            // To change directory, we resolve the path and check if it's a directory.
+            const meta = await this.#getMetaData(path);
+            if (!meta.isDirectory) {
+                throw new Error('Not a directory');
+            }
+            const newPath = meta.path;
             this.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: ENV_VARS.PWD, value: newPath });
             respond({ success: true });
         } catch (error) {
@@ -372,7 +428,7 @@ class FilesystemService extends BaseService{
 
     async #handleResolvePathRequest({ path, respond }) {
         try {
-            const resolvedPath = await this.#resolveAndValidatePath(path, false);
+            const resolvedPath = await this.#getResolvedPath(path);
             respond({ path: resolvedPath });
         } catch (error) {
             respond({ error });
@@ -381,54 +437,21 @@ class FilesystemService extends BaseService{
 
     async #handleGetPublicUrl({ path, respond }) {
         try {
-            // Use the dedicated 'get_public_url' API action.
-            const { value: pwd } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD });
-            const data = await this.#makeApiRequest('get_public_url', { path, pwd });
-            respond({ url: data.url });
+            // For now, public URLs are just the resolved path.
+            const resolvedPath = await this.#getResolvedPath(path);
+            respond({ url: resolvedPath });
         } catch (error) {
             respond({ error });
         }
     }
 
-    #handleUpdateDefaultRequest({ key, respond }) {
+    async #handleUpdateDefaultRequest({ key, respond }) {
         if (key === ENV_VARS.PWD) {
-            this.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key, value: DEFAULT_PWD });
+            // The default PWD should be the user's home directory.
+            //const { value: homeDir } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.HOME });
+            // EnvironmentService will set the variable after receiving this default value.
             respond({ value: DEFAULT_PWD });
         }
-    }
-
-    async #getDirectoryContents(path) {
-        const { value: pwd } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD });
-        return this.#makeApiRequest('ls', { path, pwd });
-    }
-
-    async #getFileContents(path) {
-        const { value: pwd } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD });
-        const response = await this.#makeApiRequest('cat', { path, pwd });
-        return response.content;
-    }
-
-    async #makeApiRequest(action, params = {}) {
-        try {
-            const data = await this.#apiManager.get({ action, ...params });
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            return data;
-        } catch (error) {
-            this.log.error(`Error during API request for action "${action}" with path "${params.path}":`, error);
-            throw error;
-        }
-    }
-
-    async #resolveAndValidatePath(path, mustBeDir) {
-        const { value: pwd } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.PWD });
-        const data = await this.#makeApiRequest('resolve', {
-            path,
-            pwd,
-            must_be_dir: mustBeDir
-        });
-        return data.path;
     }
 
     /**

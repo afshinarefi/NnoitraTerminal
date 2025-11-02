@@ -1,4 +1,4 @@
-Nnoitra Terminal v2.2.2
+Nnoitra Terminal v3.0.0
 Copyright (C) 2025 Afshin Arefi
 
 License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.

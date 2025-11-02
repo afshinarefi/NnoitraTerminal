@@ -25,153 +25,51 @@ import { BaseStorageService } from '../../Core/BaseStorageService.js';
 class SessionStorageService extends BaseStorageService {
     static STORAGE_NAME = 'SESSION';
 
-    // A simple in-memory map to act as the filesystem.
-    // Keys are full paths, values are file contents (string).
-    // Directories are implicitly defined by the paths of the files.
+    // A simple in-memory map to act as the key-value store for VFS nodes.
     #data = new Map();
-    // A set to explicitly track directory paths, allowing for empty directories.
-    #directories = new Set();
 
     constructor(eventBus) {
         super(eventBus);
-        // You could pre-populate with some default files/directories here if needed.
-        // e.g., this.#data.set('/tmp/example.txt', 'This is a temporary file.');
-
-        // The root directory always exists.
-        this.#directories.add('/');
     }
 
     /**
-     * Lists the contents of a given path.
+     * Retrieves a node by its key.
      * @param {object} data
-     * @param {string} data.path - The path of the directory to list.
-     * @returns {Promise<{files: Array, directories: Array}>}
+     * @param {string} data.key - The key (UUID) of the node.
+     * @returns {Promise<object|undefined>} The node object or undefined if not found.
      */
-    async listPath({ path }) {
-        const normalizedPath = path === '/' ? '' : path;
-        const pathPrefix = normalizedPath ? normalizedPath + '/' : '/';
-        const files = [];
-        const directories = new Set();
-
-        // Find all files in the current path
-        for (const entryPath of this.#data.keys()) {
-            if (entryPath.startsWith(pathPrefix)) {
-                const relativePath = entryPath.substring(pathPrefix.length);
-                if (!relativePath.includes('/')) {
-                    files.push({ name: relativePath, size: this.#data.get(entryPath).length });
-                }
-            }
-        }
-
-        // Find all explicit subdirectories in the current path
-        for (const dirPath of this.#directories) {
-            if (dirPath.startsWith(pathPrefix) && dirPath !== path) {
-                const relativePath = dirPath.substring(pathPrefix.length);
-                const firstPart = relativePath.split('/')[0];
-                if (firstPart) {
-                    directories.add(firstPart);
-                }
-            }
-        }
-
-        return {
-            files,
-            directories: Array.from(directories).map(name => ({ name }))
-        };
+    async getNode({ key }) {
+        // The data is already a JS object, so no parsing is needed.
+        return this.#data.get(key);
     }
 
     /**
-     * Reads the content of a file.
+     * Sets a node for a given key.
      * @param {object} data
-     * @param {string} data.path - The path of the file to read.
-     * @returns {Promise<string>} The file content.
+     * @param {string} data.key - The key (UUID) of the node.
+     * @param {object} data.node - The node object to store.
      */
-    async readFile({ path }) {
-        if (!this.#data.has(path)) {
-            throw new Error('File not found.');
-        }
-        return this.#data.get(path);
+    async setNode({ key, node }) {
+        this.#data.set(key, node);
     }
 
     /**
-     * Writes content to a file, overwriting if it exists.
+     * Deletes a node by its key.
      * @param {object} data
-     * @param {string} data.path - The path of the file to write.
-     * @param {string} data.content - The content to write.
+     * @param {string} data.key - The key (UUID) of the node to delete.
      */
-    async writeFile({ path, content }) {
-        // Ensure parent directory exists
-        const parentPath = path.substring(0, path.lastIndexOf('/')) || '/';
-        this.#ensureDirectoryExists(parentPath);
-
-        this.#data.set(path, content);
+    async deleteNode({ key }) {
+        this.#data.delete(key);
     }
 
     /**
-     * Deletes a file.
+     * Returns a list of all keys that start with a given prefix.
      * @param {object} data
-     * @param {string} data.path - The path of the file to delete.
+     * @param {string} data.key - The prefix to search for.
+     * @returns {Promise<string[]>} A list of matching keys.
      */
-    async deleteFile({ path }) {
-        if (!this.#data.has(path)) {
-            throw new Error('File not found.');
-        }
-        this.#data.delete(path);
-    }
-
-    /**
-     * Creates a directory. In this in-memory model, directories are implicit,
-     * so this method doesn't need to do anything but succeed.
-     */
-    async makeDirectory({ path }) {
-        this.#ensureDirectoryExists(path);
-    }
-
-    /**
-     * Removes a directory. This will remove all files and subdirectories within it.
-     * @param {object} data
-     * @param {string} data.path - The path of the directory to remove.
-     */
-    async removeDirectory({ path }) {
-        const prefix = path === '/' ? '/' : path + '/';
-        // Remove all files within the directory
-        for (const key of this.#data.keys()) {
-            if (key.startsWith(prefix)) {
-                this.#data.delete(key);
-            }
-        }
-        // Remove the directory and all subdirectories
-        for (const dir of this.#directories) {
-            if (dir.startsWith(path)) {
-                this.#directories.delete(dir);
-            }
-        }
-    }
-
-    async getMetaData({ path }) {
-        // This simple in-memory storage doesn't have complex metadata.
-        // We can return basic information.
-        const isFile = this.#data.has(path);
-        return {
-            path: path,
-            isFile: isFile,
-            isDirectory: this.#directories.has(path),
-            publicUrl: null // Session storage is not publicly accessible
-        };
-    }
-
-    /**
-     * Ensures a directory path and all its parents are explicitly created.
-     * @param {string} path - The full path of the directory to create.
-     * @private
-     */
-    #ensureDirectoryExists(path) {
-        const parts = path.split('/').filter(p => p);
-        let currentPath = '';
-        for (const part of parts) {
-            currentPath += '/' + part;
-            this.#directories.add(currentPath);
-        }
+    async listKeysWithPrefix({ key }) {
+        return Array.from(this.#data.keys()).filter(k => k.startsWith(key));
     }
 }
 

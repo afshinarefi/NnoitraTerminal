@@ -61,7 +61,7 @@ var parcelRegister = parcelRequire.register;
 var $e415f539f646a2f9$exports = {};
 $parcel$extendImportMap({
     "H44nx": "motd.6d76bb23.txt",
-    "ccCIq": "version.a3fd00c7.txt",
+    "ccCIq": "version.f0799af7.txt",
     "euAS4": "UbuntuMono-R.54fdcd79.ttf",
     "4acmQ": "UbuntuMono-B.1f21d913.ttf",
     "jRB9m": "UbuntuMono-RI.0df7809e.ttf",
@@ -466,7 +466,11 @@ const $9919a9f5491eef72$var$log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)
     FS_CHANGE_DIRECTORY_REQUEST: 'fs-change-directory-request',
     FS_IS_DIR_REQUEST: 'fs-is-directory-request',
     FS_GET_DIRECTORY_CONTENTS_REQUEST: 'fs-get-directory-contents-request',
-    FS_GET_FILE_CONTENTS_REQUEST: 'fs-get-file-contents-request',
+    FS_READ_FILE_REQUEST: 'fs-read-file-request',
+    FS_WRITE_FILE_REQUEST: 'fs-write-file-request',
+    FS_DELETE_FILE_REQUEST: 'fs-delete-file-request',
+    FS_MAKE_DIRECTORY_REQUEST: 'fs-make-directory-request',
+    FS_REMOVE_DIRECTORY_REQUEST: 'fs-remove-directory-request',
     FS_GET_PUBLIC_URL_REQUEST: 'fs-get-public-url-request',
     FS_RESOLVE_PATH_REQUEST: 'fs-resolve-path-request',
     // Unified Storage API
@@ -555,35 +559,6 @@ const $9919a9f5491eef72$var$log = (0, $ffd8896b0637a9c5$export$fe2e61603b61130d)
 }
 
 
-/**
- * Nnoitra Terminal
- * Copyright (C) 2025 Arefi
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */ /**
- * @description Central repository for all storage API method names.
- * This prevents the use of "magic strings" when dispatching STORAGE_API_REQUEST events.
- */ const $fa4d2f5b4bb4a3ef$export$95d56908f64857f4 = {
-    GET_NODE: 'getNode',
-    SET_NODE: 'setNode',
-    DELETE_NODE: 'deleteNode',
-    LIST_KEYS_WITH_PREFIX: 'listKeysWithPrefix',
-    LOCK_NODE: 'lockNode',
-    UNLOCK_NODE: 'unlockNode'
-};
-
-
 const $1b934ed4cb64b454$var$TEMP_NAMESPACE = 'TEMP';
 const $1b934ed4cb64b454$var$LOCAL_NAMESPACE = 'LOCAL';
 const $1b934ed4cb64b454$var$ENV_NAMESPACE = 'ENV';
@@ -635,35 +610,26 @@ class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$ex
     }
     async #handleGetLocalVariable({ key: key, respond: respond }) {
         const upperKey = key.toUpperCase();
-        const storageKey = `${$1b934ed4cb64b454$var$ENV_NAMESPACE}_${upperKey}`;
-        // Lock the resource to prevent race conditions on read-modify-write.
-        const { lockId: lockId } = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE, {
-            key: storageKey
-        });
+        const filePath = `/var/local/${$1b934ed4cb64b454$var$ENV_NAMESPACE}/${upperKey}`;
         try {
-            const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
-                key: storageKey,
-                lockId: lockId
+            const { contents: contents } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_READ_FILE_REQUEST, {
+                path: filePath
             });
-            let value = node ? node.content : undefined;
-            if (value === undefined) {
-                this.log.log(`Local variable "${upperKey}" is undefined, requesting its default value.`);
-                const response = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST, {
-                    key: upperKey
-                });
-                value = response.value;
-                // The owner provides the default, and we set it here.
-                if (value !== undefined) // Use the existing lockId to perform the write.
-                await this.#setLocalVariable(upperKey, value, lockId);
-            }
+            respond({
+                value: contents
+            });
+        } catch (error) {
+            // If file not found, get default and write it.
+            this.log.log(`Local variable file "${filePath}" not found, requesting default value.`);
+            const { value: value } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST, {
+                key: upperKey
+            });
+            if (value !== undefined) await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_WRITE_FILE_REQUEST, {
+                path: filePath,
+                content: value
+            });
             respond({
                 value: value
-            });
-        } finally{
-            // Always ensure the lock is released.
-            await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE, {
-                key: storageKey,
-                lockId: lockId
             });
         }
     }
@@ -681,25 +647,28 @@ class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$ex
     }
     async #handleGetRemoteVariable({ key: key, respond: respond }, category) {
         const upperKey = key.toUpperCase();
-        let value;
-        // Request from AccountingService on-demand.
-        const { variables: variables } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_LOAD_REMOTE_REQUEST, {
-            key: upperKey,
-            category: category
-        });
-        value = variables ? variables[upperKey] : undefined;
-        if (value === undefined) {
-            this.log.log(`Remote/Userspace variable "${upperKey}" is undefined, requesting its default value.`);
-            const response = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST, {
+        const filePath = `/var/remote/${category}/${upperKey}`;
+        try {
+            const { contents: contents } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_READ_FILE_REQUEST, {
+                path: filePath
+            });
+            respond({
+                value: contents
+            });
+        } catch (error) {
+            // If file not found, get default and write it.
+            this.log.log(`Remote variable file "${filePath}" not found, requesting default value.`);
+            const { value: value } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST, {
                 key: upperKey
             });
-            value = response.value;
-            // The owner provides the default, and we set it here.
-            if (value !== undefined) this.#setRemoteVariable(upperKey, value, category);
+            if (value !== undefined) await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_WRITE_FILE_REQUEST, {
+                path: filePath,
+                content: value
+            });
+            respond({
+                value: value
+            });
         }
-        respond({
-            value: value
-        });
     }
     #handleSetTempVariable({ key: key, value: value }) {
         this.#setTempVariable(key.toUpperCase(), value);
@@ -741,38 +710,29 @@ class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$ex
         if (!this.#validate(key, value)) return;
         this.#tempVariables.set(key, value);
     }
-    #setLocalVariable(key, value, lockId) {
+    #setLocalVariable(key, value) {
         if (!this.#validate(key, value)) return;
-        const storageKey = `${$1b934ed4cb64b454$var$ENV_NAMESPACE}_${key}`;
-        const node = {
-            meta: {
-                type: 'variable'
-            },
+        const filePath = `/var/local/${$1b934ed4cb64b454$var$ENV_NAMESPACE}/${key}`;
+        this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_WRITE_FILE_REQUEST, {
+            path: filePath,
             content: value
-        };
-        this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
-            key: storageKey,
-            node: node,
-            lockId: lockId
         });
     }
     #setRemoteVariable(key, value, category) {
         if (!this.#validate(key, value)) return;
-        // The `persist` flag is now implicitly true for remote variables.
-        // Default values are handled by the getter methods and don't call this.
-        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SAVE_REMOTE_REQUEST, {
-            key: key,
-            value: value,
-            category: category
+        const filePath = `/var/remote/${category}/${key}`;
+        this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_WRITE_FILE_REQUEST, {
+            path: filePath,
+            content: value
         });
     }
     #deleteTempVariable(key) {
         this.#tempVariables.delete(key);
     }
     #deleteLocalVariable(key) {
-        const storageKey = `${$1b934ed4cb64b454$var$ENV_NAMESPACE}_${key}`;
-        this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).DELETE_NODE, {
-            key: storageKey
+        const filePath = `/var/local/${$1b934ed4cb64b454$var$ENV_NAMESPACE}/${key}`;
+        this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_DELETE_FILE_REQUEST, {
+            path: filePath
         });
     }
     #deleteRemoteVariable(key, category) {
@@ -794,48 +754,30 @@ class $1b934ed4cb64b454$export$e4a82699f51b6a33 extends (0, $6684178f93132198$ex
                 USERSPACE: {}
             };
             categorized.TEMP = Object.fromEntries(this.#tempVariables);
-            const localKeys = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX, {
-                key: `${$1b934ed4cb64b454$var$ENV_NAMESPACE}_`
-            });
-            const localVars = {};
-            for (const key of localKeys){
-                const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
-                    key: key
-                });
-                if (node) {
-                    const varName = key.substring($1b934ed4cb64b454$var$ENV_NAMESPACE.length + 1);
-                    localVars[varName] = node.content;
+            const processCategory = async (path, category)=>{
+                try {
+                    const { contents: contents } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_DIRECTORY_CONTENTS_REQUEST, {
+                        path: path
+                    });
+                    for (const file of contents){
+                        const { contents: fileContent } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_READ_FILE_REQUEST, {
+                            path: `${path}/${file.name}`
+                        });
+                        categorized[category][file.name] = fileContent;
+                    }
+                } catch (e) {
+                    this.log.warn(`Could not list variables in ${path}:`, e.message);
                 }
-            }
-            categorized.LOCAL = localVars;
-            const { variables: remoteData } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_LOAD_REMOTE_REQUEST, {
-                category: [
-                    $1b934ed4cb64b454$var$SYSTEM_NAMESPACE,
-                    $1b934ed4cb64b454$var$USERSPACE_NAMESPACE
-                ]
-            });
-            Object.assign(categorized.SYSTEM, remoteData.SYSTEM || {});
-            Object.assign(categorized.USERSPACE, remoteData.USERSPACE || {});
+            };
+            await Promise.all([
+                processCategory(`/var/local/${$1b934ed4cb64b454$var$ENV_NAMESPACE}`, 'LOCAL'),
+                processCategory(`/var/remote/${$1b934ed4cb64b454$var$SYSTEM_NAMESPACE}`, 'SYSTEM'),
+                processCategory(`/var/remote/${$1b934ed4cb64b454$var$USERSPACE_NAMESPACE}`, 'USERSPACE')
+            ]);
             respond({
                 categorized: categorized
             });
         })();
-    }
-    /**
-     * Makes a request to a storage backend.
-     * @param {string} storageName - The name of the storage service (e.g., 'SESSION').
-     * @param {string} api - The API method to call (from STORAGE_APIS).
-     * @param {object} data - The data payload for the API method.
-     * @returns {Promise<any>}
-     * @private
-     */ async #makeStorageRequest(storageName, api, data) {
-        const { result: result, error: error } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).STORAGE_API_REQUEST, {
-            storageName: storageName,
-            api: api,
-            data: data
-        });
-        if (error) throw error;
-        return result;
     }
 }
 
@@ -942,6 +884,7 @@ class $fa0ff2eef523a395$export$cd2fa11040f69795 {
     HOST: 'HOST',
     PWD: 'PWD',
     USER: 'USER',
+    HOME: 'HOME',
     UUID: 'UUID',
     // User-configurable Variables
     HISTSIZE: 'HISTSIZE',
@@ -953,6 +896,34 @@ class $fa0ff2eef523a395$export$cd2fa11040f69795 {
 };
 
 
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * @description Central repository for all storage API method names.
+ * This prevents the use of "magic strings" when dispatching STORAGE_API_REQUEST events.
+ */ const $fa4d2f5b4bb4a3ef$export$95d56908f64857f4 = {
+    GET_NODE: 'getNode',
+    SET_NODE: 'setNode',
+    DELETE_NODE: 'deleteNode',
+    LIST_KEYS_WITH_PREFIX: 'listKeysWithPrefix',
+    LOCK_NODE: 'lockNode',
+    UNLOCK_NODE: 'unlockNode'
+};
 
 
 
@@ -981,16 +952,11 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
     }
     get eventHandlers() {
         return {
-            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SAVE_REMOTE_REQUEST]: this.#handlePersistVariable.bind(this),
-            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_PERSIST_REQUEST]: this.#handlePersistCommand.bind(this),
-            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_LOAD_REQUEST]: this.#handleHistoryLoad.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOGIN_REQUEST]: this.#handleLoginRequest.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).LOGOUT_REQUEST]: this.#handleLogoutRequest.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).PASSWORD_CHANGE_REQUEST]: this.#handleChangePasswordRequest.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).ADD_USER_REQUEST]: this.#handleAddUserRequest.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
-            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_LOAD_REMOTE_REQUEST]: this.#handleLoadRemoteVariables.bind(this),
-            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_DEL_REMOTE_REQUEST]: this.#handleDeleteRemoteVariable.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).IS_LOGGED_IN_REQUEST]: this.#handleIsLoggedInRequest.bind(this)
         };
     }
@@ -1128,7 +1094,7 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
             isLoggedIn: loggedIn
         });
     }
-    #handleUpdateDefaultRequest({ key: key, respond: respond }) {
+    async #handleUpdateDefaultRequest({ key: key, respond: respond }) {
         switch(key){
             case (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER:
                 respond({
@@ -1140,214 +1106,16 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
                     value: ''
                 });
                 break;
-        }
-    }
-    async #handlePersistVariable(payload) {
-        const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
-            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
-        });
-        if (user === $34004656f0914987$var$GUEST_USER) {
-            const storageKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${payload.category}_${payload.key}`;
-            const node = {
-                meta: {
-                    type: 'variable'
-                },
-                content: payload.value
-            };
-            this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
-                key: storageKey,
-                node: node
-            });
-        } else {
-            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
-                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
-            });
-            this.#apiManager.post('set_data', {
-                category: payload.category,
-                key: payload.key,
-                value: payload.value
-            }, token);
-        }
-    }
-    async #handleDeleteRemoteVariable(payload) {
-        const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
-            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
-        });
-        if (user === $34004656f0914987$var$GUEST_USER) {
-            const storageKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${payload.category}_${payload.key}`;
-            this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).DELETE_NODE, {
-                key: storageKey
-            });
-        } else {
-            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
-                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
-            });
-            this.#apiManager.post('delete_data', {
-                category: payload.category,
-                key: payload.key
-            }, token);
-        }
-    }
-    async #handlePersistCommand(payload) {
-        const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
-            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
-        });
-        // For guest users, we perform a read-modify-write on a single history key.
-        if (user === $34004656f0914987$var$GUEST_USER) {
-            const historyKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`;
-            // Acquire a lock to ensure atomicity of the read-modify-write operation.
-            const { lockId: lockId } = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE, {
-                key: historyKey
-            });
-            try {
-                // Read the existing history array.
-                const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
-                    key: historyKey,
-                    lockId: lockId
+            case (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HOME:
+                // The HOME directory depends on the current user.
+                const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+                    key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
                 });
-                const history = node?.content || [];
-                // Add the new command.
-                history.push(payload.command);
-                // Write the updated array back.
-                const newNode = {
-                    meta: {
-                        type: 'history'
-                    },
-                    content: history
-                };
-                await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
-                    key: historyKey,
-                    node: newNode,
-                    lockId: lockId
+                respond({
+                    value: `/home/${user}`
                 });
-            } finally{
-                // Always release the lock.
-                await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE, {
-                    key: historyKey,
-                    lockId: lockId
-                });
-            }
-        } else {
-            // For logged-in users, continue saving each command individually to the remote backend.
-            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
-                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
-            });
-            this.#apiManager.post('set_data', {
-                category: $34004656f0914987$var$HISTORY_CATEGORY,
-                key: new Date().toISOString(),
-                value: command
-            }, token);
+                break;
         }
-    }
-    async #handleHistoryLoad({ respond: respond }) {
-        const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
-            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
-        });
-        if (user === $34004656f0914987$var$GUEST_USER) {
-            // Read the single history key. This is a read-only operation, so no lock is needed.
-            const historyKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${$34004656f0914987$var$HISTORY_CATEGORY}`;
-            const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
-                key: historyKey
-            });
-            const historyArray = node?.content || [];
-            if (respond) respond({
-                history: historyArray
-            });
-        } else try {
-            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
-                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
-            });
-            const result = await this.#apiManager.post('get_data', {
-                category: $34004656f0914987$var$HISTORY_CATEGORY
-            }, token);
-            this.log.log("History data received from server:", result);
-            // The backend returns an object with timestamps as keys. We want the values, sorted by key (timestamp).
-            const sortedCommands = Object.keys(result.data || {}).sort().map((key)=>result.data[key]);
-            if (respond) respond({
-                history: sortedCommands
-            });
-        } catch (error) {
-            this.log.error("Failed to load history from server:", error);
-            if (respond) respond({
-                history: [],
-                error: error
-            });
-        }
-    }
-    async #handleLoadRemoteVariables({ key: key, category: category, respond: respond }) {
-        const { value: user } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
-            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
-        });
-        if (user === $34004656f0914987$var$GUEST_USER) {
-            const variables = {};
-            const categories = Array.isArray(category) ? category : [
-                category
-            ];
-            for (const cat of categories)if (key !== undefined) {
-                // This is a read-only operation, so no lock is needed.
-                const storageKey = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${cat}_${key}`;
-                const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
-                    key: storageKey
-                });
-                const value = node ? node.content : undefined;
-                if (value !== undefined) variables[key] = value;
-            } else {
-                // This is a read-only operation, so no lock is needed.
-                const prefix = `${$34004656f0914987$var$GUEST_STORAGE_PREFIX}${cat}_`;
-                const keys = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LIST_KEYS_WITH_PREFIX, {
-                    key: prefix
-                });
-                const catVars = {};
-                for (const storageKey of keys){
-                    const node = await this.#makeStorageRequest('LOCAL', (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
-                        key: storageKey
-                    });
-                    if (node) {
-                        const varName = storageKey.substring(prefix.length);
-                        catVars[varName] = node.content;
-                    }
-                }
-                if (Array.isArray(category)) variables[cat] = catVars;
-                else Object.assign(variables, catVars);
-            }
-            if (respond) respond({
-                variables: variables
-            });
-        } else try {
-            const { value: token } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
-                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).TOKEN
-            });
-            const result = await this.#apiManager.post('get_data', {
-                category: category,
-                key: key // Pass key along, though backend might not use it for 'ENV'
-            }, token);
-            this.log.log("Remote variables received from server:", result);
-            if (respond) respond({
-                variables: result.data || {}
-            });
-        } catch (error) {
-            this.log.error("Failed to load remote variables from server:", error);
-            if (respond) respond({
-                variables: {},
-                error: error
-            });
-        }
-    }
-    /**
-     * Makes a request to a storage backend.
-     * @param {string} storageName - The name of the storage service (e.g., 'SESSION').
-     * @param {string} api - The API method to call (from STORAGE_APIS).
-     * @param {object} data - The data payload for the API method.
-     * @returns {Promise<any>}
-     * @private
-     */ async #makeStorageRequest(storageName, api, data) {
-        const { result: result, error: error } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).STORAGE_API_REQUEST, {
-            storageName: storageName,
-            api: api,
-            data: data
-        });
-        if (error) throw error;
-        return result;
     }
 }
 
@@ -1372,6 +1140,7 @@ const $34004656f0914987$var$HISTORY_CATEGORY = 'HISTORY';
 
 
 const $aa7bd8a129968d33$var$DEFAULT_HISTSIZE = '1000';
+const $aa7bd8a129968d33$var$HISTORY_FILE = '.nnoitra_history';
 /**
  * @class HistoryBusService
  * @description Manages command history, communicating exclusively via the event bus.
@@ -1421,18 +1190,33 @@ const $aa7bd8a129968d33$var$DEFAULT_HISTSIZE = '1000';
     async addCommand(command) {
         const trimmedCommand = command.trim();
         if (!trimmedCommand) return;
-        // Lazily get HISTSIZE to pass along with the persist request.
-        const { value: value } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_SYSTEM_REQUEST, {
+        const { value: home } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HOME
+        });
+        const historyFilePath = `${home}/${$aa7bd8a129968d33$var$HISTORY_FILE}`;
+        let history = [];
+        try {
+            const { contents: contents } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_READ_FILE_REQUEST, {
+                path: historyFilePath
+            });
+            history = contents.split('\n').filter((line)=>line.trim() !== '');
+        } catch (error) {
+            // File probably doesn't exist, which is fine. We'll create it.
+            this.log.log(`History file not found at ${historyFilePath}. A new one will be created.`);
+        }
+        // Prevent adding duplicate consecutive commands
+        if (history.length > 0 && history[history.length - 1] === trimmedCommand) return;
+        history.push(trimmedCommand);
+        // Enforce HISTSIZE limit
+        const { value: histsizeStr } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_SYSTEM_REQUEST, {
             key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HISTSIZE
         });
-        const histsize = value || $aa7bd8a129968d33$var$DEFAULT_HISTSIZE;
-        // Check against the last known command to prevent duplicates.
-        // We fetch it here to ensure we have the most recent state.
-        const { history: latestHistory } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_LOAD_REQUEST);
-        if (latestHistory.length > 0 && latestHistory[latestHistory.length - 1] === trimmedCommand) return;
-        this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).COMMAND_PERSIST_REQUEST, {
-            command: trimmedCommand,
-            histsize: histsize
+        const histsize = parseInt(histsizeStr || $aa7bd8a129968d33$var$DEFAULT_HISTSIZE, 10);
+        if (history.length > histsize) history.splice(0, history.length - histsize);
+        // Write the updated history back to the file
+        await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_WRITE_FILE_REQUEST, {
+            path: historyFilePath,
+            content: history.join('\n')
         });
         this.resetCursor();
     }
@@ -1443,7 +1227,7 @@ const $aa7bd8a129968d33$var$DEFAULT_HISTSIZE = '1000';
     }
     async #handleGetPrevious() {
         if (!this.#isNavigating) {
-            const { history: history } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_LOAD_REQUEST);
+            const history = await this.#loadHistoryFromFile();
             // History from accounting is oldest-to-newest. We need newest-to-oldest for navigation.
             this.#navigationHistoryCache = history.slice().reverse();
             this.#isNavigating = true;
@@ -1467,7 +1251,7 @@ const $aa7bd8a129968d33$var$DEFAULT_HISTSIZE = '1000';
         // The history is stored with the most recent command at index 0.
         // For display, we want oldest to newest. Accounting service now provides it in this order.
         (async ()=>{
-            const { history: history } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).HISTORY_LOAD_REQUEST);
+            const history = await this.#loadHistoryFromFile();
             if (!history || history.length === 0) {
                 respond({
                     history: []
@@ -1475,11 +1259,26 @@ const $aa7bd8a129968d33$var$DEFAULT_HISTSIZE = '1000';
                 return;
             }
             // The `history` command numbers from 1 to N, oldest to newest.
-            const displayHistory = history.map((item, index)=>` ${String(history.length - index).padStart(String(history.length).length)}:  ${item}`);
+            const displayHistory = history.map((item, index)=>` ${String(index + 1).padStart(String(history.length).length)}:  ${item}`);
             respond({
                 history: displayHistory
             });
         })();
+    }
+    async #loadHistoryFromFile() {
+        const { value: home } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+            key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HOME
+        });
+        const historyFilePath = `${home}/${$aa7bd8a129968d33$var$HISTORY_FILE}`;
+        try {
+            const { contents: contents } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_READ_FILE_REQUEST, {
+                path: historyFilePath
+            });
+            return contents.split('\n').filter((line)=>line.trim() !== '');
+        } catch (error) {
+            this.log.warn(`Could not load history file: ${error.message}`);
+            return [];
+        }
     }
 }
 
@@ -4078,8 +3877,12 @@ const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
     }
     get eventHandlers() {
         return {
-            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_FILE_CONTENTS_REQUEST]: this.#handleGetFileContents.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_READ_FILE_REQUEST]: this.#handleReadFileRequest.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_WRITE_FILE_REQUEST]: this.#handleWriteFile.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_DIRECTORY_CONTENTS_REQUEST]: this.#handleGetDirectoryContents.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_MAKE_DIRECTORY_REQUEST]: this.#handleMakeDirectory.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_DELETE_FILE_REQUEST]: this.#handleDeleteFile.bind(this),
+            [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_REMOVE_DIRECTORY_REQUEST]: this.#handleRemoveDirectory.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_CHANGE_DIRECTORY_REQUEST]: this.#handleChangeDirectory.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_RESOLVE_PATH_REQUEST]: this.#handleResolvePathRequest.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_PUBLIC_URL_REQUEST]: this.#handleGetPublicUrl.bind(this),
@@ -4286,51 +4089,58 @@ const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
         });
     }
     async #makeDirectory(path) {
-        const { storageName: storageName, parentUuid: parentUuid, childName: childName, uuid: uuid } = await this.#resolvePathToStorage(path);
-        if (uuid) throw new Error('Directory already exists.');
-        // We need a valid parent to create a new directory in.
-        if (!parentUuid || !childName) throw new Error('Cannot create directory in a non-existent path.');
-        // Create the new directory node. Its content is an empty list of children.
-        const newDirUuid = crypto.randomUUID();
-        const dirNode = {
-            meta: {
-                type: 'directory'
-            },
-            content: JSON.stringify([])
-        };
-        await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
-            key: newDirUuid,
-            node: dirNode
-        });
-        // --- Read-Modify-Write with Lock ---
-        // Acquire a lock on the parent directory to safely modify its content list.
-        const { lockId: lockId } = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE, {
-            key: parentUuid
-        });
-        try {
-            // 1. Read: Get the parent directory node.
-            const parentNode = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
-                key: parentUuid,
-                lockId: lockId
-            });
-            const children = JSON.parse(parentNode.content);
-            // 2. Modify: Add the new directory's [uuid, name] pair.
-            children.push([
-                newDirUuid,
-                childName
-            ]);
-            parentNode.content = JSON.stringify(children);
-            // 3. Write: Save the updated parent node.
-            await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
-                key: parentUuid,
-                node: parentNode,
-                lockId: lockId
-            });
-        } finally{
-            await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE, {
-                key: parentUuid,
-                lockId: lockId
-            });
+        const resolvedPath = await this.#getResolvedPath(path);
+        if (resolvedPath === '/') return; // Cannot create root
+        let { storageName: storageName, uuid: currentUuid } = await this.#initializeVFS();
+        const parts = resolvedPath.substring(1).split('/');
+        for (const part of parts){
+            if (!part) continue;
+            const result = await this.#traverseStep(storageName, currentUuid, part);
+            if (result.notFound) {
+                // Directory doesn't exist, so create it.
+                const newDirUuid = crypto.randomUUID();
+                const dirNode = {
+                    meta: {
+                        type: 'directory'
+                    },
+                    content: JSON.stringify([])
+                };
+                await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+                    key: newDirUuid,
+                    node: dirNode
+                });
+                // --- Read-Modify-Write with Lock to add it to the parent ---
+                const { lockId: lockId } = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE, {
+                    key: currentUuid
+                });
+                try {
+                    const parentNode = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                        key: currentUuid,
+                        lockId: lockId
+                    });
+                    const children = JSON.parse(parentNode.content);
+                    children.push([
+                        newDirUuid,
+                        part
+                    ]);
+                    parentNode.content = JSON.stringify(children);
+                    await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+                        key: currentUuid,
+                        node: parentNode,
+                        lockId: lockId
+                    });
+                } finally{
+                    await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE, {
+                        key: currentUuid,
+                        lockId: lockId
+                    });
+                }
+                currentUuid = newDirUuid;
+            } else {
+                // Directory exists, continue traversal.
+                storageName = result.storageName;
+                currentUuid = result.uuid;
+            }
         }
     }
     async #removeDirectory(path) {
@@ -4380,9 +4190,57 @@ const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
             };
         });
     }
-    async #handleGetDirectoryContents({ path: path, respond: respond }) {
+    async #handleWriteFile({ path: path, content: content, respond: respond }) {
         try {
-            const contents = await this.#getDirectoryContents(path);
+            await this.#writeFile(path, content);
+            respond({
+                success: true
+            });
+        } catch (error) {
+            respond({
+                error: error
+            });
+        }
+    }
+    async #handleDeleteFile({ path: path, respond: respond }) {
+        try {
+            await this.#deleteFile(path);
+            respond({
+                success: true
+            });
+        } catch (error) {
+            respond({
+                error: error
+            });
+        }
+    }
+    async #handleMakeDirectory({ path: path, respond: respond }) {
+        try {
+            await this.#makeDirectory(path);
+            respond({
+                success: true
+            });
+        } catch (error) {
+            respond({
+                error: error
+            });
+        }
+    }
+    async #handleRemoveDirectory({ path: path, respond: respond }) {
+        try {
+            await this.#removeDirectory(path);
+            respond({
+                success: true
+            });
+        } catch (error) {
+            respond({
+                error: error
+            });
+        }
+    }
+    async #handleReadFileRequest({ path: path, respond: respond }) {
+        try {
+            const contents = await this.#getFileContents(path);
             respond({
                 contents: contents
             });
@@ -4392,9 +4250,9 @@ const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
             });
         }
     }
-    async #handleGetFileContents({ path: path, respond: respond }) {
+    async #handleGetDirectoryContents({ path: path, respond: respond }) {
         try {
-            const contents = await this.#getFileContents(path);
+            const contents = await this.#getDirectoryContents(path);
             respond({
                 contents: contents
             });
@@ -4452,14 +4310,15 @@ const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
             });
         }
     }
-    #handleUpdateDefaultRequest({ key: key, respond: respond }) {
+    async #handleUpdateDefaultRequest({ key: key, respond: respond }) {
         if (key === (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PWD) {
-            this.dispatch((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_SET_TEMP_REQUEST, {
-                key: key,
-                value: $1f7b71a98b9db741$var$DEFAULT_PWD
+            // The default PWD should be the user's home directory.
+            const { value: homeDir } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).HOME
             });
+            // EnvironmentService will set the variable after receiving this default value.
             respond({
-                value: $1f7b71a98b9db741$var$DEFAULT_PWD
+                value: homeDir
             });
         }
     }

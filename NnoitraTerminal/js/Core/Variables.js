@@ -22,8 +22,9 @@
 export const ENV_VARS = {
     // Core Prompt/System Variables
     PS1: 'PS1',
-    HOST: 'HOST',
+    HOME: 'HOME',
     PWD: 'PWD',
+    HOST: 'HOST',
     USER: 'USER',
     UUID: 'UUID',
     // User-configurable Variables
