@@ -3940,7 +3940,7 @@ $329030bb3c43881e$exports = $parcel$resolve("ccCIq");
 
 /**
  * Nnoitra Terminal
- * Copyright (C) 2025 Arefi
+ * Copyright (C) 2024 Arefi
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -3956,6 +3956,51 @@ $329030bb3c43881e$exports = $parcel$resolve("ccCIq");
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */ 
 
+
+
+
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ /**
+ * Normalizes a path, resolving '..' and '.' segments and removing multiple slashes.
+ * @param {string} path - The path to normalize.
+ * @returns {string} The normalized, absolute path.
+ */ function $2386f4acaa9f4511$export$6af368f973c74c5(path) {
+    if (!path) return '/';
+    const parts = path.split('/');
+    const stack = [];
+    for (const part of parts){
+        if (part === '..') // If stack is not empty, pop. This handles going up a directory.
+        {
+            if (stack.length > 0) stack.pop();
+        } else if (part !== '.' && part !== '') // Ignore '.' and empty parts (from multiple slashes), push others.
+        stack.push(part);
+    }
+    return '/' + stack.join('/');
+}
+function $2386f4acaa9f4511$export$b09f2ff0bbcb43c7(path, pwd, home) {
+    if (!path) return pwd;
+    let effectivePath;
+    if (path === '~') effectivePath = home;
+    else if (path.startsWith('~/')) effectivePath = `${home}${path.substring(1)}`;
+    else if (path.startsWith('/')) effectivePath = path;
+    else effectivePath = `${pwd === '/' ? '' : pwd}/${path}`;
+    return $2386f4acaa9f4511$export$6af368f973c74c5(effectivePath);
+}
 
 
 const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
@@ -3982,31 +4027,49 @@ const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
             'REMOTE'
         ]
     };
-    #filesystem = {
-        '/': [
-            undefined,
-            undefined
-        ],
-        '/home': [
-            this.#storageServices.REMOTE,
-            '/home'
-        ],
-        '/home/guest': [
-            this.#storageServices.LOCAL,
-            '/home/guest'
-        ],
-        '/var/local': [
-            this.#storageServices.LOCAL,
-            '/var/local'
-        ],
-        '/var/remote': [
-            this.#storageServices.REMOTE,
-            '/var/remote'
-        ],
-        '/var/session': [
-            this.#storageServices.SESSION,
-            '/var/session'
-        ]
+    /**
+     * @private
+     * @description Defines the root of the virtual filesystem (VFS).
+     * The VFS architecture is as follows:
+     * 1. There are three node types: 'file', 'directory', and 'mount'.
+     * 2. A node (identified by a UUID) does not store its own name. Its name is stored
+     *    by its parent directory.
+     * 3. The entire filesystem has a single root ('/') which lives in SESSION storage.
+     * 4. A 'directory' node's content is a list of [uuid, name] pairs for its children.
+     * 5. A 'mount' node acts as a gateway to another filesystem. Its metadata contains
+     *    the target storage service ('SESSION', 'LOCAL', 'REMOTE') and the UUID of the
+     *    directory it is mounted to on that service.
+     * 6. Path resolution starts at the root and traverses the directory tree. When a 'mount'
+     *    node is encountered, the VFS seamlessly crosses over to the target storage service
+     *    and continues the traversal from the mounted directory's UUID.
+     *
+     * For example, the root directory in SESSION storage contains a 'mount' node for '/home'.
+     * This mount node points to the UUID of the '/home' directory located in REMOTE storage.
+     */ #filesystem = {
+        '/': {
+            DEVICE: this.#storageServices.SESSION,
+            UUID: '91e05212-d341-41f2-a4dd-615240ac62fc'
+        },
+        '/home': {
+            DEVICE: this.#storageServices.REMOTE,
+            UUID: 'a3771916-158b-47af-a78c-1151538590f0'
+        },
+        '/home/guest': {
+            DEVICE: this.#storageServices.LOCAL,
+            UUID: '897ba474-ff01-4312-bc06-4127dd49fc3c'
+        },
+        '/var/local': {
+            DEVICE: this.#storageServices.LOCAL,
+            UUID: 'eb8ac8ed-cc20-4286-aded-1b0810c1e99c'
+        },
+        '/var/remote': {
+            DEVICE: this.#storageServices.REMOTE,
+            UUID: '3c77ca09-8bb7-4e63-bea8-5c08ec325264'
+        },
+        '/var/session': {
+            DEVICE: this.#storageServices.SESSION,
+            UUID: '867486bd-2424-40b7-afb1-7e651fbd0bb9'
+        }
     };
     constructor(eventBus, config = {}){
         super(eventBus);
@@ -4022,6 +4085,300 @@ const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).FS_GET_PUBLIC_URL_REQUEST]: this.#handleGetPublicUrl.bind(this),
             [(0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this)
         };
+    }
+    /**
+     * Resolves a virtual path to its storage service and the UUID of the target node.
+     * @param {string} path The virtual path.
+     * @returns {Promise<{storageName: string, uuid: string}>}
+     * @private
+     */ async #resolvePathToStorage(path) {
+        // 1. Get the clean, absolute path from the user-provided input.
+        const resolvedPath = await this.#getResolvedPath(path);
+        // 2. Start traversal from the absolute root of the VFS.
+        let { storageName: storageName, uuid: currentUuid } = await this.#initializeVFS();
+        // 3. If the path is just the root, we're done.
+        if (resolvedPath === '/') return {
+            storageName: storageName,
+            uuid: currentUuid
+        };
+        // 4. Traverse the path parts one by one.
+        const parts = resolvedPath.substring(1).split('/');
+        for(let i = 0; i < parts.length; i++){
+            const part = parts[i];
+            const isLastPart = i === parts.length - 1;
+            // The `traverseStep` function will handle moving one level down the directory tree,
+            // including crossing mount points.
+            const result = await this.#traverseStep(storageName, currentUuid, part);
+            if (result.notFound) {
+                // If the part was not found and it's the last part of the path,
+                // it might be a file or directory we intend to create.
+                // Return the parent's info so the calling function can proceed.
+                if (isLastPart) return {
+                    storageName: storageName,
+                    parentUuid: currentUuid,
+                    childName: part
+                };
+                else throw new Error(`Path not found: ${part} in ${path}`);
+            }
+            // Update context for the next iteration.
+            storageName = result.storageName;
+            currentUuid = result.uuid;
+        }
+        // 5. Return the final resolved node information.
+        return {
+            storageName: storageName,
+            uuid: currentUuid
+        };
+    }
+    /**
+     * Resolves a user-provided path into a clean, absolute path string.
+     * @param {string} path - The user-provided path.
+     * @returns {Promise<string>} The absolute path.
+     * @private
+     */ async #getResolvedPath(path) {
+        const [pwd, user] = await Promise.all([
+            this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_TEMP_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).PWD
+            }),
+            this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).VAR_GET_LOCAL_REQUEST, {
+                key: (0, $f3db42d7289ab17e$export$d71b24b7fe068ed).USER
+            })
+        ]);
+        const homeDir = `/home/${user.value}`;
+        return (0, $2386f4acaa9f4511$export$b09f2ff0bbcb43c7)(path, pwd.value, homeDir);
+    }
+    /**
+     * Ensures the VFS root node exists and returns its initial context.
+     * @returns {Promise<{storageName: string, uuid: string}>}
+     * @private
+     */ async #initializeVFS() {
+        const { DEVICE: [_, storageName], UUID: rootUuid } = this.#filesystem['/'];
+        let rootNode = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+            key: rootUuid
+        });
+        if (!rootNode) {
+            rootNode = {
+                meta: {
+                    type: 'directory'
+                },
+                content: JSON.stringify([])
+            };
+            await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+                key: rootUuid,
+                node: rootNode
+            });
+        }
+        return {
+            storageName: storageName,
+            uuid: rootUuid
+        };
+    }
+    /**
+     * Traverses a single step down the directory tree from a parent node.
+     * @param {string} storageName - The storage service of the parent.
+     * @param {string} parentUuid - The UUID of the parent directory.
+     * @param {string} childName - The name of the child to find.
+     * @returns {Promise<{storageName: string, uuid: string}|{notFound: boolean}>}
+     * @private
+     */ async #traverseStep(storageName, parentUuid, childName) {
+        const parentNode = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+            key: parentUuid
+        });
+        if (!parentNode || parentNode.meta.type !== 'directory') throw new Error(`Path component is not a directory.`);
+        const children = JSON.parse(parentNode.content || '[]');
+        const childEntry = children.find((entry)=>entry[1] === childName);
+        if (!childEntry) return {
+            notFound: true
+        };
+        let childUuid = childEntry[0];
+        const childNode = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+            key: childUuid
+        });
+        // If the child is a mount point, switch context to the target storage and UUID.
+        if (childNode.meta.type === 'mount') return {
+            storageName: childNode.meta.targetStorage,
+            uuid: childNode.meta.targetUuid
+        };
+        return {
+            storageName: storageName,
+            uuid: childUuid
+        };
+    }
+    async #writeFile(path, content) {
+        const { storageName: storageName, parentUuid: parentUuid, childName: childName, uuid: uuid } = await this.#resolvePathToStorage(path);
+        let fileUuid = uuid;
+        if (!fileUuid) {
+            // We need a valid parent directory to create a file in.
+            if (!parentUuid || !childName) throw new Error('Cannot create file in a non-existent directory.');
+            // Create the new file node.
+            fileUuid = crypto.randomUUID();
+            const fileNode = {
+                meta: {
+                    type: 'file'
+                },
+                content: content
+            };
+            await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+                key: fileUuid,
+                node: fileNode
+            });
+            // --- Read-Modify-Write with Lock ---
+            // Acquire a lock on the parent directory to safely modify its content list.
+            const { lockId: lockId } = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE, {
+                key: parentUuid
+            });
+            try {
+                // 1. Read: Get the parent directory node.
+                const parentNode = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                    key: parentUuid,
+                    lockId: lockId
+                });
+                const children = JSON.parse(parentNode.content);
+                // 2. Modify: Add the new [uuid, name] pair to the list.
+                children.push([
+                    fileUuid,
+                    childName
+                ]);
+                parentNode.content = JSON.stringify(children);
+                // 3. Write: Save the updated parent node.
+                await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+                    key: parentUuid,
+                    node: parentNode,
+                    lockId: lockId
+                });
+            } finally{
+                // Always release the lock, even if an error occurred.
+                await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE, {
+                    key: parentUuid,
+                    lockId: lockId
+                });
+            }
+        } else {
+            const fileNode = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                key: fileUuid
+            });
+            // You can't use #writeFile on a directory.
+            if (fileNode.meta.type === 'directory') throw new Error('Cannot write to a directory.');
+            // Update the content and save the node.
+            fileNode.content = content;
+            await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+                key: fileUuid,
+                node: fileNode
+            });
+        }
+    }
+    async #readFile(path) {
+        const { storageName: storageName, uuid: uuid } = await this.#resolvePathToStorage(path);
+        if (!uuid) throw new Error('File not found.');
+        const node = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+            key: uuid
+        });
+        // Ensure the path points to a file.
+        if (!node || node.meta.type !== 'file') throw new Error('Path is not a file.');
+        return node.content;
+    }
+    async #deleteFile(path) {
+        const { storageName: storageName, uuid: uuid } = await this.#resolvePathToStorage(path);
+        if (!uuid) throw new Error('File not found.');
+        // This is a simplified delete. A real one would also remove it from parent's content array.
+        await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).DELETE_NODE, {
+            key: uuid
+        });
+    }
+    async #makeDirectory(path) {
+        const { storageName: storageName, parentUuid: parentUuid, childName: childName, uuid: uuid } = await this.#resolvePathToStorage(path);
+        if (uuid) throw new Error('Directory already exists.');
+        // We need a valid parent to create a new directory in.
+        if (!parentUuid || !childName) throw new Error('Cannot create directory in a non-existent path.');
+        // Create the new directory node. Its content is an empty list of children.
+        const newDirUuid = crypto.randomUUID();
+        const dirNode = {
+            meta: {
+                type: 'directory'
+            },
+            content: JSON.stringify([])
+        };
+        await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+            key: newDirUuid,
+            node: dirNode
+        });
+        // --- Read-Modify-Write with Lock ---
+        // Acquire a lock on the parent directory to safely modify its content list.
+        const { lockId: lockId } = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).LOCK_NODE, {
+            key: parentUuid
+        });
+        try {
+            // 1. Read: Get the parent directory node.
+            const parentNode = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                key: parentUuid,
+                lockId: lockId
+            });
+            const children = JSON.parse(parentNode.content);
+            // 2. Modify: Add the new directory's [uuid, name] pair.
+            children.push([
+                newDirUuid,
+                childName
+            ]);
+            parentNode.content = JSON.stringify(children);
+            // 3. Write: Save the updated parent node.
+            await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).SET_NODE, {
+                key: parentUuid,
+                node: parentNode,
+                lockId: lockId
+            });
+        } finally{
+            await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).UNLOCK_NODE, {
+                key: parentUuid,
+                lockId: lockId
+            });
+        }
+    }
+    async #removeDirectory(path) {
+        const { storageName: storageName, uuid: uuid } = await this.#resolvePathToStorage(path);
+        if (!uuid) throw new Error('Directory not found.');
+        // This is a simplified delete. A real one would be recursive and remove from parent.
+        await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).DELETE_NODE, {
+            key: uuid
+        });
+    }
+    async #getMetaData(path) {
+        const { storageName: storageName, uuid: uuid } = await this.#resolvePathToStorage(path);
+        if (!uuid) return {
+            path: path,
+            isDirectory: false,
+            isFile: false
+        };
+        // Fetch the node and return its metadata.
+        const node = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+            key: uuid
+        });
+        return {
+            path: path,
+            isDirectory: node.meta.type === 'directory' || node.meta.type === 'mount',
+            isFile: node.meta.type === 'file'
+        };
+    }
+    async #listDirectory(path) {
+        const { storageName: storageName, uuid: uuid } = await this.#resolvePathToStorage(path);
+        if (!uuid) throw new Error('Directory not found.');
+        const node = await this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+            key: uuid
+        });
+        // Ensure the path points to a directory or mount.
+        if (node.meta.type !== 'directory' && node.meta.type !== 'mount') throw new Error('Not a directory.');
+        // Content is an array of [uuid, name] pairs.
+        const childEntries = JSON.parse(node.content || '[]');
+        // Fetch all child nodes to get their types.
+        const childrenNodes = await Promise.all(childEntries.map((entry)=>this.#makeStorageRequest(storageName, (0, $fa4d2f5b4bb4a3ef$export$95d56908f64857f4).GET_NODE, {
+                key: entry[0]
+            })));
+        // Combine the name from the parent with the type from the child.
+        return childrenNodes.map((childNode, index)=>{
+            return {
+                name: childEntries[index][1],
+                ...childNode.meta
+            };
+        });
     }
     async #handleGetDirectoryContents({ path: path, respond: respond }) {
         try {
@@ -4148,6 +4505,22 @@ const $1f7b71a98b9db741$var$DEFAULT_PWD = '/';
             must_be_dir: mustBeDir
         });
         return data.path;
+    }
+    /**
+     * Makes a request to a storage backend.
+     * @param {string} storageName - The name of the storage service (e.g., 'SESSION').
+     * @param {string} api - The API method to call (from STORAGE_APIS).
+     * @param {object} data - The data payload for the API method.
+     * @returns {Promise<any>}
+     * @private
+     */ async #makeStorageRequest(storageName, api, data) {
+        const { result: result, error: error } = await this.request((0, $e7af321b64423fde$export$fa3d5b535a2458a1).STORAGE_API_REQUEST, {
+            storageName: storageName,
+            api: api,
+            data: data
+        });
+        if (error) throw error;
+        return result;
     }
 }
 
@@ -5877,6 +6250,144 @@ class $9d2e60a2443f3a3e$export$28bb6dc04d8f7127 extends (0, $6684178f93132198$ex
 }
 
 
+/**
+ * Nnoitra Terminal
+ * Copyright (C) 2025 Arefi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */ 
+/**
+ * @class SessionStorageService
+ * @description Implements an in-memory, temporary storage backend.
+ * All data is lost when the page is reloaded.
+ */ class $0cf3fa3ec2f0977a$export$b06b6fb6b8d957f7 extends (0, $cdeb0865826d5baf$export$282961b3a2302fe3) {
+    static STORAGE_NAME = 'SESSION';
+    // A simple in-memory map to act as the filesystem.
+    // Keys are full paths, values are file contents (string).
+    // Directories are implicitly defined by the paths of the files.
+    #data = new Map();
+    // A set to explicitly track directory paths, allowing for empty directories.
+    #directories = new Set();
+    constructor(eventBus){
+        super(eventBus);
+        // You could pre-populate with some default files/directories here if needed.
+        // e.g., this.#data.set('/tmp/example.txt', 'This is a temporary file.');
+        // The root directory always exists.
+        this.#directories.add('/');
+    }
+    /**
+     * Lists the contents of a given path.
+     * @param {object} data
+     * @param {string} data.path - The path of the directory to list.
+     * @returns {Promise<{files: Array, directories: Array}>}
+     */ async listPath({ path: path }) {
+        const normalizedPath = path === '/' ? '' : path;
+        const pathPrefix = normalizedPath ? normalizedPath + '/' : '/';
+        const files = [];
+        const directories = new Set();
+        // Find all files in the current path
+        for (const entryPath of this.#data.keys())if (entryPath.startsWith(pathPrefix)) {
+            const relativePath = entryPath.substring(pathPrefix.length);
+            if (!relativePath.includes('/')) files.push({
+                name: relativePath,
+                size: this.#data.get(entryPath).length
+            });
+        }
+        // Find all explicit subdirectories in the current path
+        for (const dirPath of this.#directories)if (dirPath.startsWith(pathPrefix) && dirPath !== path) {
+            const relativePath = dirPath.substring(pathPrefix.length);
+            const firstPart = relativePath.split('/')[0];
+            if (firstPart) directories.add(firstPart);
+        }
+        return {
+            files: files,
+            directories: Array.from(directories).map((name)=>({
+                    name: name
+                }))
+        };
+    }
+    /**
+     * Reads the content of a file.
+     * @param {object} data
+     * @param {string} data.path - The path of the file to read.
+     * @returns {Promise<string>} The file content.
+     */ async readFile({ path: path }) {
+        if (!this.#data.has(path)) throw new Error('File not found.');
+        return this.#data.get(path);
+    }
+    /**
+     * Writes content to a file, overwriting if it exists.
+     * @param {object} data
+     * @param {string} data.path - The path of the file to write.
+     * @param {string} data.content - The content to write.
+     */ async writeFile({ path: path, content: content }) {
+        // Ensure parent directory exists
+        const parentPath = path.substring(0, path.lastIndexOf('/')) || '/';
+        this.#ensureDirectoryExists(parentPath);
+        this.#data.set(path, content);
+    }
+    /**
+     * Deletes a file.
+     * @param {object} data
+     * @param {string} data.path - The path of the file to delete.
+     */ async deleteFile({ path: path }) {
+        if (!this.#data.has(path)) throw new Error('File not found.');
+        this.#data.delete(path);
+    }
+    /**
+     * Creates a directory. In this in-memory model, directories are implicit,
+     * so this method doesn't need to do anything but succeed.
+     */ async makeDirectory({ path: path }) {
+        this.#ensureDirectoryExists(path);
+    }
+    /**
+     * Removes a directory. This will remove all files and subdirectories within it.
+     * @param {object} data
+     * @param {string} data.path - The path of the directory to remove.
+     */ async removeDirectory({ path: path }) {
+        const prefix = path === '/' ? '/' : path + '/';
+        // Remove all files within the directory
+        for (const key of this.#data.keys())if (key.startsWith(prefix)) this.#data.delete(key);
+        // Remove the directory and all subdirectories
+        for (const dir of this.#directories)if (dir.startsWith(path)) this.#directories.delete(dir);
+    }
+    async getMetaData({ path: path }) {
+        // This simple in-memory storage doesn't have complex metadata.
+        // We can return basic information.
+        const isFile = this.#data.has(path);
+        return {
+            path: path,
+            isFile: isFile,
+            isDirectory: this.#directories.has(path),
+            publicUrl: null // Session storage is not publicly accessible
+        };
+    }
+    /**
+     * Ensures a directory path and all its parents are explicitly created.
+     * @param {string} path - The full path of the directory to create.
+     * @private
+     */ #ensureDirectoryExists(path) {
+        const parts = path.split('/').filter((p)=>p);
+        let currentPath = '';
+        for (const part of parts){
+            currentPath += '/' + part;
+            this.#directories.add(currentPath);
+        }
+    }
+}
+
+
 class $a0b5a846c0e262ae$export$f001b1e94070bef0 {
     constructor(config = {}){
         const bus = new (0, $9919a9f5491eef72$export$5087227eb54526)();
@@ -5898,7 +6409,8 @@ class $a0b5a846c0e262ae$export$f001b1e94070bef0 {
             }),
             autocomplete: (0, $6949df4f1b16bf43$export$1f14987e9cb31ec2).create(bus),
             media: (0, $9d2e60a2443f3a3e$export$28bb6dc04d8f7127).create(bus),
-            localStorage: (0, $2336f685277e82f7$export$fda5b86bc4921cb9).create(bus)
+            localStorage: (0, $2336f685277e82f7$export$fda5b86bc4921cb9).create(bus),
+            sessionStorage: (0, $0cf3fa3ec2f0977a$export$b06b6fb6b8d957f7).create(bus)
         };
     }
 }

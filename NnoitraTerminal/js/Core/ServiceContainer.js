@@ -29,6 +29,7 @@ import { TerminalService } from '../Services/TerminalService.js';
 import { AutocompleteService } from '../Services/AutocompleteService.js';
 import { MediaService } from '../Services/MediaService.js';
 import { LocalStorageService } from '../Services/Storage/LocalStorageService.js';
+import { SessionStorageService } from '../Services/Storage/SessionStorageService.js';
 
 /**
  * A container that initializes and holds all application services for a single
@@ -52,7 +53,8 @@ export class ServiceContainer {
             filesystem: FilesystemService.create(bus, { apiUrl: config.filesystemApi }),
             autocomplete: AutocompleteService.create(bus),
             media: MediaService.create(bus),
-            localStorage: LocalStorageService.create(bus)
+            localStorage: LocalStorageService.create(bus),
+            sessionStorage: SessionStorageService.create(bus)
         };
     }
 }
