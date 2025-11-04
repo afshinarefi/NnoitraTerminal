@@ -45,6 +45,7 @@ import { Theme } from '../Commands/theme.js';
 import { Version } from '../Commands/version.js';
 import { Date } from '../Commands/date.js';
 import { Cal } from '../Commands/cal.js';
+import { Tree } from '../Commands/tree.js';
 
 /**
  * @class CommandBusService
@@ -94,6 +95,7 @@ class CommandService extends BaseService{
         this.register('version', Version, []);
         this.register('date', Date, []);
         this.register('cal', Cal, []);
+        this.register('tree', Tree, ['getTree']);
     }
 
     get eventHandlers() {

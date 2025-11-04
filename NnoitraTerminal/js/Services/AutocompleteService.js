@@ -97,7 +97,6 @@ export class AutocompleteService extends BaseService{
         prefixLength += completionSuffix.length;
         const newTextBeforeCursor = beforeCursorText + completionSuffix;
         const payload = { newTextBeforeCursor, options: finalSuggestions, afterCursorText, description, prefixLength };
-        this.log.warn(payload)
         this.dispatch(EVENTS.AUTOCOMPLETE_BROADCAST, payload);
     }
 }

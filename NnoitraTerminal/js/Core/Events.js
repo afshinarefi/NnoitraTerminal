@@ -85,6 +85,7 @@ export const EVENTS = {
     FS_REMOVE_DIRECTORY_REQUEST: 'fs-remove-directory-request',
     FS_GET_PUBLIC_URL_REQUEST: 'fs-get-public-url-request',
     FS_RESOLVE_PATH_REQUEST: 'fs-resolve-path-request',
+    FS_GET_TREE_REQUEST: 'fs-get-tree-request',
 
     // Unified Storage API
     STORAGE_API_REQUEST: 'storage-api-request',

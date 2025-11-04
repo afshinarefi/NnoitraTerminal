@@ -36,10 +36,11 @@ class Alias extends BaseCommand {
         return `NAME\n       alias - Define or display command aliases.\n\nSYNOPSIS\n       alias [name[=value] ...]\n\nDESCRIPTION\n       The alias command allows you to create shortcuts for longer commands.\n\n       - With no arguments, 'alias' prints the list of all current aliases.\n       - With 'name=value', it defines an alias. The value can be a string in quotes.\n\nEXAMPLES\n       $ alias\n       (Displays all aliases.)\n\n       $ alias l="ls -l"\n       (Creates an alias 'l' for 'ls -l'.)`;
     }
 
-    async execute(args) {
+    async execute(args, outputElement) {
         this.log.log('Executing with args:', args);
         const output = document.createElement('div');
         output.style.whiteSpace = 'pre-wrap';
+        if (outputElement) outputElement.appendChild(output);
 
         const aliases = await this.#getAliases();
 
@@ -47,13 +48,13 @@ class Alias extends BaseCommand {
         if (args.length <= 1) {
             if (Object.keys(aliases).length === 0) {
                 this.log.log('No aliases found to display.');
-                outputDiv.textContent = 'No aliases defined.';
+                output.textContent = 'No aliases defined.';
             } else {
                 let aliasText = '';
                 for (const [name, value] of Object.entries(aliases)) {
                     aliasText += `alias ${name}='${value}'<br>`;
                 }
-                outputDiv.innerHTML = aliasText;
+                output.innerHTML = aliasText;
                 this.log.log('Displaying all defined aliases.');
             }
             return;
@@ -64,7 +65,7 @@ class Alias extends BaseCommand {
         const assignmentIndex = aliasString.indexOf('=');
 
         if (assignmentIndex === -1) {
-            outputDiv.textContent = 'alias: usage: alias [name[=value] ...]';
+            output.textContent = 'alias: usage: alias [name[=value] ...]';
             return;
         }
 
@@ -82,7 +83,7 @@ class Alias extends BaseCommand {
             this.log.log(`Created alias: ${name}='${value}'`);
         } else {
             this.log.warn('Invalid alias format:', aliasString);
-            outputDiv.textContent = `alias: invalid alias name`;
+            output.textContent = `alias: invalid alias name`;
         }
     }
 }

@@ -111,6 +111,14 @@ export class ServiceApiManager {
         return response.path;
     }
 
+    async getTree() {
+        const response = await this.#eventBus.request(EVENTS.FS_GET_TREE_REQUEST, {});
+        if (response.error) {
+            throw new Error(response.error.message || 'Failed to get filesystem tree.');
+        }
+        return response.tree;
+    }
+
     // --- History Gateway Methods ---
 
     async getHistory() {

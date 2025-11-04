@@ -30,6 +30,7 @@ import { AutocompleteService } from '../Services/AutocompleteService.js';
 import { MediaService } from '../Services/MediaService.js';
 import { LocalStorageService } from '../Services/Storage/LocalStorageService.js';
 import { SessionStorageService } from '../Services/Storage/SessionStorageService.js';
+//import { DummyService } from '../Services/DummyService.js';
 
 /**
  * A container that initializes and holds all application services for a single
@@ -41,20 +42,22 @@ export class ServiceContainer {
         const bus = new EventBus();
         this.services = {
             bus,
-            environment: EnvironmentService.create(bus),
+            //dummy: DummyService.create(bus),
+            terminal: TerminalService.create(bus),
+            input: InputService.create(bus),
             accounting: AccountingService.create(bus, { apiUrl: config.accountingApi }),
             history: HistoryService.create(bus),
             command: CommandService.create(bus),
             theme: ThemeService.create(bus),
-            input: InputService.create(bus),
             hint: HintService.create(bus),
             favicon: FaviconService.create(bus),
-            terminal: TerminalService.create(bus),
-            filesystem: FilesystemService.create(bus, { apiUrl: config.filesystemApi }),
             autocomplete: AutocompleteService.create(bus),
             media: MediaService.create(bus),
-            localStorage: LocalStorageService.create(bus),
+            environment: EnvironmentService.create(bus),
+            filesystem: FilesystemService.create(bus, { apiUrl: config.filesystemApi }),
             sessionStorage: SessionStorageService.create(bus)
+            //localStorage: LocalStorageService.create(bus),
+            //remoteStorage: RemoteStorageService.create(bus)
         };
     }
 }

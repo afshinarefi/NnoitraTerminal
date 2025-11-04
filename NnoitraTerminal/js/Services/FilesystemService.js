@@ -34,8 +34,8 @@ const DEFAULT_PWD = '/';
 class FilesystemService extends BaseService{
     #storageServices = {
         SESSION: [EVENTS.STORAGE_API_REQUEST,'SESSION'],
-        LOCAL: [EVENTS.STORAGE_API_REQUEST,'LOCAL'],
-        REMOTE: [EVENTS.STORAGE_API_REQUEST, 'REMOTE']
+        LOCAL: [EVENTS.STORAGE_API_REQUEST,'SESSION'],
+        REMOTE: [EVENTS.STORAGE_API_REQUEST, 'SESSION']
     };
 
     /**
@@ -59,28 +59,28 @@ class FilesystemService extends BaseService{
      */
     #filesystem = {
         '/': { 
-            DEVICE: this.#storageServices.SESSION, 
-            UUID:'91e05212-d341-41f2-a4dd-615240ac62fc'
+            DEVICE: this.#storageServices.SESSION,
+            ID: 0
         },
         '/home': { 
             DEVICE: this.#storageServices.REMOTE,
-            UUID: 'a3771916-158b-47af-a78c-1151538590f0'
+            ID: 1
         },
         '/home/guest': {
             DEVICE: this.#storageServices.LOCAL,
-            UUID: '897ba474-ff01-4312-bc06-4127dd49fc3c'
+            ID: 2
         },
         '/var/local': {
             DEVICE: this.#storageServices.LOCAL,
-            UUID: 'eb8ac8ed-cc20-4286-aded-1b0810c1e99c'
+            ID: 3
         },
         '/var/remote': {
             DEVICE: this.#storageServices.REMOTE,
-            UUID: '3c77ca09-8bb7-4e63-bea8-5c08ec325264'
+            ID: 4
         },
         '/var/session': {
             DEVICE: this.#storageServices.SESSION,
-            UUID: '867486bd-2424-40b7-afb1-7e651fbd0bb9'
+            ID: 5
         }
     };
 
@@ -101,374 +101,383 @@ class FilesystemService extends BaseService{
             [EVENTS.FS_RESOLVE_PATH_REQUEST]: this.#handleResolvePathRequest.bind(this),
             [EVENTS.FS_GET_PUBLIC_URL_REQUEST]: this.#handleGetPublicUrl.bind(this),
             [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
+            [EVENTS.FS_GET_TREE_REQUEST]: this.#handleGetTreeRequest.bind(this),
         };
     }
 
-    /**
-     * Resolves a virtual path to its storage service and the UUID of the target node.
-     * @param {string} path The virtual path.
-     * @returns {Promise<{storageName: string, uuid: string}>}
-     * @private
-     */
-    async #resolvePathToStorage(path) {
-        // This method is now internal and assumes it's being called by a public handler
-        // that has already resolved the path and fetched necessary context.
-        const resolvedPath = await this.#getResolvedPath(path); // This now needs to be fixed
+    #findMountPoint(path) { // Note: This method does not need to be async
+        // Get mount points and sort them by length, descending.
+        // This ensures that a more specific path ('/home/guest') is matched before a less specific one ('/home').
+        const sortedMounts = Object.keys(this.#filesystem).sort((a, b) => b.length - a.length);
 
-        // 2. Start traversal from the absolute root of the VFS.
-        let { storageName, uuid: currentUuid } = await this.#initializeVFS();
+        for (const mountPath of sortedMounts) {
+            if (path.startsWith(mountPath)) {
+                const mountInfo = this.#filesystem[mountPath];
+                const { DEVICE: device, ID: id } = mountInfo;
+                // The subPath is what remains after the mount point path.
+                let subPath = path.substring(mountPath.length);
 
-        // 3. If the path is just the root, we're done.
-        if (resolvedPath === '/') {
-            return { storageName, uuid: currentUuid };
-        }
-
-        // 4. Traverse the path parts one by one.
-        const parts = resolvedPath.substring(1).split('/');
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            const isLastPart = i === parts.length - 1;
-
-            // The `traverseStep` function will handle moving one level down the directory tree,
-            // including crossing mount points.
-            const result = await this.#traverseStep(storageName, currentUuid, part);
-
-            if (result.notFound) {
-                // If the part was not found and it's the last part of the path,
-                // it might be a file or directory we intend to create.
-                // Return the parent's info so the calling function can proceed.
-                if (isLastPart) {
-                    return { storageName, parentUuid: currentUuid, childName: part };
-                } else {
-                    throw new Error(`Path not found: ${part} in ${path}`);
+                if (subPath.startsWith('/')) {
+                    subPath = subPath.slice(1);
                 }
+                return { device, id, subPath };
             }
-
-            // Update context for the next iteration.
-            storageName = result.storageName;
-            currentUuid = result.uuid;
-        }
-
-        // 5. Return the final resolved node information.
-        return { storageName, uuid: currentUuid };
-    }
-
-    /**
-     * Resolves a user-provided path into a clean, absolute path string.
-     * @param {string} path - The user-provided path.
-     * @returns {Promise<string>} The absolute path.
-     * @private
-     */
-    async #getResolvedPath(path) {
-        let homeDir = '/home/guest'; // Provide a safe default.
-        // This is the critical fix: Only request the HOME variable if the path
-        // explicitly uses a tilde (~). This breaks the circular dependency that
-        // occurs during startup when resolving absolute paths for other variables.
-        if (path.startsWith('~')) {
-            const { value } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HOME, category: 'TEMP' });
-            homeDir = value;
-        }
-        // For resolving absolute paths (like /var/local/...), the PWD is not needed.
-        // We can safely pass '/' as the PWD to the utility.
-        return resolvePath(path, '/', homeDir);
-    }
-    /**
-     * Ensures the VFS root node exists and returns its initial context.
-     * @returns {Promise<{storageName: string, uuid: string}>}
-     * @private
-     */
-    async #initializeVFS() {
-        const { DEVICE: [_, storageName], UUID: rootUuid } = this.#filesystem['/'];
-        let rootNode = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: rootUuid });
-        if (!rootNode) {
-            rootNode = {
-                meta: { type: 'directory' },
-                content: JSON.stringify([])
-            };
-            await this.#makeStorageRequest(storageName, STORAGE_APIS.SET_NODE, { key: rootUuid, node: rootNode });
-        }
-        return { storageName, uuid: rootUuid };
-    }
-
-    /**
-     * Traverses a single step down the directory tree from a parent node.
-     * @param {string} storageName - The storage service of the parent.
-     * @param {string} parentUuid - The UUID of the parent directory.
-     * @param {string} childName - The name of the child to find.
-     * @returns {Promise<{storageName: string, uuid: string}|{notFound: boolean}>}
-     * @private
-     */
-    async #traverseStep(storageName, parentUuid, childName) {
-        const parentNode = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: parentUuid });
-
-        if (!parentNode || parentNode.meta.type !== 'directory') {
-            throw new Error(`Path component is not a directory.`);
-        }
-
-        const children = JSON.parse(parentNode.content || '[]');
-        const childEntry = children.find(entry => entry[1] === childName);
-
-        if (!childEntry) {
-            return { notFound: true };
-        }
-
-        let childUuid = childEntry[0];
-        const childNode = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: childUuid });
-
-        // If the child is a mount point, switch context to the target storage and UUID.
-        if (childNode.meta.type === 'mount') {
-            return { storageName: childNode.meta.targetStorage, uuid: childNode.meta.targetUuid };
-        }
-
-        return { storageName, uuid: childUuid };
-    }
-
-    async #writeFile(path, content) {
-        const { storageName, parentUuid, childName, uuid } = await this.#resolvePathToStorage(path);
-        let fileUuid = uuid;
-
-        if (!fileUuid) { // File doesn't exist, create it
-            // We need a valid parent directory to create a file in.
-            if (!parentUuid || !childName) throw new Error('Cannot create file in a non-existent directory.');
-            
-            // Create the new file node.
-            fileUuid = crypto.randomUUID();
-            const fileNode = { meta: { type: 'file' }, content };
-            await this.#makeStorageRequest(storageName, STORAGE_APIS.SET_NODE, { key: fileUuid, node: fileNode });
-
-            // --- Read-Modify-Write with Lock ---
-            // Acquire a lock on the parent directory to safely modify its content list.
-            const { lockId } = await this.#makeStorageRequest(storageName, STORAGE_APIS.LOCK_NODE, { key: parentUuid });
-            try {
-                // 1. Read: Get the parent directory node.
-                const parentNode = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: parentUuid, lockId });
-                const children = JSON.parse(parentNode.content);
-                // 2. Modify: Add the new [uuid, name] pair to the list.
-                children.push([fileUuid, childName]);
-                parentNode.content = JSON.stringify(children);
-                // 3. Write: Save the updated parent node.
-                await this.#makeStorageRequest(storageName, STORAGE_APIS.SET_NODE, { key: parentUuid, node: parentNode, lockId });
-            } finally {
-                // Always release the lock, even if an error occurred.
-                await this.#makeStorageRequest(storageName, STORAGE_APIS.UNLOCK_NODE, { key: parentUuid, lockId });
-            }
-
-        } else { // File exists, overwrite content
-            const fileNode = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: fileUuid });
-            // You can't use #writeFile on a directory.
-            if (fileNode.meta.type === 'directory') throw new Error('Cannot write to a directory.');
-            // Update the content and save the node.
-            fileNode.content = content;
-            await this.#makeStorageRequest(storageName, STORAGE_APIS.SET_NODE, { key: fileUuid, node: fileNode });
         }
     }
 
-    async #readFile(path) {
-        const { storageName, uuid } = await this.#resolvePathToStorage(path);
-        if (!uuid) throw new Error('File not found.');
-        const node = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: uuid });
-        // Ensure the path points to a file.
-        if (!node || node.meta.type !== 'file') throw new Error('Path is not a file.');
-        return node.content;
-    }
+    async #findFile({device, id, path}) {
+        const rootUUID = '00000000-0000-0000-0000-000000000000';
+        
+        // Normalize path and split into components, filtering out empty strings from slashes.
+        const parts = path.split('/').filter(p => p.length > 0);
 
-    async #deleteFile(path) {
-        const { storageName, uuid } = await this.#resolvePathToStorage(path);
-        if (!uuid) throw new Error('File not found.');
-        // This is a simplified delete. A real one would also remove it from parent's content array.
-        await this.#makeStorageRequest(storageName, STORAGE_APIS.DELETE_NODE, { key: uuid });
-    }
+        if (parts.length === 0) {
+            // The path is the root directory itself.
+            return rootUUID;
+        }
 
-    async #makeDirectory(path) {
-        const resolvedPath = await this.#getResolvedPath(path);
-        if (resolvedPath === '/') return; // Cannot create root
-
-        let { storageName, uuid: currentUuid } = await this.#initializeVFS();
-        const parts = resolvedPath.substring(1).split('/');
+        let currentUUID = rootUUID;
 
         for (const part of parts) {
-            if (!part) continue;
+            // Request the content of the current directory node from the specified device.
+            const { result: directoryNode, error } = await this.request(device[0], {
+                storageName: device[1],
+                api: STORAGE_APIS.GET_NODE,
+                data: { key: currentUUID, id }
+            });
 
-            const result = await this.#traverseStep(storageName, currentUuid, part);
+            if (error || !directoryNode) {
+                throw new Error(`Path not found: Could not read directory with UUID ${currentUUID}`);
+            }
 
-            if (result.notFound) {
-                // Directory doesn't exist, so create it.
-                const newDirUuid = crypto.randomUUID();
-                const dirNode = { meta: { type: 'directory' }, content: JSON.stringify([]) };
-                await this.#makeStorageRequest(storageName, STORAGE_APIS.SET_NODE, { key: newDirUuid, node: dirNode });
+            if (directoryNode.meta.type !== 'directory') {
+                throw new Error(`Path resolution failed: Node ${currentUUID} is not a directory.`);
+            }
 
-                // --- Read-Modify-Write with Lock to add it to the parent ---
-                const { lockId } = await this.#makeStorageRequest(storageName, STORAGE_APIS.LOCK_NODE, { key: currentUuid });
-                try {
-                    const parentNode = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: currentUuid, lockId });
-                    const children = JSON.parse(parentNode.content);
-                    children.push([newDirUuid, part]);
-                    parentNode.content = JSON.stringify(children);
-                    await this.#makeStorageRequest(storageName, STORAGE_APIS.SET_NODE, { key: currentUuid, node: parentNode, lockId });
-                } finally {
-                    await this.#makeStorageRequest(storageName, STORAGE_APIS.UNLOCK_NODE, { key: currentUuid, lockId });
+            // Find the UUID of the next part in the directory's content.
+            const childEntry = directoryNode.content.find(entry => entry.name === part);
+            if (!childEntry) {
+                throw new Error(`Path not found: '${part}' does not exist in directory.`);
+            }
+
+            currentUUID = childEntry.uuid;
+        }
+
+        return currentUUID;
+    }
+
+    async #createDir({device, id, path}) {
+        const rootUUID = '00000000-0000-0000-0000-000000000000';
+        const parts = path.split('/').filter(p => p.length > 0);
+
+        if (parts.length === 0) {
+            return rootUUID; // Path is just '/', which already exists.
+        }
+
+        let parentUUID = rootUUID;
+        let finalUUID = rootUUID;
+
+        for (const part of parts) {
+            let childUUID;
+            let lockId;
+
+            try {
+                // Lock the parent directory to ensure atomic read-modify-write.
+                ({ result: { lockId } } = await this.request(device[0], {
+                    storageName: device[1],
+                    api: STORAGE_APIS.LOCK_NODE,
+                    data: { key: parentUUID, id }
+                }));
+
+                const { result: parentNode } = await this.request(device[0], {
+                    storageName: device[1],
+                    api: STORAGE_APIS.GET_NODE,
+                    data: { key: parentUUID, lockId, id }
+                });
+
+                if (!parentNode || parentNode.meta.type !== 'directory') {
+                    throw new Error(`Cannot create directory: Parent path is not a directory.`);
                 }
-                currentUuid = newDirUuid;
-            } else {
-                // Directory exists, continue traversal.
-                storageName = result.storageName;
-                currentUuid = result.uuid;
+
+                const childEntry = parentNode.content.find(entry => entry.name === part);
+
+                if (childEntry) {
+                    // Entry exists, check if it's a directory.
+                    const { result: childNode } = await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.GET_NODE, data: { key: childEntry.uuid, id }});
+                    if (childNode.meta.type !== 'directory') {
+                        throw new Error(`Cannot create directory: '${part}' already exists and is not a directory.`);
+                    }
+                    childUUID = childEntry.uuid;
+                } else {
+                    // Entry does not exist, create it.
+                    childUUID = crypto.randomUUID();
+                    const newDirNode = { meta: { type: 'directory' }, content: [] };
+                    parentNode.content.push({ name: part, uuid: childUUID });
+
+                    // Write the new directory node and the updated parent node.
+                    await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.SET_NODE, data: { key: childUUID, node: newDirNode, lockId, id }});
+                    await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.SET_NODE, data: { key: parentUUID, node: parentNode, lockId, id }});
+                }
+            } finally {
+                if (lockId) {
+                    await this.request(device[0], {
+                        storageName: device[1],
+                        api: STORAGE_APIS.UNLOCK_NODE,
+                        data: { key: parentUUID, lockId, id }
+                    });
+                }
             }
+            parentUUID = childUUID;
         }
+
+        return parentUUID;
     }
 
-    async #removeDirectory(path) {
-        const { storageName, uuid } = await this.#resolvePathToStorage(path);
-        if (!uuid) throw new Error('Directory not found.');
-        // This is a simplified delete. A real one would be recursive and remove from parent.
-        await this.#makeStorageRequest(storageName, STORAGE_APIS.DELETE_NODE, { key: uuid });
-    }
+    async #createFile({device, id, path, content}) {
+        // 1. Separate parent path and filename.
+        const lastSlashIndex = path.lastIndexOf('/');
+        const parentPath = lastSlashIndex > 0 ? path.substring(0, lastSlashIndex) : (lastSlashIndex === 0 ? '/' : '');
+        const fileName = path.substring(lastSlashIndex + 1);
 
-    async #getMetaData(path) {
-        const { storageName, uuid } = await this.#resolvePathToStorage(path);
-        if (!uuid) return { path, isDirectory: false, isFile: false };
-        // Fetch the node and return its metadata.
-        const node = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: uuid });
-        return {
-            path,
-            isDirectory: node.meta.type === 'directory' || node.meta.type === 'mount',
-            isFile: node.meta.type === 'file',
+        if (!fileName) {
+            throw new Error('Cannot create a file with an empty name.');
+        }
+
+        // 2. Create parent directories and get the parent directory's UUID.
+        const parentUUID = await this.#createDir({ device, id, path: parentPath });
+
+        // 3. Create the new file node and its UUID.
+        const fileUUID = crypto.randomUUID();
+        const fileNode = {
+            meta: { type: 'file' },
+            content: content
         };
-    }
 
-    async #listDirectory(path) {
-        const { storageName, uuid } = await this.#resolvePathToStorage(path);
-        if (!uuid) throw new Error('Directory not found.');
-        const node = await this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: uuid });
-        // Ensure the path points to a directory or mount.
-        if (node.meta.type !== 'directory' && node.meta.type !== 'mount') throw new Error('Not a directory.');
-
-        // Content is an array of [uuid, name] pairs.
-        const childEntries = JSON.parse(node.content || '[]');
-
-        // Fetch all child nodes to get their types.
-        const childrenNodes = await Promise.all(
-            childEntries.map(entry => this.#makeStorageRequest(storageName, STORAGE_APIS.GET_NODE, { key: entry[0] }))
-        );
-
-        // Combine the name from the parent with the type from the child.
-        return childrenNodes.map((childNode, index) => {
-            return { name: childEntries[index][1], ...childNode.meta };
-        });
-    }
-
-    async #handleWriteFile({ path, content, respond }) {
+        let lockId;
         try {
-            await this.#writeFile(path, content);
-            respond({ success: true });
-        } catch (error) {
-            respond({ error });
-        }
-    }
+            // 4. Lock the parent directory for atomic update.
+            ({ result: { lockId } } = await this.request(device[0], {
+                storageName: device[1],
+                api: STORAGE_APIS.LOCK_NODE,
+                data: { key: parentUUID, id }
+            }));
 
-    async #handleDeleteFile({ path, respond }) {
-        try {
-            await this.#deleteFile(path);
-            respond({ success: true });
-        } catch (error) {
-            respond({ error });
-        }
-    }
+            // Write the new file node itself.
+            await this.request(device[0], {
+                storageName: device[1],
+                api: STORAGE_APIS.SET_NODE,
+                data: { key: fileUUID, node: fileNode, lockId, id }
+            });
 
-    async #handleMakeDirectory({ path, respond }) {
-        try {
-            await this.#makeDirectory(path);
-            respond({ success: true });
-        } catch (error) {
-            respond({ error });
-        }
-    }
+            // Read the parent directory's current state.
+            const { result: parentNode } = await this.request(device[0], {
+                storageName: device[1],
+                api: STORAGE_APIS.GET_NODE,
+                data: { key: parentUUID, lockId, id }
+            });
 
-    async #handleRemoveDirectory({ path, respond }) {
-        try {
-            await this.#removeDirectory(path);
-            respond({ success: true });
-        } catch (error) {
-            respond({ error });
-        }
-    }
+            // Add the new file to the parent's content list.
+            parentNode.content.push({ name: fileName, uuid: fileUUID });
 
-    async #handleReadFileRequest({ path, respond }) {
-        try {
-            const contents = await this.#readFile(path);
-            respond({ contents });
-        } catch (error) {
-            respond({ error });
-        }
-    }
+            // Write the updated parent directory back.
+            await this.request(device[0], {
+                storageName: device[1],
+                api: STORAGE_APIS.SET_NODE,
+                data: { key: parentUUID, node: parentNode, lockId, id }
+            });
 
-    async #handleGetDirectoryContents({ path, respond }) {
-        try {
-            const contents = await this.#listDirectory(path);
-            respond({ contents });
-        } catch (error) {
-            respond({ error });
-        }
-    }
-
-    async #handleChangeDirectory({ path, respond }) {
-        try {
-            // To change directory, we resolve the path and check if it's a directory.
-            const meta = await this.#getMetaData(path);
-            if (!meta.isDirectory) {
-                throw new Error('Not a directory');
+        } finally {
+            if (lockId) {
+                await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.UNLOCK_NODE, data: { key: parentUUID, lockId, id }});
             }
-            const newPath = meta.path;
-            this.dispatch(EVENTS.VAR_SET_TEMP_REQUEST, { key: ENV_VARS.PWD, value: newPath });
-            respond({ success: true });
-        } catch (error) {
-            respond({ error });
         }
+
+        return fileUUID;
     }
 
-    async #handleResolvePathRequest({ path, respond }) {
+    async #getFile({device, id, path}) {
+        // 1. Find the UUID of the file.
+        const fileUUID = await this.#findFile({ device, id, path });
+
+        // 2. Request the file node from the storage device using its UUID.
+        const { result: fileNode, error } = await this.request(device[0], {
+            storageName: device[1],
+            api: STORAGE_APIS.GET_NODE,
+            data: { key: fileUUID, id }
+        });
+
+        if (error || !fileNode) {
+            throw new Error(`File not found at path: ${path}`);
+        }
+
+        // 3. Ensure the node is a file.
+        if (fileNode.meta.type !== 'file') {
+            throw new Error(`Path is not a file: ${path}`);
+        }
+
+        // 4. Return the content of the file.
+        return fileNode.content;
+    }
+
+    async #getTree() {
+        const rootMount = this.#findMountPoint('/');
+        if (!rootMount) {
+            throw new Error("Filesystem root is not defined.");
+        }
+
+        // Memoization cache to avoid re-processing the same directory UUID on the same device.
+        const visited = new Map();
+
+        const traverse = async (device, id, nodeUUID, currentVirtualPath) => {
+            const visitedKey = `${id}:${nodeUUID}`;
+            if (visited.has(visitedKey)) {
+                return visited.get(visitedKey);
+            }
+
+            // Create the object for this directory and cache it immediately to handle cycles.
+            const directoryObject = {};
+            visited.set(visitedKey, directoryObject);
+
+            // Get the real contents from the storage device.
+            const { result: node } = await this.request(device[0], {
+                storageName: device[1],
+                api: STORAGE_APIS.GET_NODE,
+                data: { key: nodeUUID, id }
+            });
+
+            if (node && node.meta.type !== 'directory') {
+                return null; // Represents a file in the final tree structure
+            }
+
+            // 1. Add real children from the storage node.
+            if (node && node.content) {
+                for (const child of node.content) {
+                    const childVirtualPath = resolvePath(currentVirtualPath, child.name);
+                    const mount = this.#findMountPoint(childVirtualPath);
+                    const isNewMount = mount.subPath === '';
+                    const nextDevice = isNewMount ? mount.device : device;
+                    const nextId = isNewMount ? mount.id : id;
+                    const nextUUID = isNewMount ? '00000000-0000-0000-0000-000000000000' : child.uuid;
+                    directoryObject[child.name] = await traverse(nextDevice, nextId, nextUUID, childVirtualPath);
+                }
+            }
+            return directoryObject;
+        };
+
+        const finalTree = {};
+        const allMountPaths = Object.keys(this.#filesystem).sort();
+
+        for (const path of allMountPaths) {
+            const parts = path.split('/').filter(p => p);
+            let currentLevel = finalTree;
+            for (const part of parts) {
+                currentLevel[part] = currentLevel[part] || {};
+                currentLevel = currentLevel[part];
+            }
+        }
+        
+        // This is a simplified merge, a more robust solution would merge deeply.
+        const realTree = await traverse(rootMount.device, rootMount.id, '00000000-0000-0000-0000-000000000000', '/');
+        Object.assign(finalTree, realTree); // Simple merge for now.
+
+        return finalTree;
+    }
+
+    async #handleGetTreeRequest({ respond }) {
         try {
-            const resolvedPath = await this.#getResolvedPath(path);
-            respond({ path: resolvedPath });
+            const tree = await this.#getTree();
+            console.warn(tree);
+            respond({ tree });
         } catch (error) {
+            this.log.error('Failed to get filesystem tree:', error);
             respond({ error });
         }
     }
 
-    async #handleGetPublicUrl({ path, respond }) {
-        try {
-            // For now, public URLs are just the resolved path.
-            const resolvedPath = await this.#getResolvedPath(path);
-            respond({ url: resolvedPath });
-        } catch (error) {
-            respond({ error });
+    #handleReadFileRequest({ path, respond }) {
+
+        if (path == '/var/remote/USERSPACE/PS1') {
+            respond({ contents: '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}'});
+        } else if (path === '/var/local/ENV/USER') {
+            respond({ contents: 'guest' });
+        } else if (path === '/var/session/ENV/HOST') {
+            respond({ contents: 'localhost' });
+        } else if (path === '/var/session/ENV/PWD') {
+            respond({ contents: '/' });
+        } else if (path === '/var/remote/SYSTEM/THEME') {
+            respond({ contents: 'yellow' });
+        } else if (path === '/var/session/ENV/UUID') {
+            respond({ contents: '00000000-0000-0000-0000-000000000000' });
+        } else if (path === '/var/session/ENV/HOME') {
+            respond({ contents: '/home/guest' });
+        } else if (path === '/var/remote/SYSTEM/ALIAS') {
+            respond({ contents: '{"cd": "cd .."}'});
+        } else if (path === '/home/guest/.nnoitra_history') {
+            respond({contents: 'A\nB\nC\nD\nE\nF'});
+        } else if (path === '/var/remote/SYSTEM/HISTSIZE') {
+            respond({contents: '10'});
+        } else if (path === '/var/local/ENV/TOKEN') {
+            respond({contents: ''});
+        } else if (path === '/var/session/ENV/TEST') {
+            respond({contents: '123'});
+        } else {
+        this.log.warn(`Dummy handling FS_READ_FILE_REQUEST for path: ${path}`);
+        const dummyContent = `This is dummy content for the file at ${path}.`;
+        respond({ contents: dummyContent });
         }
     }
 
-    async #handleUpdateDefaultRequest({ key, respond }) {
+    #handleWriteFile({ path, content, respond }) {
+        this.log.warn(`Dummy handling FS_WRITE_FILE_REQUEST for path: ${path} with content: ${content}`);
+    }
+
+    #handleGetDirectoryContents({ path, respond }) {
+        this.log.warn(`Dummy handling FS_GET_DIRECTORY_CONTENTS_REQUEST for path: ${path}`);
+        const dummyContents = {
+            directories: [{ name: 'dummy_dir' }],
+            files: [{ name: 'TEST', size: 123 }]
+        };
+        respond({ contents: dummyContents });
+    }
+
+    #handleMakeDirectory({ path, respond }) {
+        this.log.warn(`Dummy handling FS_MAKE_DIRECTORY_REQUEST for path: ${path}`);
+        respond({ success: true });
+    }
+
+    #handleDeleteFile({ path, respond }) {
+        this.log.warn(`Dummy handling FS_DELETE_FILE_REQUEST for path: ${path}`);
+        respond({ success: true });
+    }
+
+    #handleRemoveDirectory({ path, respond }) {
+        this.log.warn(`Dummy handling FS_REMOVE_DIRECTORY_REQUEST for path: ${path}`);
+        respond({ success: true });
+    }
+
+    #handleChangeDirectory({ path, respond }) {
+        this.log.warn(`Dummy handling FS_CHANGE_DIRECTORY_REQUEST for path: ${path}`);
+        this.dispatch(EVENTS.VAR_SET_REQUEST, { key: ENV_VARS.PWD, value: path, category: 'TEMP' });
+        respond({ success: true });
+    }
+
+    #handleResolvePathRequest({ path, respond }) {
+        this.log.warn(`Dummy handling FS_RESOLVE_PATH_REQUEST for path: ${path}`);
+        respond({ path: `/dummy/resolved/${path.replace(/[^a-zA-Z0-9]/g, '_')}` });
+    }
+
+    #handleGetPublicUrl({ path, respond }) {
+        this.log.warn(`Dummy handling FS_GET_PUBLIC_URL_REQUEST for path: ${path}`);
+        respond({ url: `/dummy/public/${path}` });
+    }
+
+    #handleUpdateDefaultRequest({ key, respond }) {
+        this.log.warn(`Dummy handling VAR_UPDATE_DEFAULT_REQUEST for key: ${key}`);
         if (key === ENV_VARS.PWD) {
-            // The default PWD should be the user's home directory.
-            //const { value: homeDir } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.HOME });
-            // EnvironmentService will set the variable after receiving this default value.
             respond({ value: DEFAULT_PWD });
         }
     }
 
-    /**
-     * Makes a request to a storage backend.
-     * @param {string} storageName - The name of the storage service (e.g., 'SESSION').
-     * @param {string} api - The API method to call (from STORAGE_APIS).
-     * @param {object} data - The data payload for the API method.
-     * @returns {Promise<any>}
-     * @private
-     */
-    async #makeStorageRequest(storageName, api, data) {
-        const { result, error } = await this.request(EVENTS.STORAGE_API_REQUEST, {
-            storageName, api, data
-        });
-        if (error) throw error;
-        return result;
-    }
 }
 
 export { FilesystemService };

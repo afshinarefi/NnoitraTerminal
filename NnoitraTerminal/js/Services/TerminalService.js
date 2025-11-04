@@ -70,7 +70,6 @@ class TerminalService extends BaseService{
         if (this.#view && this.#view.welcomeOutputView) {
             try {
                 const motdText = await fetchTextFile(TerminalService.MOTD_FILE);
-                console.log(motdText);
                 // Use white-space to preserve formatting without needing a <pre> tag.
                 this.#view.welcomeOutputView.style.whiteSpace = 'pre-wrap';
                 this.#view.welcomeOutputView.textContent = motdText;
@@ -112,7 +111,6 @@ class TerminalService extends BaseService{
             minute: String(timestamp.getMinutes()).padStart(2, '0'),
             second: String(timestamp.getSeconds()).padStart(2, '0')
         };
-
         return format.replace(/\{(\w+)\}/g, (match, key) => replacements[key] ?? match);
     }
 
@@ -136,15 +134,12 @@ class TerminalService extends BaseService{
                 this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HOST, category: 'TEMP' }),
                 this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD, category: 'TEMP' })
             ]);
-
             // 2. Format and display the header.
             const promptVars = { PS1: ps1.value, USER: user.value, HOST: host.value, PWD: pwd.value };
             const headerText = this.#formatHeader(promptVars);
             this.#createAndDisplayHeader(headerText);
-
             // 2. Request user input and wait for the response.
             const { value: commandString } = await this.#requestInput();
-
         // 3. Populate the command item and dispatch for execution.
             if (this.#currentItem) {
                 this.#currentItem.setAttribute('command', commandString);
@@ -160,7 +155,7 @@ class TerminalService extends BaseService{
         } catch (error) {
             this.log.error("Error in command loop:", error);
             // If something fails, dispatch the finished event to try again.
-            this.dispatch(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST);
+            //this.dispatch(EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST);
         }
     }
 

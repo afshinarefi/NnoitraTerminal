@@ -128,7 +128,8 @@ class EnvironmentService extends BaseService{
         for (const [category, path] of Object.entries(this.#categoryPaths)) {
             try {
                 const { contents } = await this.request(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, { path });
-                for (const file of contents) {
+                console.warn('XXX', contents);
+                for (const file of contents.files) {
                     const { contents: fileContent } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: `${path}/${file.name}` });
                     categorized[category][file.name.toUpperCase()] = fileContent;
                 }

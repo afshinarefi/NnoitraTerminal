@@ -74,9 +74,9 @@ class Env extends BaseCommand {
 
         // Using "Session" as a more user-friendly name for "Temporary"
         output += formatCategory('Session (In-Memory)', categorizedVars.TEMP || {});
-        output += formatCategory('Local (Browser Storage)', categorizedVars.LOCAL);
-        output += formatCategory('Remote (User Account)', categorizedVars.SYSTEM);
-        output += formatCategory('User (Configurable)', categorizedVars.USERSPACE);
+        output += formatCategory('Local (Browser Storage)', categorizedVars.LOCAL || {});
+        output += formatCategory('Remote (User Account)', categorizedVars.SYSTEM || {});
+        output += formatCategory('User (Configurable)', categorizedVars.USERSPACE || {});
 
         outputDiv.innerHTML = output.trim();
     }
