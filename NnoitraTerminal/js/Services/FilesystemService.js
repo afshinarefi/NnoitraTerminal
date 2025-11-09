@@ -157,8 +157,11 @@ class FilesystemService extends BaseService {
      * @private
      */
     async #_createNodeRecursive({ device, id, path, createNodeFn }) {
+        if (!path || !path.startsWith('/')) {
+            throw new Error(`_createNodeRecursive expects an absolute path. Received: "${path}"`);
+        }
         const rootUUID = '00000000-0000-0000-0000-000000000000';
-
+        console.warn('XXX',{ device, id, path, createNodeFn });
         // Ensure the root directory for this device/id exists.
         const { result: rootNode } = await this.request(device[0], {
             storageName: device[1],
@@ -210,6 +213,12 @@ class FilesystemService extends BaseService {
                     // If we encounter a mount point, we need to switch our context
                     // to the new device and continue from there.
                     if (childNode.meta.type === 'mount') {
+                        // IMPORTANT: We must release the lock on the current parent
+                        // before we continue the loop with a new device context.
+                        if (lockId) {
+                            await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.UNLOCK_NODE, data: { key: parentUUID, lockId, id }});
+                            lockId = null; // Prevent the finally block from trying to unlock it again.
+                        }
                         device = childNode.meta.targetDevice;
                         id = childNode.meta.targetId;
                         parentUUID = childNode.meta.targetUUID;
@@ -217,6 +226,10 @@ class FilesystemService extends BaseService {
                         // in the context of this new root. We can do this by just continuing the loop.
                         continue;
                     } else if (childNode.meta.type !== 'directory' && !isLastPart) throw new Error(`Path conflict: '${part}' exists and is not a directory.`);
+                    
+                    // If this is the last part of the path and it already exists, it's an error condition (e.g., mkdir on existing dir).
+                    if (isLastPart) throw new Error(`Cannot create '${part}': File or directory already exists`);
+
                     childUUID = childEntry.uuid;
                 } else {
                     childUUID = crypto.randomUUID();
@@ -378,9 +391,8 @@ class FilesystemService extends BaseService {
 
     async #getTree() {
         // Memoization cache to avoid re-processing the same directory UUID on the same device.
-        const visited = new Map();
 
-        const traverse = async (device, id, nodeUUID) => {
+        const traverse = async (device, id, nodeUUID, visited) => {
             const visitedKey = `${id}:${nodeUUID}`;
             if (visited.has(visitedKey)) {
                 return { '[cycle]': {} }; // Mark cycles to prevent infinite loops
@@ -396,8 +408,8 @@ class FilesystemService extends BaseService {
 
             // If we hit a mount point, we traverse its target instead.
             if (node.meta.type === 'mount') {
-                visited.set(visitedKey, {}); // Cache to detect cycles
-                return await traverse(node.meta.targetDevice, node.meta.targetId, node.meta.targetUUID);
+                visited.set(visitedKey, {}); // Cache to detect cycles before traversing into the mount
+                return await traverse(node.meta.targetDevice, node.meta.targetId, node.meta.targetUUID, visited);
             }
 
             if (node.meta.type !== 'directory') {
@@ -409,13 +421,13 @@ class FilesystemService extends BaseService {
 
             for (const child of node.content) {
                 // Recursively traverse each child. The child's node will determine if it's a file, dir, or mount.
-                directoryObject[child.name] = await traverse(device, id, child.uuid);
+                directoryObject[child.name] = await traverse(device, id, child.uuid, visited);
             }
             return directoryObject;
         };
         
         // Start the traversal from the absolute root of the filesystem.
-        return await traverse(this.#root.DEVICE, this.#root.ID, this.#root.UUID);
+        return await traverse(this.#root.DEVICE, this.#root.ID, this.#root.UUID, new Map());
     }
 
     async #handleGetTreeRequest({ respond }) {
