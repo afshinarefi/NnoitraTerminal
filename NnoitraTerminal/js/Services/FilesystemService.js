@@ -19,7 +19,7 @@ import { ENV_VARS } from '../Core/Variables.js';
 import { EVENTS } from '../Core/Events.js';
 import { STORAGE_APIS } from '../Core/StorageApis.js';
 import { BaseService } from '../Core/BaseService.js';
-import { resolvePath } from '../Utils/PathUtil.js';
+import { normalizePath } from '../Utils/PathUtil.js';
 
 const DEFAULT_PWD = '/';
 
@@ -31,58 +31,47 @@ const DEFAULT_PWD = '/';
  * @listens for `FS_GET_DIRECTORY_CONTENTS_REQUEST` - Responds with directory contents.
  * @listens for `FS_GET_FILE_CONTENTS_REQUEST` - Responds with file contents.
  */
-class FilesystemService extends BaseService{
+class FilesystemService extends BaseService {
     #storageServices = {
         SESSION: [EVENTS.STORAGE_API_REQUEST,'SESSION'],
         LOCAL: [EVENTS.STORAGE_API_REQUEST,'SESSION'],
         REMOTE: [EVENTS.STORAGE_API_REQUEST, 'SESSION']
     };
 
-    /**
-     * @private
-     * @description Defines the root of the virtual filesystem (VFS).
-     * The VFS architecture is as follows:
-     * 1. There are three node types: 'file', 'directory', and 'mount'.
-     * 2. A node (identified by a UUID) does not store its own name. Its name is stored
-     *    by its parent directory.
-     * 3. The entire filesystem has a single root ('/') which lives in SESSION storage.
-     * 4. A 'directory' node's content is a list of [uuid, name] pairs for its children.
-     * 5. A 'mount' node acts as a gateway to another filesystem. Its metadata contains
-     *    the target storage service ('SESSION', 'LOCAL', 'REMOTE') and the UUID of the
-     *    directory it is mounted to on that service.
-     * 6. Path resolution starts at the root and traverses the directory tree. When a 'mount'
-     *    node is encountered, the VFS seamlessly crosses over to the target storage service
-     *    and continues the traversal from the mounted directory's UUID.
-     *
-     * For example, the root directory in SESSION storage contains a 'mount' node for '/home'.
-     * This mount node points to the UUID of the '/home' directory located in REMOTE storage.
-     */
-    #filesystem = {
-        '/': { 
+    #root = {
             DEVICE: this.#storageServices.SESSION,
-            ID: 0
-        },
+            ID: 0,
+            UUID: '00000000-0000-0000-0000-000000000000'
+    };
+
+    #baseMounts = {
         '/home': { 
             DEVICE: this.#storageServices.REMOTE,
-            ID: 1
+            ID: 1,
+            UUID: '00000000-0000-0000-0000-000000000000'
         },
         '/home/guest': {
             DEVICE: this.#storageServices.LOCAL,
-            ID: 2
+            ID: 2,
+            UUID: '00000000-0000-0000-0000-000000000000'
         },
         '/var/local': {
             DEVICE: this.#storageServices.LOCAL,
-            ID: 3
+            ID: 3,
+            UUID: '00000000-0000-0000-0000-000000000000'
         },
         '/var/remote': {
             DEVICE: this.#storageServices.REMOTE,
-            ID: 4
+            ID: 4,
+            UUID: '00000000-0000-0000-0000-000000000000'
         },
         '/var/session': {
             DEVICE: this.#storageServices.SESSION,
-            ID: 5
+            ID: 5,
+            UUID: '00000000-0000-0000-0000-000000000000'
         }
     };
+
 
     constructor(eventBus, config = {}) {
         super(eventBus);
@@ -101,28 +90,183 @@ class FilesystemService extends BaseService{
             [EVENTS.FS_RESOLVE_PATH_REQUEST]: this.#handleResolvePathRequest.bind(this),
             [EVENTS.FS_GET_PUBLIC_URL_REQUEST]: this.#handleGetPublicUrl.bind(this),
             [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
-            [EVENTS.FS_GET_TREE_REQUEST]: this.#handleGetTreeRequest.bind(this),
+            [EVENTS.FS_GET_TREE_REQUEST]: this.#handleGetTreeRequest.bind(this)
         };
     }
 
-    #findMountPoint(path) { // Note: This method does not need to be async
-        // Get mount points and sort them by length, descending.
-        // This ensures that a more specific path ('/home/guest') is matched before a less specific one ('/home').
-        const sortedMounts = Object.keys(this.#filesystem).sort((a, b) => b.length - a.length);
+    #handleReadFileRequest({ path, respond }) {
 
-        for (const mountPath of sortedMounts) {
-            if (path.startsWith(mountPath)) {
-                const mountInfo = this.#filesystem[mountPath];
-                const { DEVICE: device, ID: id } = mountInfo;
-                // The subPath is what remains after the mount point path.
-                let subPath = path.substring(mountPath.length);
-
-                if (subPath.startsWith('/')) {
-                    subPath = subPath.slice(1);
-                }
-                return { device, id, subPath };
-            }
+        if (path == '/var/remote/USERSPACE/PS1') {
+            respond({ contents: '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}'});
+        } else if (path === '/var/local/ENV/USER') {
+            respond({ contents: 'guest' });
+        } else if (path === '/var/session/ENV/HOST') {
+            respond({ contents: 'localhost' });
+        } else if (path === '/var/session/ENV/PWD') {
+            respond({ contents: '/' });
+        } else if (path === '/var/remote/SYSTEM/THEME') {
+            respond({ contents: 'yellow' });
+        } else if (path === '/var/session/ENV/UUID') {
+            respond({ contents: '00000000-0000-0000-0000-000000000000' });
+        } else if (path === '/var/session/ENV/HOME') {
+            respond({ contents: '/home/guest' });
+        } else if (path === '/var/remote/SYSTEM/ALIAS') {
+            respond({ contents: '{"cd": "cd .."}'});
+        } else if (path === '/home/guest/.nnoitra_history') {
+            respond({contents: 'A\nB\nC\nD\nE\nF'});
+        } else if (path === '/var/remote/SYSTEM/HISTSIZE') {
+            respond({contents: '10'});
+        } else if (path === '/var/local/ENV/TOKEN') {
+            respond({contents: ''});
+        } else if (path === '/var/session/ENV/TEST') {
+            respond({contents: '123'});
+        } else {
+        this.log.warn(`Dummy handling FS_READ_FILE_REQUEST for path: ${path}`);
+        const dummyContent = `This is dummy content for the file at ${path}.`;
+        respond({ contents: dummyContent });
         }
+    }
+
+    start() {
+        this.log.log('Starting...');
+        this.#createMountPoints();
+    }
+
+    async #createMountPoints() {
+        const mountPaths = Object.keys(this.#baseMounts).sort();
+
+        for (const path of mountPaths) {
+            const mountInfo = this.#baseMounts[path];
+            // #createMount is recursive and will create any necessary parent directories.
+            // We start the creation process from the absolute root of the filesystem.
+            await this.#createMount({
+                device: this.#root.DEVICE,
+                id: this.#root.ID,
+                path: path,
+                mountPointDevice: mountInfo.DEVICE,
+                mountPointId: mountInfo.ID,
+                mountPointUUID: mountInfo.UUID
+            });
+        }
+    }
+
+    /**
+     * A generic, recursive-style function to create a node at a given path.
+     * It ensures all parent directories exist, creating them if necessary.
+     * It uses a callback to define the final node to be created.
+     * @private
+     */
+    async #_createNodeRecursive({ device, id, path, createNodeFn }) {
+        const rootUUID = '00000000-0000-0000-0000-000000000000';
+
+        // Ensure the root directory for this device/id exists.
+        const { result: rootNode } = await this.request(device[0], {
+            storageName: device[1],
+            api: STORAGE_APIS.GET_NODE,
+            data: { key: rootUUID, id },
+        });
+
+        if (!rootNode) {
+            this.log.log(`Root UUID for device ID ${id} not found. Creating it.`);
+            const newRootDir = { meta: { type: 'directory' }, content: [] };
+            await this.request(device[0], {
+                storageName: device[1],
+                api: STORAGE_APIS.SET_NODE,
+                data: { key: rootUUID, node: newRootDir, id },
+            });
+        }
+
+        const parts = normalizePath(path);
+        if (parts.length === 0) return rootUUID; // Path is just '/', which already exists.
+
+        let parentUUID = rootUUID;
+
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            const isLastPart = i === parts.length - 1;
+            let childUUID;
+            let lockId;
+
+            try {
+                ({ result: { lockId } } = await this.request(device[0], {
+                    storageName: device[1],
+                    api: STORAGE_APIS.LOCK_NODE,
+                    data: { key: parentUUID, id },
+                }));
+
+                const { result: parentNode } = await this.request(device[0], {
+                    storageName: device[1],
+                    api: STORAGE_APIS.GET_NODE,
+                    data: { key: parentUUID, lockId, id },
+                });
+
+                if (!parentNode || parentNode.meta.type !== 'directory') throw new Error(`Cannot create node: Parent path is not a directory.`);
+
+                const childEntry = parentNode.content.find(entry => entry.name === part);
+
+                if (childEntry) {
+                    const { result: childNode } = await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.GET_NODE, data: { key: childEntry.uuid, id } });
+                    
+                    // If we encounter a mount point, we need to switch our context
+                    // to the new device and continue from there.
+                    if (childNode.meta.type === 'mount') {
+                        device = childNode.meta.targetDevice;
+                        id = childNode.meta.targetId;
+                        parentUUID = childNode.meta.targetUUID;
+                        // Since we've switched to a new root, we need to re-evaluate the next part
+                        // in the context of this new root. We can do this by just continuing the loop.
+                        continue;
+                    } else if (childNode.meta.type !== 'directory' && !isLastPart) throw new Error(`Path conflict: '${part}' exists and is not a directory.`);
+                    childUUID = childEntry.uuid;
+                } else {
+                    childUUID = crypto.randomUUID();
+                    const newNode = isLastPart ? createNodeFn() : { meta: { type: 'directory' }, content: [] };
+
+                    await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.SET_NODE, data: { key: childUUID, node: newNode, id } });
+                    parentNode.content.push({ name: part, uuid: childUUID });
+                    await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.SET_NODE, data: { key: parentUUID, node: parentNode, lockId, id } });
+                }
+            } finally {
+                if (lockId) {
+                    await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.UNLOCK_NODE, data: { key: parentUUID, lockId, id }});
+                }
+            }
+            parentUUID = childUUID;
+        }
+        return parentUUID;
+    }
+    
+    async #createMount({ device, id, path, mountPointDevice, mountPointId, mountPointUUID }) {
+        // Ensure the target directory for the mount point exists on the target device.
+        const { result: targetNode } = await this.request(mountPointDevice[0], {
+            storageName: mountPointDevice[1],
+            api: STORAGE_APIS.GET_NODE,
+            data: { key: mountPointUUID, id: mountPointId },
+        });
+
+        // If the target directory doesn't exist, create it.
+        if (!targetNode) {
+            this.log.log(`Mount target UUID ${mountPointUUID} for device ID ${mountPointId} not found. Creating it.`);
+            const newRootDir = { meta: { type: 'directory' }, content: [] };
+            await this.request(mountPointDevice[0], {
+                storageName: mountPointDevice[1],
+                api: STORAGE_APIS.SET_NODE,
+                data: { key: mountPointUUID, node: newRootDir, id: mountPointId },
+            });
+        }
+
+        // Now, create the mount point node itself in the source filesystem.
+        const createNodeFn = () => ({
+            meta: { type: 'mount', targetDevice: mountPointDevice, targetId: mountPointId, targetUUID: mountPointUUID },
+            content: null,
+        });
+
+        return this.#_createNodeRecursive({ device, id, path, createNodeFn });
+    }
+
+    async #createDir({ device, id, path }) {
+        const createNodeFn = () => ({ meta: { type: 'directory' }, content: [] });
+        return this.#_createNodeRecursive({ device, id, path, createNodeFn });
     }
 
     async #findFile({device, id, path}) {
@@ -166,71 +310,8 @@ class FilesystemService extends BaseService{
         return currentUUID;
     }
 
-    async #createDir({device, id, path}) {
-        const rootUUID = '00000000-0000-0000-0000-000000000000';
-        const parts = path.split('/').filter(p => p.length > 0);
-
-        if (parts.length === 0) {
-            return rootUUID; // Path is just '/', which already exists.
-        }
-
-        let parentUUID = rootUUID;
-        let finalUUID = rootUUID;
-
-        for (const part of parts) {
-            let childUUID;
-            let lockId;
-
-            try {
-                // Lock the parent directory to ensure atomic read-modify-write.
-                ({ result: { lockId } } = await this.request(device[0], {
-                    storageName: device[1],
-                    api: STORAGE_APIS.LOCK_NODE,
-                    data: { key: parentUUID, id }
-                }));
-
-                const { result: parentNode } = await this.request(device[0], {
-                    storageName: device[1],
-                    api: STORAGE_APIS.GET_NODE,
-                    data: { key: parentUUID, lockId, id }
-                });
-
-                if (!parentNode || parentNode.meta.type !== 'directory') {
-                    throw new Error(`Cannot create directory: Parent path is not a directory.`);
-                }
-
-                const childEntry = parentNode.content.find(entry => entry.name === part);
-
-                if (childEntry) {
-                    // Entry exists, check if it's a directory.
-                    const { result: childNode } = await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.GET_NODE, data: { key: childEntry.uuid, id }});
-                    if (childNode.meta.type !== 'directory') {
-                        throw new Error(`Cannot create directory: '${part}' already exists and is not a directory.`);
-                    }
-                    childUUID = childEntry.uuid;
-                } else {
-                    // Entry does not exist, create it.
-                    childUUID = crypto.randomUUID();
-                    const newDirNode = { meta: { type: 'directory' }, content: [] };
-                    parentNode.content.push({ name: part, uuid: childUUID });
-
-                    // Write the new directory node and the updated parent node.
-                    await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.SET_NODE, data: { key: childUUID, node: newDirNode, lockId, id }});
-                    await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.SET_NODE, data: { key: parentUUID, node: parentNode, lockId, id }});
-                }
-            } finally {
-                if (lockId) {
-                    await this.request(device[0], {
-                        storageName: device[1],
-                        api: STORAGE_APIS.UNLOCK_NODE,
-                        data: { key: parentUUID, lockId, id }
-                    });
-                }
-            }
-            parentUUID = childUUID;
-        }
-
-        return parentUUID;
+    #handleWriteFile({ path, content, respond }) {
+        this.log.warn(`Dummy handling FS_WRITE_FILE_REQUEST for path: ${path} with content: ${content}`);
     }
 
     async #createFile({device, id, path, content}) {
@@ -295,92 +376,46 @@ class FilesystemService extends BaseService{
         return fileUUID;
     }
 
-    async #getFile({device, id, path}) {
-        // 1. Find the UUID of the file.
-        const fileUUID = await this.#findFile({ device, id, path });
-
-        // 2. Request the file node from the storage device using its UUID.
-        const { result: fileNode, error } = await this.request(device[0], {
-            storageName: device[1],
-            api: STORAGE_APIS.GET_NODE,
-            data: { key: fileUUID, id }
-        });
-
-        if (error || !fileNode) {
-            throw new Error(`File not found at path: ${path}`);
-        }
-
-        // 3. Ensure the node is a file.
-        if (fileNode.meta.type !== 'file') {
-            throw new Error(`Path is not a file: ${path}`);
-        }
-
-        // 4. Return the content of the file.
-        return fileNode.content;
-    }
-
     async #getTree() {
-        const rootMount = this.#findMountPoint('/');
-        if (!rootMount) {
-            throw new Error("Filesystem root is not defined.");
-        }
-
         // Memoization cache to avoid re-processing the same directory UUID on the same device.
         const visited = new Map();
 
-        const traverse = async (device, id, nodeUUID, currentVirtualPath) => {
+        const traverse = async (device, id, nodeUUID) => {
             const visitedKey = `${id}:${nodeUUID}`;
             if (visited.has(visitedKey)) {
-                return visited.get(visitedKey);
+                return { '[cycle]': {} }; // Mark cycles to prevent infinite loops
             }
 
-            // Create the object for this directory and cache it immediately to handle cycles.
-            const directoryObject = {};
-            visited.set(visitedKey, directoryObject);
-
-            // Get the real contents from the storage device.
             const { result: node } = await this.request(device[0], {
                 storageName: device[1],
                 api: STORAGE_APIS.GET_NODE,
                 data: { key: nodeUUID, id }
             });
 
-            if (node && node.meta.type !== 'directory') {
-                return null; // Represents a file in the final tree structure
+            if (!node) return {};
+
+            // If we hit a mount point, we traverse its target instead.
+            if (node.meta.type === 'mount') {
+                visited.set(visitedKey, {}); // Cache to detect cycles
+                return await traverse(node.meta.targetDevice, node.meta.targetId, node.meta.targetUUID);
             }
 
-            // 1. Add real children from the storage node.
-            if (node && node.content) {
-                for (const child of node.content) {
-                    const childVirtualPath = resolvePath(currentVirtualPath, child.name);
-                    const mount = this.#findMountPoint(childVirtualPath);
-                    const isNewMount = mount.subPath === '';
-                    const nextDevice = isNewMount ? mount.device : device;
-                    const nextId = isNewMount ? mount.id : id;
-                    const nextUUID = isNewMount ? '00000000-0000-0000-0000-000000000000' : child.uuid;
-                    directoryObject[child.name] = await traverse(nextDevice, nextId, nextUUID, childVirtualPath);
-                }
+            if (node.meta.type !== 'directory') {
+                return null; // Represents a file leaf in the tree
+            }
+
+            const directoryObject = {};
+            visited.set(visitedKey, directoryObject); // Cache before recursing
+
+            for (const child of node.content) {
+                // Recursively traverse each child. The child's node will determine if it's a file, dir, or mount.
+                directoryObject[child.name] = await traverse(device, id, child.uuid);
             }
             return directoryObject;
         };
-
-        const finalTree = {};
-        const allMountPaths = Object.keys(this.#filesystem).sort();
-
-        for (const path of allMountPaths) {
-            const parts = path.split('/').filter(p => p);
-            let currentLevel = finalTree;
-            for (const part of parts) {
-                currentLevel[part] = currentLevel[part] || {};
-                currentLevel = currentLevel[part];
-            }
-        }
         
-        // This is a simplified merge, a more robust solution would merge deeply.
-        const realTree = await traverse(rootMount.device, rootMount.id, '00000000-0000-0000-0000-000000000000', '/');
-        Object.assign(finalTree, realTree); // Simple merge for now.
-
-        return finalTree;
+        // Start the traversal from the absolute root of the filesystem.
+        return await traverse(this.#root.DEVICE, this.#root.ID, this.#root.UUID);
     }
 
     async #handleGetTreeRequest({ respond }) {
@@ -394,42 +429,9 @@ class FilesystemService extends BaseService{
         }
     }
 
-    #handleReadFileRequest({ path, respond }) {
 
-        if (path == '/var/remote/USERSPACE/PS1') {
-            respond({ contents: '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}'});
-        } else if (path === '/var/local/ENV/USER') {
-            respond({ contents: 'guest' });
-        } else if (path === '/var/session/ENV/HOST') {
-            respond({ contents: 'localhost' });
-        } else if (path === '/var/session/ENV/PWD') {
-            respond({ contents: '/' });
-        } else if (path === '/var/remote/SYSTEM/THEME') {
-            respond({ contents: 'yellow' });
-        } else if (path === '/var/session/ENV/UUID') {
-            respond({ contents: '00000000-0000-0000-0000-000000000000' });
-        } else if (path === '/var/session/ENV/HOME') {
-            respond({ contents: '/home/guest' });
-        } else if (path === '/var/remote/SYSTEM/ALIAS') {
-            respond({ contents: '{"cd": "cd .."}'});
-        } else if (path === '/home/guest/.nnoitra_history') {
-            respond({contents: 'A\nB\nC\nD\nE\nF'});
-        } else if (path === '/var/remote/SYSTEM/HISTSIZE') {
-            respond({contents: '10'});
-        } else if (path === '/var/local/ENV/TOKEN') {
-            respond({contents: ''});
-        } else if (path === '/var/session/ENV/TEST') {
-            respond({contents: '123'});
-        } else {
-        this.log.warn(`Dummy handling FS_READ_FILE_REQUEST for path: ${path}`);
-        const dummyContent = `This is dummy content for the file at ${path}.`;
-        respond({ contents: dummyContent });
-        }
-    }
 
-    #handleWriteFile({ path, content, respond }) {
-        this.log.warn(`Dummy handling FS_WRITE_FILE_REQUEST for path: ${path} with content: ${content}`);
-    }
+
 
     #handleGetDirectoryContents({ path, respond }) {
         this.log.warn(`Dummy handling FS_GET_DIRECTORY_CONTENTS_REQUEST for path: ${path}`);
@@ -440,9 +442,21 @@ class FilesystemService extends BaseService{
         respond({ contents: dummyContents });
     }
 
-    #handleMakeDirectory({ path, respond }) {
-        this.log.warn(`Dummy handling FS_MAKE_DIRECTORY_REQUEST for path: ${path}`);
-        respond({ success: true });
+    async #handleMakeDirectory({ path, respond }) {
+        try {
+            // The #createDir function handles recursive creation, ensuring all
+            // parent directories in the path are created if they don't exist.
+            // We start the process from the absolute root of the filesystem.
+            await this.#createDir({
+                device: this.#root.DEVICE,
+                id: this.#root.ID,
+                path: path
+            });
+            respond({ success: true });
+        } catch (error) {
+            this.log.error(`Failed to create directory '${path}':`, error);
+            respond({ error });
+        }
     }
 
     #handleDeleteFile({ path, respond }) {

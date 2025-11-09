@@ -18,28 +18,29 @@
 
 /**
  * Normalizes a path, resolving '..' and '.' segments and removing multiple slashes.
+ * It returns an array of path components. For absolute paths, the first element
+ * will be an empty string to represent the root.
  * @param {string} path - The path to normalize.
- * @returns {string} The normalized, absolute path.
+ * @returns {string[]} The normalized path as an array of components.
  */
 export function normalizePath(path) {
-    if (!path) return '/';
+    // Assumes path is always absolute. An empty path or '/' resolves to an empty array, representing the root.
+    if (!path || path === '/') return [];
 
-    const parts = path.split('/');
+    // Since it's an absolute path, the first part after split is always '', so we skip it.
+    const parts = path.split('/').slice(1);
     const stack = [];
 
     for (const part of parts) {
         if (part === '..') {
-            // If stack is not empty, pop. This handles going up a directory.
-            if (stack.length > 0) {
-                stack.pop();
-            }
+            // For an absolute path, '..' at the root does nothing.
+            if (stack.length > 0) stack.pop();
         } else if (part !== '.' && part !== '') {
-            // Ignore '.' and empty parts (from multiple slashes), push others.
             stack.push(part);
         }
     }
 
-    return '/' + stack.join('/');
+    return stack;
 }
 
 /**
@@ -52,17 +53,13 @@ export function normalizePath(path) {
 export function resolvePath(path, pwd, home) {
     if (!path) return pwd;
 
-    let effectivePath;
-
-    if (path === '~') {
-        effectivePath = home;
-    } else if (path.startsWith('~/')) {
-        effectivePath = `${home}${path.substring(1)}`;
-    } else if (path.startsWith('/')) {
-        effectivePath = path;
-    } else {
-        effectivePath = `${pwd === '/' ? '' : pwd}/${path}`;
+    // Handle tilde expansion for home directory.
+    if (path.startsWith('~')) {
+        path = home + path.substring(1);
     }
 
-    return normalizePath(effectivePath);
+    // If the path is not absolute, prepend the current working directory.
+    const effectivePath = path.startsWith('/') ? path : `${pwd === '/' ? '' : pwd}/${path}`;
+
+    return '/' + normalizePath(effectivePath).join('/');
 }

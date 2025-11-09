@@ -111,6 +111,14 @@ export class ServiceApiManager {
         return response.path;
     }
 
+    async makeDirectory(path) {
+        const response = await this.#eventBus.request(EVENTS.FS_MAKE_DIRECTORY_REQUEST, { path });
+        if (response.error) {
+            throw new Error(response.error.message || 'Failed to create directory.');
+        }
+        return response.success;
+    }
+
     async getTree() {
         const response = await this.#eventBus.request(EVENTS.FS_GET_TREE_REQUEST, {});
         if (response.error) {

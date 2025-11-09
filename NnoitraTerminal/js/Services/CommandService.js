@@ -45,6 +45,7 @@ import { Theme } from '../Commands/theme.js';
 import { Version } from '../Commands/version.js';
 import { Date } from '../Commands/date.js';
 import { Cal } from '../Commands/cal.js';
+import { Mkdir } from '../Commands/mkdir.js';
 import { Tree } from '../Commands/tree.js';
 
 /**
@@ -95,6 +96,7 @@ class CommandService extends BaseService{
         this.register('version', Version, []);
         this.register('date', Date, []);
         this.register('cal', Cal, []);
+        this.register('mkdir', Mkdir, ['makeDirectory', 'getDirectoryContents']);
         this.register('tree', Tree, ['getTree']);
     }
 

@@ -33,7 +33,7 @@ export class Mutex {
      */
     async acquire(key, explicitLockId) {
         const queue = this.#operationQueues.get(key);
-
+        console.warn(key, explicitLockId);
         if (explicitLockId) {
             if (queue?.lockId && queue.lockId === explicitLockId) {
                 // The correct lock is already held, grant access without waiting.
@@ -43,6 +43,7 @@ export class Mutex {
                 throw new Error(`Invalid lock ID '${explicitLockId}' for operation on '${key}'. Current lock is '${queue?.lockId}'.`);
             }
         } else {
+            console.warn('Acquiring lock for key');
             // No explicit lockId, so queue for a new lock.
             let newGateResolver;
             const newGatePromise = new Promise(resolve => { newGateResolver = resolve; });

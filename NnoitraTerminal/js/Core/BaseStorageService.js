@@ -66,7 +66,7 @@ class BaseStorageService extends BaseService {
         let lockId;
 
         try {
-            
+            console.warn(api, key, explicitLockId);
             lockId = await this.#mutex.acquire(key, explicitLockId);
 
             if (api === STORAGE_APIS.GET_NODE) {
