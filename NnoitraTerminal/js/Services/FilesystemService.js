@@ -157,50 +157,32 @@ class FilesystemService extends BaseService {
      * @private
      */
     async #_createNodeRecursive({ device, id, path, createNodeFn }) {
-        if (!path || !path.startsWith('/')) {
-            throw new Error(`_createNodeRecursive expects an absolute path. Received: "${path}"`);
-        }
         const rootUUID = '00000000-0000-0000-0000-000000000000';
-        console.warn('XXX',{ device, id, path, createNodeFn });
-        // Ensure the root directory for this device/id exists.
-        const { result: rootNode } = await this.request(device[0], {
-            storageName: device[1],
-            api: STORAGE_APIS.GET_NODE,
-            data: { key: rootUUID, id },
-        });
-
-        if (!rootNode) {
-            this.log.log(`Root UUID for device ID ${id} not found. Creating it.`);
-            const newRootDir = { meta: { type: 'directory' }, content: [] };
-            await this.request(device[0], {
-                storageName: device[1],
-                api: STORAGE_APIS.SET_NODE,
-                data: { key: rootUUID, node: newRootDir, id },
-            });
-        }
 
         const parts = normalizePath(path);
-        if (parts.length === 0) return rootUUID; // Path is just '/', which already exists.
 
-        let parentUUID = rootUUID;
+        const traverse = async (currentDevice, currentId, parentUUID, remainingParts) => {
+            // Base case: If there are no more parts, we have successfully found or created the parent directory.
+            if (remainingParts.length === 0) {
+                return parentUUID;
+            }
 
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            const isLastPart = i === parts.length - 1;
-            let childUUID;
+            const [part, ...nextRemainingParts] = remainingParts;
+            const isLastPart = nextRemainingParts.length === 0;
             let lockId;
 
             try {
-                ({ result: { lockId } } = await this.request(device[0], {
-                    storageName: device[1],
+                // Lock the parent node before reading and potentially modifying it.
+                ({ result: { lockId } } = await this.request(currentDevice[0], {
+                    storageName: currentDevice[1],
                     api: STORAGE_APIS.LOCK_NODE,
-                    data: { key: parentUUID, id },
+                    data: { key: parentUUID, id: currentId },
                 }));
 
-                const { result: parentNode } = await this.request(device[0], {
-                    storageName: device[1],
+                const { result: parentNode } = await this.request(currentDevice[0], {
+                    storageName: currentDevice[1],
                     api: STORAGE_APIS.GET_NODE,
-                    data: { key: parentUUID, lockId, id },
+                    data: { key: parentUUID, lockId, id: currentId },
                 });
 
                 if (!parentNode || parentNode.meta.type !== 'directory') throw new Error(`Cannot create node: Parent path is not a directory.`);
@@ -208,45 +190,54 @@ class FilesystemService extends BaseService {
                 const childEntry = parentNode.content.find(entry => entry.name === part);
 
                 if (childEntry) {
-                    const { result: childNode } = await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.GET_NODE, data: { key: childEntry.uuid, id } });
+                    const { result: childNode } = await this.request(currentDevice[0], { storageName: currentDevice[1], api: STORAGE_APIS.GET_NODE, data: { key: childEntry.uuid, id: currentId } });
                     
-                    // If we encounter a mount point, we need to switch our context
-                    // to the new device and continue from there.
                     if (childNode.meta.type === 'mount') {
-                        // IMPORTANT: We must release the lock on the current parent
-                        // before we continue the loop with a new device context.
+                        // Release the lock on the current parent before recursing into the new device context.
                         if (lockId) {
-                            await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.UNLOCK_NODE, data: { key: parentUUID, lockId, id }});
-                            lockId = null; // Prevent the finally block from trying to unlock it again.
+                            await this.request(currentDevice[0], { storageName: currentDevice[1], api: STORAGE_APIS.UNLOCK_NODE, data: { key: parentUUID, lockId, id: currentId }});
+                            lockId = null;
                         }
-                        device = childNode.meta.targetDevice;
-                        id = childNode.meta.targetId;
-                        parentUUID = childNode.meta.targetUUID;
-                        // Since we've switched to a new root, we need to re-evaluate the next part
-                        // in the context of this new root. We can do this by just continuing the loop.
-                        continue;
+                        // Continue traversal from the mount point's target with the remaining path parts.
+                        return await traverse(childNode.meta.targetDevice, childNode.meta.targetId, childNode.meta.targetUUID, nextRemainingParts);
                     } else if (childNode.meta.type !== 'directory' && !isLastPart) throw new Error(`Path conflict: '${part}' exists and is not a directory.`);
                     
-                    // If this is the last part of the path and it already exists, it's an error condition (e.g., mkdir on existing dir).
                     if (isLastPart) throw new Error(`Cannot create '${part}': File or directory already exists`);
 
-                    childUUID = childEntry.uuid;
+                    // If it's a directory and not the last part, recurse into it.
+                    return await traverse(currentDevice, currentId, childEntry.uuid, nextRemainingParts);
                 } else {
-                    childUUID = crypto.randomUUID();
+                    // Child does not exist, so we create it.
+                    const childUUID = crypto.randomUUID();
                     const newNode = isLastPart ? createNodeFn() : { meta: { type: 'directory' }, content: [] };
 
-                    await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.SET_NODE, data: { key: childUUID, node: newNode, id } });
+                    await this.request(currentDevice[0], { storageName: currentDevice[1], api: STORAGE_APIS.SET_NODE, data: { key: childUUID, node: newNode, id: currentId } });
                     parentNode.content.push({ name: part, uuid: childUUID });
-                    await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.SET_NODE, data: { key: parentUUID, node: parentNode, lockId, id } });
+                    await this.request(currentDevice[0], { storageName: currentDevice[1], api: STORAGE_APIS.SET_NODE, data: { key: parentUUID, node: parentNode, lockId, id: currentId } });
+
+                    // If it was the last part, we're done. Return the new UUID.
+                    if (isLastPart) return childUUID;
+
+                    // Otherwise, continue creating the rest of the path from the newly created directory.
+                    return await traverse(currentDevice, currentId, childUUID, nextRemainingParts);
                 }
             } finally {
                 if (lockId) {
-                    await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.UNLOCK_NODE, data: { key: parentUUID, lockId, id }});
+                    await this.request(currentDevice[0], { storageName: currentDevice[1], api: STORAGE_APIS.UNLOCK_NODE, data: { key: parentUUID, lockId, id: currentId }});
                 }
             }
-            parentUUID = childUUID;
+        };
+
+        // Ensure the root directory for the initial device exists before starting traversal.
+        const { result: rootNode } = await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.GET_NODE, data: { key: rootUUID, id } });
+        if (!rootNode) {
+            this.log.log(`Root UUID for device ID ${id} not found. Creating it.`);
+            const newRootDir = { meta: { type: 'directory' }, content: [] };
+            await this.request(device[0], { storageName: device[1], api: STORAGE_APIS.SET_NODE, data: { key: rootUUID, node: newRootDir, id } });
         }
-        return parentUUID;
+
+        // Start the recursive traversal from the root.
+        return await traverse(device, id, rootUUID, parts);
     }
     
     async #createMount({ device, id, path, mountPointDevice, mountPointId, mountPointUUID }) {
