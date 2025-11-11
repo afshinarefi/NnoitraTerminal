@@ -174,7 +174,16 @@ class FilesystemService extends BaseService {
 
     async #traverse (currentDevice, currentId, parentUUID, remainingParts, createNodeFn) {
         // Base case: If there are no more parts, we have successfully found or created the parent directory.
+        // We must also check if the final resolved node is a mount point and return its target instead.
         if (remainingParts.length === 0) {
+            const finalNode = await this.#getNode(currentDevice, currentId, parentUUID);
+            if (finalNode && finalNode.meta.type === 'mount') {
+                return {
+                    parentUUID: finalNode.meta.targetUUID,
+                    device: finalNode.meta.targetDevice,
+                    id: finalNode.meta.targetId
+                };
+            }
             return {
                 parentUUID,
                 device: currentDevice,
@@ -197,8 +206,17 @@ class FilesystemService extends BaseService {
             if (childEntry) {
                 
                 if (isLastPart) {
-                    // The final directory in the path already exists. This is a success case.
-                    // We just need to return its information.
+                    // The final part of the path exists. Check if it's a mount point.
+                    const childNode = await this.#getNode(currentDevice, currentId, childEntry.uuid);
+                    if (childNode && childNode.meta.type === 'mount') {
+                        // It's a mount point, return the target's info.
+                        return {
+                            parentUUID: childNode.meta.targetUUID,
+                            device: childNode.meta.targetDevice,
+                            id: childNode.meta.targetId
+                        };
+                    }
+                    // It's not a mount point (likely a directory), return its info.
                     return {
                         parentUUID: childEntry.uuid,
                         device: currentDevice,
@@ -271,7 +289,7 @@ class FilesystemService extends BaseService {
             path: parentPath,
             createNodeFn: () => ({ meta: { type: 'directory' }, content: [] }) // This part only runs if a segment needs creation
         });
-
+        console.warn(parentUUID, parentPath);
         let lockId;
         try {
             // 3. Lock the parent directory to safely check for the file and update it.
@@ -419,7 +437,7 @@ class FilesystemService extends BaseService {
         } else if (path === '/var/session/ENV/PWD') {
             respond({ contents: '/' });
             return;
-        } else if (path === '/var/remote/SYSTEM/THEME') {
+        } else if (path === '/var/remote/SYSTEM/THEME2') {
             respond({ contents: 'yellow' });
             return;
         } else if (path === '/var/session/ENV/UUID') {
@@ -431,7 +449,7 @@ class FilesystemService extends BaseService {
         } else if (path === '/var/remote/SYSTEM/ALIAS') {
             respond({ contents: '{"cd": "cd .."}'});
             return;
-        } else if (path === '/home/guest/.nnoitra_history') {
+        } else if (path === '/home/guest/.nnoitra_history2') {
             respond({contents: 'A\nB\nC\nD\nE\nF'});
             return;
         } else if (path === '/var/remote/SYSTEM/HISTSIZE') {
@@ -455,16 +473,14 @@ class FilesystemService extends BaseService {
     }
 
     async #handleWriteFileRequest({ path, content, respond }) {
-        return;
+        console.warn({ path, content, respond });
         try {
             await this.#writeFile({
                 path,
                 content
             });
-            respond({ success: true });
         } catch (error) {
             this.log.error(`Failed to write file '${path}':`, error);
-            respond({ error });
         }
     }
 

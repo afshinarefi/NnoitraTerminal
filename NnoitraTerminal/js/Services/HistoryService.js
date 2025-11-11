@@ -20,7 +20,7 @@ import { ENV_VARS } from '../Core/Variables.js';
 import { BaseService } from '../Core/BaseService.js';
 
 const DEFAULT_HISTSIZE = '1000';
-const HISTORY_FILE = 'nnoitra_history';
+const HISTORY_FILE = '.nnoitra_history';
 
 /**
  * @class HistoryBusService
@@ -108,7 +108,7 @@ class HistoryService extends BaseService{
         }
 
         // Write the updated history back to the file
-        await this.request(EVENTS.FS_WRITE_FILE_REQUEST, { path: historyFilePath, content: history.join('\n') });
+        this.dispatch(EVENTS.FS_WRITE_FILE_REQUEST, { path: historyFilePath, content: history.join('\n') });
 
         this.resetCursor();
     }
