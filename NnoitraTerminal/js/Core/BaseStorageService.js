@@ -60,14 +60,14 @@ class BaseStorageService extends BaseService {
     async #handleStorageApiRequest({ storageName, api, data, respond }) {
         if (storageName !== this.constructor.STORAGE_NAME) return;
 
-        const { key, lockId: explicitLockId } = data;
+        const { key, id, lockId: explicitLockId } = data;
         if (!key) throw new Error(`A 'key' must be provided for any storage operation. API: ${api}`);
+        const mutexKey = `${id}:${key}`;
         let result;
         let lockId;
 
         try {
-            console.warn(api, key, explicitLockId);
-            lockId = await this.#mutex.acquire(key, explicitLockId);
+            lockId = await this.#mutex.acquire(mutexKey, explicitLockId);
 
             if (api === STORAGE_APIS.GET_NODE) {
                 result = await this.getNode(data);
@@ -83,7 +83,7 @@ class BaseStorageService extends BaseService {
         } finally {
             // Release the lock if it was an explicit unlock, OR if it was an implicit lock for a single operation.
             if ((api === STORAGE_APIS.UNLOCK_NODE) || (lockId && !explicitLockId && api !== STORAGE_APIS.LOCK_NODE)) {
-                this.#mutex.release(key, lockId);
+                this.#mutex.release(mutexKey, lockId);
             }
         }
         respond({ result });

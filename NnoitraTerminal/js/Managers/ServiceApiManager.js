@@ -91,7 +91,7 @@ export class ServiceApiManager {
     }
 
     async getFileContents(path) {
-        const response = await this.#eventBus.request(EVENTS.FS_GET_FILE_CONTENTS_REQUEST, { path });
+        const response = await this.#eventBus.request(EVENTS.FS_READ_FILE_REQUEST, { path });
         if (response.error) {
             throw new Error(response.error.message || 'Failed to get file contents.');
         }

@@ -24,19 +24,20 @@
  */
 const ACTIVE_LOG_CATEGORIES = new Map([
     // --- Services ---
-    ['EventBus', true],
-    ['EnvironmentService', true],
-    ['AccountingService', true],
-    ['CommandService', true],
-    ['FilesystemService', true],
-    ['HistoryService', true],
-    ['HintService', true],
-    ['InputService', true],
-    ['TerminalService', true],
-    ['ThemeService', true],
-    ['FaviconService', true],
-    ['LocalStorageService', true],
-    ['AutocompleteService', true],
+    ['EventBus', false],
+    ['EnvironmentService', false],
+    ['AccountingService', false],
+    ['CommandService', false],
+    ['FilesystemService', false],
+    ['HistoryService', false],
+    ['HintService', false],
+    ['InputService', false],
+    ['TerminalService', false],
+    ['ThemeService', false],
+    ['FaviconService', false],
+    ['LocalStorageService', false],
+    ['AutocompleteService', false],
+    ['SessionStorageService', true],
     // --- Components ---
     ['TerminalPrompt', false],
     ['TerminalSymbol', false],
@@ -50,9 +51,9 @@ const ACTIVE_LOG_CATEGORIES = new Map([
     ['cat', false],
     ['env', true],
     ['history', false],
-    ['history', true],
-    ['cd', true],
-    ['view', true],
+    ['history', false],
+    ['cd', false],
+    ['view', false],
 ]);
 
 const noop = () => {}; // The no-operation function.

@@ -32,7 +32,6 @@ class BaseService {
         }
         this.#eventBus = eventBus;
         this.#log = createLogger(this.constructor.name);
-        this.log.log('Initializing...');
     }
 
     /**
