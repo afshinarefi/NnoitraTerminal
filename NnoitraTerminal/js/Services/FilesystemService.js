@@ -19,7 +19,7 @@ import { ENV_VARS } from '../Core/Variables.js';
 import { EVENTS } from '../Core/Events.js';
 import { STORAGE_APIS } from '../Core/StorageApis.js';
 import { BaseService } from '../Core/BaseService.js';
-import { normalizePath } from '../Utils/PathUtil.js';
+import { normalizePath, resolvePath } from '../Utils/PathUtil.js';
 
 const DEFAULT_PWD = '/';
 
@@ -451,8 +451,13 @@ class FilesystemService extends BaseService {
 
     async #handleGetDirectoryContents({ path, respond }) {
         try {
+            const [pwd, home] = await Promise.all([
+                this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD, category: 'TEMP' }),
+                this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HOME, category: 'TEMP' })
+            ]);
+            const resolvedPath = resolvePath(path, pwd.value, home.value);
             const { parentUUID, device, id } = await this.#_createNodeRecursive({
-                path: path,
+                path: resolvedPath,
                 createNodeFn: () => { throw new Error('Directory not found.'); }
             });
             const node = await this.#getNode(device, id, parentUUID);
@@ -535,12 +540,22 @@ class FilesystemService extends BaseService {
 
     async #handleChangeDirectory({ path, respond }) {
         try {
+            const [pwd, home] = await Promise.all([
+                this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.PWD, category: 'TEMP' }),
+                this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HOME, category: 'TEMP' })
+            ]);
+
+            // Resolve the potentially relative path to an absolute one.
+            const resolvedPath = resolvePath(path, pwd.value, home.value);
+
             const { parentUUID } = await this.#_createNodeRecursive({
-                path,
+                path: resolvedPath,
                 createNodeFn: () => { throw new Error('Directory not found.'); }
             });
+
             // A successful resolution means the directory exists.
-            this.dispatch(EVENTS.VAR_SET_REQUEST, { key: ENV_VARS.PWD, value: path, category: 'TEMP' });
+            // Always store the absolute path in the PWD variable.
+            this.dispatch(EVENTS.VAR_SET_REQUEST, { key: ENV_VARS.PWD, value: resolvedPath, category: 'TEMP' });
             respond({ success: true });
         } catch (error) {
             respond({ error });

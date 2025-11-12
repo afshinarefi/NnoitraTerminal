@@ -20,7 +20,7 @@ import { ENV_VARS } from '../Core/Variables.js';
 import { BaseService } from '../Core/BaseService.js';
 
 const DEFAULT_HISTSIZE = '1000';
-const HISTORY_FILE = '.nnoitra_history';
+const HISTORY_FILE = '.history';
 
 /**
  * @class HistoryBusService
