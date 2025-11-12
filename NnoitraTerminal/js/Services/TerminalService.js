@@ -58,7 +58,8 @@ class TerminalService extends BaseService{
             [EVENTS.VAR_UPDATE_DEFAULT_REQUEST]: this.#handleUpdateDefaultRequest.bind(this),
             [EVENTS.CLEAR_SCREEN_REQUEST]: this.#handleClear.bind(this),
             [EVENTS.UI_SCROLL_TO_BOTTOM_REQUEST]: this.#handleScrollToBottom.bind(this),
-            [EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST]: this.#runCommandLoop.bind(this)
+            [EVENTS.COMMAND_EXECUTION_FINISHED_BROADCAST]: this.#runCommandLoop.bind(this),
+            [EVENTS.GET_UUID_REQUEST]: this.#handleGetUUIDRequest.bind(this)
         };
     }
 
@@ -89,11 +90,12 @@ class TerminalService extends BaseService{
             case ENV_VARS.HOST:
                 respond({ value: DEFAULT_HOST });
                 break;
-            case ENV_VARS.UUID:
-                const uuid = this.#view?.getAttribute('uuid') || DEFAULT_UUID;
-                respond({ value: uuid });
-                break;
         }
+    }
+
+    #handleGetUUIDRequest({ respond }) {
+        const uuid = this.#view?.getAttribute('uuid') || DEFAULT_UUID;
+        respond({ value: uuid });
     }
 
     #formatHeader(vars) {

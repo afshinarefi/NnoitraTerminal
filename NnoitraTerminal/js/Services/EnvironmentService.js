@@ -71,11 +71,13 @@ class EnvironmentService extends BaseService{
             return;
         }
         const filePath = `${basePath}/${upperKey}`;
+        this.log.log(filePath);
 
-        try {
-            const { contents } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: filePath });
+        const { contents, error } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: filePath });
+
+        if (!error && contents !== undefined) {
             respond({ value: contents });
-        } catch (error) {
+        } else {
             this.log.log(`Variable file "${filePath}" not found, requesting default value.`);
             const { value } = await this.request(EVENTS.VAR_UPDATE_DEFAULT_REQUEST, { key: upperKey });
             if (value !== undefined) {
@@ -128,7 +130,7 @@ class EnvironmentService extends BaseService{
         for (const [category, path] of Object.entries(this.#categoryPaths)) {
             try {
                 const { contents } = await this.request(EVENTS.FS_GET_DIRECTORY_CONTENTS_REQUEST, { path });
-                console.warn('XXX', contents);
+                console.warn('XYZ', contents, path);
                 for (const file of contents.files) {
                     const { contents: fileContent } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: `${path}/${file.name}` });
                     categorized[category][file.name.toUpperCase()] = fileContent;

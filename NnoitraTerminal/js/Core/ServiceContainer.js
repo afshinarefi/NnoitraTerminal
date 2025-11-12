@@ -55,8 +55,8 @@ export class ServiceContainer {
             media: MediaService.create(bus),
             environment: EnvironmentService.create(bus),
             filesystem: FilesystemService.create(bus, { apiUrl: config.filesystemApi }),
-            sessionStorage: SessionStorageService.create(bus)
-            //localStorage: LocalStorageService.create(bus),
+            sessionStorage: SessionStorageService.create(bus),
+            localStorage: LocalStorageService.create(bus),
             //remoteStorage: RemoteStorageService.create(bus)
         };
     }

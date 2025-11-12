@@ -73,6 +73,9 @@ export const EVENTS = {
     SET_THEME_REQUEST: 'set-theme-request',
     GET_VALID_THEMES_REQUEST: 'get-valid-themes-request',
     MEDIA_REQUEST: 'media-request',
+    
+    // Terminal
+    GET_UUID_REQUEST: 'get-uuid-request',
 
     // Filesystem
     FS_CHANGE_DIRECTORY_REQUEST: 'fs-change-directory-request',

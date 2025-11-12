@@ -85,10 +85,10 @@ class HistoryService extends BaseService{
         const historyFilePath = `${home}/${HISTORY_FILE}`;
 
         let history = [];
-        try {
-            const { contents } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: historyFilePath });
+        const { contents, error } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: historyFilePath });
+        if (!error && contents) {
             history = contents.split('\n').filter(line => line.trim() !== '');
-        } catch (error) {
+        } else {
             // File probably doesn't exist, which is fine. We'll create it.
             this.log.log(`History file not found at ${historyFilePath}. A new one will be created.`);
         }
@@ -167,7 +167,8 @@ class HistoryService extends BaseService{
         const { value: home } = await this.request(EVENTS.VAR_GET_REQUEST, { key: ENV_VARS.HOME, category: 'TEMP' });
         const historyFilePath = `${home}/${HISTORY_FILE}`;
         try {
-            const { contents } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: historyFilePath });
+            const { contents, error } = await this.request(EVENTS.FS_READ_FILE_REQUEST, { path: historyFilePath });
+            if (error || contents === undefined) throw new Error(error?.message || 'File content is undefined.');
             return contents.split('\n').filter(line => line.trim() !== '');
         } catch (error) {
             this.log.warn(`Could not load history file: ${error.message}`);

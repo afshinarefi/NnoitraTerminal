@@ -34,7 +34,7 @@ const DEFAULT_PWD = '/';
 class FilesystemService extends BaseService {
     #storageServices = {
         SESSION: [EVENTS.STORAGE_API_REQUEST,'SESSION'],
-        LOCAL: [EVENTS.STORAGE_API_REQUEST,'SESSION'],
+        LOCAL: [EVENTS.STORAGE_API_REQUEST,'LOCAL'],
         REMOTE: [EVENTS.STORAGE_API_REQUEST, 'SESSION']
     };
 
@@ -104,6 +104,7 @@ class FilesystemService extends BaseService {
 
         for (const path of mountPaths) {
             const mountInfo = this.#baseMounts[path];
+            console.warn('YYY', path);
             // #createMount is recursive and will create any necessary parent directories.
             // We start the creation process from the absolute root of the filesystem.
             await this.#createMount({
@@ -344,10 +345,12 @@ class FilesystemService extends BaseService {
 
     async #createMount({ path, mountPointDevice, mountPointId, mountPointUUID }) {
         // Ensure the target directory for the mount point exists on the target device.
+        console.warn('XXX', { path, mountPointDevice, mountPointId, mountPointUUID });
         const targetNode = await this.#getNode(mountPointDevice, mountPointId, mountPointUUID);
 
         // If the target directory doesn't exist, create it.
         if (!targetNode) {
+            
             this.log.log(`Mount target UUID ${mountPointUUID} for device ID ${mountPointId} not found. Creating it.`);
             const newRootDir = { meta: { type: 'directory' }, content: [] };
             await this.#setNode(mountPointDevice, mountPointId, mountPointUUID, newRootDir);
@@ -425,44 +428,6 @@ class FilesystemService extends BaseService {
     }
 
     async #handleReadFileRequest({ path, respond }) {
-        if (path == '/var/remote/USERSPACE/PS1') {
-            respond({ contents: '[{year}-{month}-{day} {hour}:{minute}:{second}] {user}@{host}:{path}'});
-            return;
-        } else if (path === '/var/local/ENV/USER') {
-            respond({ contents: 'guest' });
-            return;
-        } else if (path === '/var/session/ENV/HOST') {
-            respond({ contents: 'localhost' });
-            return;
-        } else if (path === '/var/session/ENV/PWD') {
-            respond({ contents: '/' });
-            return;
-        } else if (path === '/var/remote/SYSTEM/THEME2') {
-            respond({ contents: 'yellow' });
-            return;
-        } else if (path === '/var/session/ENV/UUID') {
-            respond({ contents: '00000000-0000-0000-0000-000000000000' });
-            return;
-        } else if (path === '/var/session/ENV/HOME') {
-            respond({ contents: '/home/guest' });
-            return;
-        } else if (path === '/var/remote/SYSTEM/ALIAS') {
-            respond({ contents: '{"cd": "cd .."}'});
-            return;
-        } else if (path === '/home/guest/.nnoitra_history2') {
-            respond({contents: 'A\nB\nC\nD\nE\nF'});
-            return;
-        } else if (path === '/var/remote/SYSTEM/HISTSIZE') {
-            respond({contents: '10'});
-            return;
-        } else if (path === '/var/local/ENV/TOKEN') {
-            respond({contents: ''});
-            return;
-        } else if (path === '/var/session/ENV/TEST') {
-            respond({contents: '123'});
-            return;
-        }
-
         try {
             const contents = await this.#readFile({ path });
             respond({ contents });
@@ -491,13 +456,25 @@ class FilesystemService extends BaseService {
                 createNodeFn: () => { throw new Error('Directory not found.'); }
             });
             const node = await this.#getNode(device, id, parentUUID);
-            if (!node || node.meta.type !== 'directory') {
+
+            if (!node || (node.meta.type !== 'directory' && node.meta.type !== 'mount')) {
                 throw new Error('Path is not a directory.');
             }
-            const contents = {
-                directories: node.content.filter(c => c.type === 'directory'),
-                files: node.content.filter(c => c.type === 'file'),
-            };
+
+            const childEntries = node.content || [];
+            const directories = [];
+            const files = [];
+
+            for (const entry of childEntries) {
+                const childNode = await this.#getNode(device, id, entry.uuid);
+                if (childNode.meta.type === 'directory' || childNode.meta.type === 'mount') {
+                    directories.push({ name: entry.name });
+                } else if (childNode.meta.type === 'file') {
+                    files.push({ name: entry.name, size: childNode.content?.length || 0 });
+                }
+            }
+
+            const contents = { directories, files };
             respond({ contents });
         } catch (error) {
             this.log.error(`Failed to get directory contents for '${path}':`, error);

@@ -37,8 +37,8 @@ class LocalStorageService extends BaseStorageService {
      * @param {string} data.key - The key (path) of the node.
      * @returns {Promise<object|undefined>} The node object or undefined if not found.
      */
-    async getNode({ key }) {
-        const physicalKey = await this.#getPhysicalKey(key);
+    async getNode({ key, id }) {
+        const physicalKey = await this.#getPhysicalKey(key, id);
         const storedValue = localStorage.getItem(physicalKey);
         if (storedValue === null) {
             return undefined;
@@ -57,8 +57,9 @@ class LocalStorageService extends BaseStorageService {
      * @param {string} data.key - The key (path) of the node.
      * @param {object} data.node - The node object to store.
      */
-    async setNode({ key, node }) {
-        const physicalKey = await this.#getPhysicalKey(key);
+    async setNode({ key, node, id }) {
+        console.warn('ZZZ', { key, node, id });
+        const physicalKey = await this.#getPhysicalKey(key, id);
         try {
             localStorage.setItem(physicalKey, JSON.stringify(node));
         } catch (e) {
@@ -72,8 +73,8 @@ class LocalStorageService extends BaseStorageService {
      * @param {object} data
      * @param {string} data.key - The key (path) of the node to delete.
      */
-    async deleteNode({ key }) {
-        const physicalKey = await this.#getPhysicalKey(key);
+    async deleteNode({ key, id }) {
+        const physicalKey = await this.#getPhysicalKey(key, id);
         localStorage.removeItem(physicalKey);
     }
 
@@ -83,8 +84,8 @@ class LocalStorageService extends BaseStorageService {
      * @param {string} data.key - The prefix to search for.
      * @returns {Promise<string[]>} A list of matching keys.
      */
-    async listKeysWithPrefix({ key }) {
-        const physicalPrefix = await this.#getPhysicalKey(key);
+    async listKeysWithPrefix({ key, id }) {
+        const physicalPrefix = await this.#getPhysicalKey(key, id);
         const matchingKeys = [];
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
@@ -101,9 +102,9 @@ class LocalStorageService extends BaseStorageService {
      * @param {string} logicalKey - The key provided by the consuming service.
      * @returns {Promise<string>} The physical key for localStorage.
      */
-    async #getPhysicalKey(logicalKey) {
-        const { value: uuid } = await this.request(EVENTS.VAR_GET_TEMP_REQUEST, { key: ENV_VARS.UUID });
-        return `${this.#storageKeyPrefix}_${uuid}_${logicalKey}`;
+    async #getPhysicalKey(logicalKey, id) {
+        const { value: uuid } = await this.request(EVENTS.GET_UUID_REQUEST, { key: ENV_VARS.UUID });
+        return `${this.#storageKeyPrefix}_${uuid}_${id}_${logicalKey}`;
     }
 }
 

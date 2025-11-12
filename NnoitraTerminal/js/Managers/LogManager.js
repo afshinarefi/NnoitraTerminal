@@ -25,11 +25,11 @@
 const ACTIVE_LOG_CATEGORIES = new Map([
     // --- Services ---
     ['EventBus', false],
-    ['EnvironmentService', false],
+    ['EnvironmentService', true],
     ['AccountingService', false],
     ['CommandService', false],
-    ['FilesystemService', false],
-    ['HistoryService', false],
+    ['FilesystemService', true],
+    ['HistoryService', true],
     ['HintService', false],
     ['InputService', false],
     ['TerminalService', false],
