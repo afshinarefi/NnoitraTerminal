@@ -66,16 +66,15 @@
           document.body.appendChild(testOutputContainer);
           import('/NnoitraTerminal/js/Tests/Tests.js');
       } else {
-          // Normal application startup: dynamically create and append the terminal.
-          const terminal = document.createElement('nnoitra-terminal');
-          terminal.setAttribute('autofocus', '');
-          terminal.setAttribute('uuid', '8002fa03-ea89-4b6f-a1f5-12301a28a578');
-          terminal.setAttribute('filesystem-api', '/Api/Filesystem.py');
-          terminal.setAttribute('accounting-api', '/Api/Accounting.py');
-          document.body.appendChild(terminal);
+          // Normal application startup: dynamically create and append the OS component.
+          const os = document.createElement('nnoitra-os');
+          os.setAttribute('uuid', '8002fa03-ea89-4b6f-a1f5-12301a28a578');
+          os.setAttribute('filesystem-api', '/Api/Filesystem.py');
+          os.setAttribute('accounting-api', '/Api/Accounting.py');
+          document.body.appendChild(os);
 
-          // Now import the script that defines the element.
-          import('./NnoitraTerminal/NnoitraTerminal.js');
+          // Now import the script that defines the <nnoitra-os> element.
+          import('./NnoitraOS/NnoitraOS.js');
       }
   </script>
 </body>

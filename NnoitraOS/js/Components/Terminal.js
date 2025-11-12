@@ -170,34 +170,6 @@ class Terminal extends BaseComponent {
     return this.refs['welcome-output'];
   }
 
-  /**
-   * Bootstraps the terminal by creating services, connecting views, and attaching listeners.
-   * @private
-   */
-  #bootstrap() {
-    // Read API configuration from component attributes
-    const config = {
-      filesystemApi: this.getAttribute('filesystem-api'),
-      accountingApi: this.getAttribute('accounting-api')
-    };
-
-    // 1. Create a new, independent set of services for this terminal instance.
-    const container = new ServiceContainer(config);
-    this.#services = container.services;
-
-    // 2. Connect this component's views to its dedicated services.
-    // This makes each terminal a completely sandboxed application.
-    this.#services.input.setView(this.promptView);
-    this.#services.hint.setView(this.hintView);
-    this.#services.terminal.setView(this);
-    this.#services.theme.setView(this);
-    this.#services.favicon.setView(this);
-
-    // 3. Attach UI event listeners.
-    this.#attachEventListeners();
-    log.log('Terminal bootstrapped successfully.');
-  }
-
   #loadFont(fontPath, options = {}) {
     const { weight = 'normal', style = 'normal' } = options;
     const fontUrl = fontPath;
@@ -213,6 +185,24 @@ class Terminal extends BaseComponent {
     }).catch(error => {
       this.log.error(`Failed to load font: Ubuntu Mono ${weight} ${style}`, error);
     });
+  }
+
+  /**
+   * Injects and connects the required services to the terminal's views.
+   * This method is called by the parent <nnoitra-os> component.
+   * @param {object} services - The collection of services from the ServiceContainer.
+   */
+  setServices(services) {
+    this.#services = services;
+
+    // Connect this component's views to its dedicated services.
+    this.#services.input.setView(this.promptView);
+    this.#services.hint.setView(this.hintView);
+    this.#services.terminal.setView(this);
+    this.#services.theme.setView(this);
+    this.#services.favicon.setView(this);
+
+    log.log('Terminal services connected.');
   }
 
   /**
@@ -239,9 +229,6 @@ class Terminal extends BaseComponent {
    * Sets up the ResizeObserver and initial focus.
    */
   connectedCallback() {
-    // Bootstrap services now that the component is in the DOM and attributes are available.
-    this.#bootstrap();
-
     // Initialize ResizeObserver to scroll to bottom when terminal size changes
     this.#resizeObserver = new ResizeObserver(() => {
       this.scrollToBottom();
@@ -252,13 +239,8 @@ class Terminal extends BaseComponent {
     this.#mutationObserver = new MutationObserver(() => this.scrollToBottom());
     this.#mutationObserver.observe(this.refs.terminal, { childList: true, subtree: true });
 
-    // Start all services now that the component is in the DOM and views are connected.
-    // This ensures services like TerminalService can access their views during startup.
-    Object.values(this.#services).forEach(service => {
-      if (service && typeof service.start === 'function') {
-        service.start();
-      }
-    });
+    // Attach UI event listeners.
+    this.#attachEventListeners();
   }
 
   /**

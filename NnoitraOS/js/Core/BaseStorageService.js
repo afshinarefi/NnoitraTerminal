@@ -15,9 +15,9 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import { BaseService } from '../Core/BaseService.js';
-import { EVENTS } from '../Core/Events.js';
-import { STORAGE_APIS } from '../Core/StorageApis.js';
+import { BaseService } from './BaseService.js';
+import { EVENTS } from './Events.js';
+import { STORAGE_APIS } from './StorageApis.js';
 import { Mutex } from '../Utils/MutexUtils.js';
 
 /**
@@ -91,19 +91,19 @@ class BaseStorageService extends BaseService {
 
     // --- Abstract methods to be implemented by child classes ---
 
-    async getNode({ key }) {
+    async getNode({ key, id }) {
         throw new Error(`${this.constructor.name} must implement the 'getNode' method.`);
     }
 
-    async setNode({ key, node }) {
+    async setNode({ key, node, id }) {
         throw new Error(`${this.constructor.name} must implement the 'setNode' method.`);
     }
 
-    async deleteNode({ key }) {
+    async deleteNode({ key, id }) {
         throw new Error(`${this.constructor.name} must implement the 'deleteNode' method.`);
     }
 
-    async listKeysWithPrefix({ key }) {
+    async listKeysWithPrefix({ key, id }) {
         throw new Error(`${this.constructor.name} must implement the 'listKeysWithPrefix' method.`);
     }
 

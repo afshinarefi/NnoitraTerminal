@@ -1,11 +1,11 @@
 {
-  "name": "nnoitra-terminal",
-  "version": "3.0.0",
+  "name": "nnoitra-os",
+  "version": "3.1.0",
   "type": "module",
   "scripts": {
     "clean": "rimraf dist",
-    "build": "npm run clean && parcel build NnoitraTerminal/NnoitraTerminal.js --dist-dir dist --no-source-maps --no-optimize",
-    "minify": "npx terser dist/NnoitraTerminal.js -o dist/Nnoitra.min.js -c -m --comments false",
+    "build": "npm run clean && parcel build NnoitraOS/NnoitraOS.js --dist-dir dist --no-source-maps --no-optimize",
+    "minify": "npx terser dist/NnoitraOS.js -o dist/Nnoitra.min.js -c -m --comments false",
     "release": "npm install && npm run build && npm run minify"
   },
   "devDependencies": {

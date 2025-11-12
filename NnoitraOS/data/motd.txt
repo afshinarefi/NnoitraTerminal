@@ -12,7 +12,7 @@
 |                             |
 | Welcome to my personal page |
 |                             |
-|     `Nnoitra Terminal`      |
+|        `Nnoitra OS`         |
 |                             |
 | Use `help` to see a list of |
 |    commands you can use     |
